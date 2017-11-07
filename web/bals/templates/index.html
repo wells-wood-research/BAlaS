@@ -16,9 +16,9 @@
     var node = document.getElementById('main');
     var app = Elm.Main.embed(node);
 
+    // This port handles collecting information from selected files
+    // and sending it through to the Elm app.
     app.ports.requestPDBFile.subscribe(function() {
-        // This seems to be an array, so multiple files could be
-        // uploaded?
         var fileToLoad = document.getElementById("pdbFileToLoad").files[0];
         var fileReader = new FileReader();
         fileReader.onload = function(fileLoadedEvent) {

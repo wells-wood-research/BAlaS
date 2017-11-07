@@ -1,5 +1,9 @@
 port module Main exposing (..)
 
+{-| This module provides the main entry point to the BALS web application
+front end.
+-}
+
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -78,7 +82,6 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     div []
-        [ text "Hello there!"
-        , input [ type_ "file", id "pdbFileToLoad" ] []
+        [ input [ type_ "file", id "pdbFileToLoad" ] []
         , button [ onClick GetInputPDB ] [ text "Upload" ]
         ]
