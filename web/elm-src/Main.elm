@@ -1,9 +1,11 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Html exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events exposing (..)
 
 
-main : Program Never Model msg
+main : Program Never Model Msg
 main =
     program
         { init = init
@@ -35,9 +37,22 @@ init =
 -- Update
 
 
-update : msg -> Model -> ( Model, Cmd msg )
+type Msg
+    = GetInputPDB
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    model ! []
+    case msg of
+        GetInputPDB ->
+            model ! [ requestPDBFile () ]
+
+
+
+-- Ports
+
+
+port requestPDBFile : () -> Cmd msg
 
 
 
@@ -53,7 +68,10 @@ subscriptions _ =
 -- View
 
 
-view : Model -> Html msg
+view : Model -> Html Msg
 view model =
     div []
-        [ text "Hello there!" ]
+        [ text "Hello there!"
+        , input [ type_ "file", id "pdbFileToLoad" ] []
+        , button [ onClick GetInputPDB ] [ text "Upload" ]
+        ]

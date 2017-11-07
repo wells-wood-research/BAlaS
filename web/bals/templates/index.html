@@ -15,6 +15,21 @@
 <script type="text/javascript">
     var node = document.getElementById('main');
     var app = Elm.Main.embed(node);
+
+    app.ports.requestPDBFile.subscribe(function() {
+        console.log('I hear ya!');
+        // This seems to be an array, so multiple files could be
+        // uploaded?
+        var fileToLoad = document.getElementById("pdbFileToLoad").files[0];
+
+        var fileReader = new FileReader();
+        fileReader.onload = function(fileLoadedEvent){
+            var textFromFileLoaded = fileLoadedEvent.target.result;
+            console.log(textFromFileLoaded);
+        };
+
+        fileReader.readAsText(fileToLoad, "UTF-8");
+    });
 </script>
 </html>
 </html>
