@@ -1,0 +1,4 @@
+pypandoc
+scipy
+isambard
+flask
