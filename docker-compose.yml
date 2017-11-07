@@ -1,0 +1,11 @@
+version: '2'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: ./web/Dockerfile
+    ports:
+      - "2802:80"
+    volumes:
+      - ./web:/app
+    restart: on-failure
