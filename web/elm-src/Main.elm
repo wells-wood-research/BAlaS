@@ -39,6 +39,7 @@ init =
 
 type Msg
     = GetInputPDB
+    | ProcessPDBInput String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -46,6 +47,9 @@ update msg model =
     case msg of
         GetInputPDB ->
             model ! [ requestPDBFile () ]
+
+        ProcessPDBInput pdbString ->
+            { model | pdbFile = Just pdbString } ! []
 
 
 
@@ -55,13 +59,16 @@ update msg model =
 port requestPDBFile : () -> Cmd msg
 
 
+port receivePDBFile : (String -> msg) -> Sub msg
+
+
 
 -- Subscriptions
 
 
-subscriptions : Model -> Sub msg
-subscriptions _ =
-    Sub.none
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    receivePDBFile ProcessPDBInput
 
 
 
