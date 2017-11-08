@@ -34,7 +34,7 @@ type alias Model =
 
 init : ( Model, Cmd msg )
 init =
-    (Model Nothing) ! []
+    (Model Nothing) ! [ initialiseViewer () ]
 
 
 
@@ -53,11 +53,18 @@ update msg model =
             model ! [ requestPDBFile () ]
 
         ProcessPDBInput pdbString ->
-            { model | pdbFile = Just pdbString } ! []
+            { model | pdbFile = Just pdbString }
+                ! [ showStructure pdbString ]
 
 
 
 -- Ports
+
+
+port initialiseViewer : () -> Cmd msg
+
+
+port showStructure : String -> Cmd msg
 
 
 port requestPDBFile : () -> Cmd msg
@@ -82,6 +89,19 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     div []
-        [ input [ type_ "file", id "pdbFileToLoad" ] []
-        , button [ onClick GetInputPDB ] [ text "Upload" ]
+        [ div [ id "viewer", viewerStyle ]
+            [ input [ type_ "file", id "pdbFileToLoad" ] []
+            , button [ onClick GetInputPDB ] [ text "Upload" ]
+            ]
+        ]
+
+
+viewerStyle : Attribute msg
+viewerStyle =
+    style
+        [ ( "position", "fixed" )
+        , ( "bottom", "0px" )
+        , ( "top", "0px" )
+        , ( "left", "0px" )
+        , ( "right", "0px" )
         ]

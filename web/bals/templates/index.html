@@ -16,6 +16,34 @@
     var node = document.getElementById('main');
     var app = Elm.Main.embed(node);
 
+    var viewer;
+    var currentStructure;
+
+    // This port initialises the PV viewer, it is trigger on init.
+    app.ports.initialiseViewer.subscribe(
+        function () {
+            var options = {
+                width: 'auto',
+                height: 'auto',
+                antialias: true,
+                quality : 'medium'
+            };
+            viewer = pv.Viewer(document.getElementById('viewer'), options);
+            window.onresize = function(event) {
+                viewer.fitParent();
+            }
+        }
+    );
+
+    // This port handles loading structures into PV
+    app.ports.showStructure.subscribe(
+        function (pdbString) {
+            currentStructure = pv.io.pdb(pdbString);
+            viewer.fitTo(currentStructure);
+            viewer.ballsAndSticks('ballsAndSticks', currentStructure);
+        }
+    );
+
     // This port handles collecting information from selected files
     // and sending it through to the Elm app.
     app.ports.requestPDBFile.subscribe(function() {
@@ -28,5 +56,4 @@
         fileReader.readAsText(fileToLoad, "UTF-8");
     });
 </script>
-</html>
 </html>
