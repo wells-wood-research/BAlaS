@@ -1,0 +1,30 @@
+# Hot constellations for PDB: 1ycrLig
+#
+# PDB had 1 model(s)
+# Constellation selection was done automatically.
+# Receptor Chain(s) [A]
+# Ligand Chain[s) [B]
+#
+#
+Single mutants: 
+ResNumber,ResName,ddGs,std_dev,sideCh_size
+B17,GLU,19.1207,0.0000,4
+B18,THR,0.5949,0.0000,2
+B19,PHE,20.3646,0.0000,6
+B20,SER,0.0000,0.0000,1
+B21,ASP,0.0506,0.0000,3
+B22,LEU,6.7914,0.0000,3
+B23,TRP,22.0543,0.0000,9
+B24,LYS,0.5078,0.0000,4
+B25,LEU,0.4186,0.0000,3
+B26,LEU,8.3254,0.0000,3
+B27,PRO,4.1877,0.0000,2
+B28,GLU,15.6824,0.0000,4
+B29,ASN,0.5048,0.0000,3
+
+
+Mutation,ddG
+B17_B19_B23,61.5495
+B17_B19_B28,55.1736
+B17_B23_B28,56.8615
+B19_B23_B28,58.1089

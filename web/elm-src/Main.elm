@@ -88,20 +88,15 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ div [ id "viewer", viewerStyle ]
-            [ input [ type_ "file", id "pdbFileToLoad" ] []
-            , button [ onClick GetInputPDB ] [ text "Upload" ]
+    div [ class "main-grid" ]
+        [ div
+            [ id "viewer" ]
+            []
+        , div
+            [ class "control-panel" ]
+            [ div []
+                [ input [ type_ "file", id "pdbFileToLoad" ] []
+                , button [ onClick GetInputPDB ] [ text "Upload" ]
+                ]
             ]
-        ]
-
-
-viewerStyle : Attribute msg
-viewerStyle =
-    style
-        [ ( "position", "fixed" )
-        , ( "bottom", "0px" )
-        , ( "top", "0px" )
-        , ( "left", "0px" )
-        , ( "right", "0px" )
         ]

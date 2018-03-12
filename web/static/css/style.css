@@ -1,0 +1,33 @@
+#viewer {
+    overflow: hidden;
+}
+
+.main-grid {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    grid-template-rows: 1fr;
+    height: 100%;
+    left: 0;
+    min-width: 500px;
+    position: absolute;
+    top: 0;
+    width: 100%;
+}
+
+@media (max-width: 960px) {
+    .main-grid {
+        grid-template-columns: 2fr 1fr;
+        grid-template-rows: 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .main-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: 2fr 1fr;
+    }
+}
+.control-panel {
+    background-color: lightblue;
+    padding: 10px;
+}

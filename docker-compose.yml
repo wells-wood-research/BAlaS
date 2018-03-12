@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: ./web/Dockerfile
     ports:
-      - "2802:80"
+      - "3803:80"
     volumes:
       - ./web:/app
     restart: on-failure

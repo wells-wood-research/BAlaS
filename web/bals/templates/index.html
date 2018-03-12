@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
     <title>BUDE ALA Scan</title>
+    <meta charset="UTF-8">
     <script type="text/javascript" src="{{ url_for('static', filename='elm/bals.js') }}"></script>
-    <script type='text/javascript' src="{{ url_for('static', filename='javascript/bio-pv.min.js') }}"></script>
-    <script type='text/javascript' src="{{ url_for('static', filename='javascript/FileSaver.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='javascript/bio-pv.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='javascript/FileSaver.min.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://fonts.googleapis.com/css?family=Roboto|Russo+One|Source+Code+Pro" rel="stylesheet">
 </head>
@@ -38,8 +38,11 @@
     // This port handles loading structures into PV
     app.ports.showStructure.subscribe(
         function (pdbString) {
+            viewer.clear();
             currentStructure = pv.io.pdb(pdbString);
             viewer.fitTo(currentStructure);
+            viewer.cartoon(
+                'cartoon', currentStructure, { color: pv.color.byChain() });
             viewer.ballsAndSticks('ballsAndSticks', currentStructure);
         }
     );
