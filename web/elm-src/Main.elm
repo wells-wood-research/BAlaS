@@ -26,8 +26,13 @@ main =
 
 type alias Model =
     { pdbFile : Maybe String
-    , chainVisibility : Maybe (Dict.Dict String Bool)
+    , chainVisibility : Maybe (Dict.Dict ChainID Bool)
+    , ligand : Maybe ChainID
     }
+
+
+type alias ChainID =
+    String
 
 
 
@@ -36,7 +41,7 @@ type alias Model =
 
 init : ( Model, Cmd msg )
 init =
-    (Model Nothing Nothing) ! [ initialiseViewer () ]
+    (Model Nothing Nothing Nothing) ! [ initialiseViewer () ]
 
 
 
@@ -46,8 +51,10 @@ init =
 type Msg
     = GetInputPDB
     | ProcessPDBInput String
-    | ProcessStructureInfo (List String)
-    | SetChainVisibility String Bool
+    | ProcessStructureInfo (List ChainID)
+    | SetChainVisibility ChainID Bool
+    | SetLigand ChainID
+    | ClearLigand
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -57,7 +64,11 @@ update msg model =
             model ! [ requestPDBFile () ]
 
         ProcessPDBInput pdbString ->
-            { model | pdbFile = Just pdbString }
+            { model
+                | pdbFile = Just pdbString
+                , chainVisibility = Nothing
+                , ligand = Nothing
+            }
                 ! [ showStructure pdbString ]
 
         ProcessStructureInfo chainVisibility ->
@@ -82,8 +93,26 @@ update msg model =
                 Nothing ->
                     model ! []
 
+        SetLigand chainID ->
+            case model.chainVisibility of
+                Just chainVis ->
+                    { model | ligand = Just chainID }
+                        ! [ colourByLigand ( (Dict.keys chainVis), chainID ) ]
+
+                Nothing ->
+                    model ! []
+
+        ClearLigand ->
+            case model.pdbFile of
+                Just pdb ->
+                    { model | ligand = Nothing } ! [ showStructure pdb ]
+
+                Nothing ->
+                    { model | ligand = Nothing } ! []
 
 
+
+-- Cmds
 -- Ports
 
 
@@ -99,10 +128,13 @@ port requestPDBFile : () -> Cmd msg
 port receivePDBFile : (String -> msg) -> Sub msg
 
 
-port receiveStructureInfo : (List String -> msg) -> Sub msg
+port receiveStructureInfo : (List ChainID -> msg) -> Sub msg
 
 
-port setChainVisibility : ( String, Bool ) -> Cmd msg
+port setChainVisibility : ( ChainID, Bool ) -> Cmd msg
+
+
+port colourByLigand : ( List ChainID, ChainID ) -> Cmd msg
 
 
 
@@ -134,30 +166,54 @@ view model =
                 , button [ onClick GetInputPDB ] [ text "Upload" ]
                 ]
             , div []
-                ([ h3 [] [ text "Show/Hide Chains" ] ]
-                    ++ case model.chainVisibility of
-                        Just chainVisibility ->
-                            [ div []
-                                (Dict.toList chainVisibility
-                                    |> List.map chainSelect
-                                )
-                            ]
+                (case model.chainVisibility of
+                    Just chainVisibility ->
+                        [ h3 [] [ text "" ]
+                        , table []
+                            ([ tr []
+                                [ th [] [ text "Chain" ]
+                                , th [] [ text "Visibility" ]
+                                , th [] [ text "Ligand" ]
+                                ]
+                             ]
+                                ++ (Dict.toList chainVisibility
+                                        |> List.map (chainSelect model.ligand)
+                                   )
+                            )
+                        ]
 
-                        Nothing ->
-                            []
+                    Nothing ->
+                        []
                 )
             ]
         ]
 
 
-chainSelect : ( String, Bool ) -> Html Msg
-chainSelect ( label, visible ) =
-    div []
-        [ text ("Chain " ++ label)
-        , input
-            [ onCheck (SetChainVisibility label)
-            , type_ "checkbox"
-            , checked visible
+chainSelect : Maybe ChainID -> ( ChainID, Bool ) -> Html Msg
+chainSelect mLigandLabel ( label, visible ) =
+    tr []
+        [ td [] [ text (label) ]
+        , td []
+            [ input
+                [ onCheck (SetChainVisibility label)
+                , type_ "checkbox"
+                , checked visible
+                ]
+                []
             ]
-            []
+        , td []
+            (case mLigandLabel of
+                Just ligandLabel ->
+                    if ligandLabel == label then
+                        [ button [ onClick ClearLigand ]
+                            [ text "Clear" ]
+                        ]
+                    else
+                        []
+
+                Nothing ->
+                    [ button [ onClick <| SetLigand label ]
+                        [ text "Set" ]
+                    ]
+            )
         ]

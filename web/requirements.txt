@@ -2,3 +2,5 @@ pypandoc
 scipy
 isambard
 flask
+flask-restful
+pymongo
