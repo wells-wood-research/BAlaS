@@ -4,6 +4,7 @@ port module Main exposing (..)
 front end.
 -}
 
+import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -25,6 +26,7 @@ main =
 
 type alias Model =
     { pdbFile : Maybe String
+    , chainVisibility : Maybe (Dict.Dict String Bool)
     }
 
 
@@ -34,7 +36,7 @@ type alias Model =
 
 init : ( Model, Cmd msg )
 init =
-    (Model Nothing) ! [ initialiseViewer () ]
+    (Model Nothing Nothing) ! [ initialiseViewer () ]
 
 
 
@@ -44,6 +46,8 @@ init =
 type Msg
     = GetInputPDB
     | ProcessPDBInput String
+    | ProcessStructureInfo (List String)
+    | SetChainVisibility String Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -55,6 +59,28 @@ update msg model =
         ProcessPDBInput pdbString ->
             { model | pdbFile = Just pdbString }
                 ! [ showStructure pdbString ]
+
+        ProcessStructureInfo chainVisibility ->
+            { model
+                | chainVisibility =
+                    List.map (\l -> ( l, True )) chainVisibility
+                        |> Dict.fromList
+                        |> Just
+            }
+                ! []
+
+        SetChainVisibility label visible ->
+            case model.chainVisibility of
+                Just chainVisibility ->
+                    { model
+                        | chainVisibility =
+                            Dict.insert label visible chainVisibility
+                                |> Just
+                    }
+                        ! [ setChainVisibility ( label, visible ) ]
+
+                Nothing ->
+                    model ! []
 
 
 
@@ -73,13 +99,22 @@ port requestPDBFile : () -> Cmd msg
 port receivePDBFile : (String -> msg) -> Sub msg
 
 
+port receiveStructureInfo : (List String -> msg) -> Sub msg
+
+
+port setChainVisibility : ( String, Bool ) -> Cmd msg
+
+
 
 -- Subscriptions
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    receivePDBFile ProcessPDBInput
+    Sub.batch
+        [ receivePDBFile ProcessPDBInput
+        , receiveStructureInfo ProcessStructureInfo
+        ]
 
 
 
@@ -98,5 +133,31 @@ view model =
                 [ input [ type_ "file", id "pdbFileToLoad" ] []
                 , button [ onClick GetInputPDB ] [ text "Upload" ]
                 ]
+            , div []
+                ([ h3 [] [ text "Show/Hide Chains" ] ]
+                    ++ case model.chainVisibility of
+                        Just chainVisibility ->
+                            [ div []
+                                (Dict.toList chainVisibility
+                                    |> List.map chainSelect
+                                )
+                            ]
+
+                        Nothing ->
+                            []
+                )
             ]
+        ]
+
+
+chainSelect : ( String, Bool ) -> Html Msg
+chainSelect ( label, visible ) =
+    div []
+        [ text ("Chain " ++ label)
+        , input
+            [ onCheck (SetChainVisibility label)
+            , type_ "checkbox"
+            , checked visible
+            ]
+            []
         ]

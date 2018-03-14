@@ -36,16 +36,38 @@
     );
 
     // This port handles loading structures into PV
-    app.ports.showStructure.subscribe(
-        function (pdbString) {
-            viewer.clear();
-            currentStructure = pv.io.pdb(pdbString);
-            viewer.fitTo(currentStructure);
+    app.ports.showStructure.subscribe(function (pdbString) {
+        viewer.clear();
+        currentStructure = pv.io.pdb(pdbString);
+        viewer.fitTo(currentStructure);
+        const chainLabels = currentStructure.chains().map(x => x._L);
+        const chainsSelection = currentStructure
+            .chains()
+            .map(x => currentStructure.select({chain: x._L}));
+        for (i = 0; i < chainsSelection.length; i++) { 
             viewer.cartoon(
-                'cartoon', currentStructure, { color: pv.color.byChain() });
-            viewer.ballsAndSticks('ballsAndSticks', currentStructure);
+                currentStructure.chains()[i]._L + '_c',
+                chainsSelection[i]);
+            viewer.lines(
+                currentStructure.chains()[i]._L + '_l',
+                chainsSelection[i]);
+        }
+        app.ports.receiveStructureInfo.send(chainLabels);
         }
     );
+
+    app.ports.setChainVisibility.subscribe(function (chainVisibility) {
+        const chainLabel = chainVisibility[0];
+        const visible = chainVisibility[1];
+        if (visible) {
+            viewer.show(chainLabel + '_c');
+            viewer.show(chainLabel + '_l');
+        } else {
+            viewer.hide(chainLabel + '_c');
+            viewer.hide(chainLabel + '_l');
+        }
+        viewer.requestRedraw();
+    });
 
     // This port handles collecting information from selected files
     // and sending it through to the Elm app.
