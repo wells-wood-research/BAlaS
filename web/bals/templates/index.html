@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>BUDE ALA Scan</title>
+    <title>BALS</title>
     <meta charset="UTF-8">
     <script type="text/javascript" 
             src="{{ url_for('static', filename='elm/bals.js') }}">
@@ -64,6 +64,17 @@
                 chain._L + '_l',
                 chainsSelection[i]);
         }
+        viewer.addListener('click', function(picked) {
+            if (picked === null) return;
+            var target = picked.target();
+            if (target.qualifiedName !== undefined) {
+                var residueInfo = Object();
+                residueInfo['chainID'] = target.residue().chain().name();
+                residueInfo['aminoAcid'] = target.residue().name();
+                residueInfo['residueNumber'] = target.residue().num();
+                app.ports.atomClick.send(residueInfo);
+            }
+        });
         app.ports.receiveStructureInfo.send(chainLabels);
         }
     );
@@ -104,7 +115,11 @@
             var textFromFileLoaded = fileLoadedEvent.target.result;
             app.ports.receivePDBFile.send(textFromFileLoaded);
         };
-        fileReader.readAsText(fileToLoad, "UTF-8");
+        if (typeof fileToLoad != 'undefined') {
+            fileReader.readAsText(fileToLoad, "UTF-8");
+        } else {
+            app.ports.receivePDBFile.send("Failed to find file.");
+        }
     });
 </script>
 </html>
