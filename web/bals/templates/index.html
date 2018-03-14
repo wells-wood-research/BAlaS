@@ -14,8 +14,8 @@
     </script>
     <link rel="stylesheet"
           href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css?family=Roboto|Russo+One|Source+Code+Pro">
+    <link href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans+Condensed|Titillium+Web"
+          rel="stylesheet">
 </head>
 <body>
 </body>
@@ -92,17 +92,10 @@
         viewer.requestRedraw();
     });
 
-    app.ports.colourByLigand.subscribe(function (labelsAndLigandLabel) {
-        const chainLabels = labelsAndLigandLabel[0];
-        const ligandLabel = labelsAndLigandLabel[1];
-        for (i = 0; i < chainLabels.length; i++) {
-            const label = chainLabels[i];
-            if (label == ligandLabel) {
-                cartoonGeometry[label].colorBy(pv.color.uniform('blue'));
-            } else {
-                cartoonGeometry[label].colorBy(pv.color.uniform('red'));
-            }
-        }
+    app.ports.colourGeometry.subscribe(function (colourAndLabel) {
+        const colour = colourAndLabel[0];
+        const label = colourAndLabel[1];
+        cartoonGeometry[label].colorBy(pv.color.uniform(colour));
         viewer.requestRedraw();
     });
 

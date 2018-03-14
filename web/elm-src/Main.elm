@@ -36,6 +36,8 @@ type alias Model =
 
 type AppMode
     = ScanSubmission
+    | ConstellationSubmission
+    | Jobs
 
 
 type alias JobID =
@@ -67,12 +69,13 @@ emptyAlaScanModel =
 type alias AlanineScanSub =
     { pdbFile : Maybe String
     , chainVisibility : Maybe (Dict.Dict ChainID Bool)
+    , receptor : Maybe ChainID
     , ligand : Maybe ChainID
     }
 
 
 validScanSub : AlanineScanSub -> Bool
-validScanSub { pdbFile, ligand } =
+validScanSub { pdbFile, receptor, ligand } =
     let
         isJust mA =
             case mA of
@@ -82,12 +85,13 @@ validScanSub { pdbFile, ligand } =
                 Nothing ->
                     False
     in
-        isJust pdbFile && isJust ligand
+        isJust pdbFile && isJust receptor && isJust ligand
 
 
 emptyScanSub : AlanineScanSub
 emptyScanSub =
     AlanineScanSub
+        Nothing
         Nothing
         Nothing
         Nothing
@@ -149,6 +153,8 @@ type ScanMsg
     | ProcessPDBInput String
     | ProcessStructureInfo (List ChainID)
     | SetChainVisibility ChainID Bool
+    | SetReceptor ChainID
+    | ClearReceptor
     | SetLigand ChainID
     | ClearLigand
     | SubmitScanJob
@@ -209,6 +215,34 @@ updateScanInput scanMsg scanModel =
                     Nothing ->
                         scanModel ! []
 
+            SetReceptor chainID ->
+                case scanSub.chainVisibility of
+                    Just chainVis ->
+                        { scanModel
+                            | alanineScanSub =
+                                { scanSub
+                                    | receptor = Just chainID
+                                }
+                        }
+                            ! [ colourGeometry ( "red", chainID ) ]
+
+                    Nothing ->
+                        scanModel ! []
+
+            ClearReceptor ->
+                case scanSub.pdbFile of
+                    Just pdb ->
+                        { scanModel
+                            | alanineScanSub =
+                                { scanSub
+                                    | receptor = Nothing
+                                }
+                        }
+                            ! [ showStructure pdb ]
+
+                    Nothing ->
+                        scanModel ! []
+
             SetLigand chainID ->
                 case scanSub.chainVisibility of
                     Just chainVis ->
@@ -218,7 +252,7 @@ updateScanInput scanMsg scanModel =
                                     | ligand = Just chainID
                                 }
                         }
-                            ! [ colourByLigand ( (Dict.keys chainVis), chainID ) ]
+                            ! [ colourGeometry ( "blue", chainID ) ]
 
                     Nothing ->
                         scanModel ! []
@@ -267,7 +301,7 @@ port requestPDBFile : () -> Cmd msg
 port setChainVisibility : ( ChainID, Bool ) -> Cmd msg
 
 
-port colourByLigand : ( List ChainID, ChainID ) -> Cmd msg
+port colourGeometry : ( String, ChainID ) -> Cmd msg
 
 
 submitAlanineScan : AlanineScanSub -> Cmd ScanMsg
@@ -319,60 +353,94 @@ residueInfoDecoder =
 view : Model -> Html Msg
 view model =
     div [ class "main-grid" ]
-        [ div
+        [ header [ class "title-bar" ] [ h1 [] [ text "BALS" ] ]
+        , div
             [ id "viewer" ]
             []
-        , div
-            [ class "control-panel" ]
-            (case model.appMode of
-                ScanSubmission ->
-                    scanSubmissionView
-                        UpdateScanSubmission
-                        model.alanineScanModel.alanineScanSub
+        , div [ class "tabs" ]
+            [ div
+                [ class "scan-tab"
+                , onClick <| SetAppMode ScanSubmission
+                ]
+                [ text "Scan" ]
+            , div
+                [ class "constellation-tab"
+                , onClick <|
+                    SetAppMode ConstellationSubmission
+                ]
+                [ text "Constellation" ]
+            , div
+                [ class "jobs-tab"
+                , onClick <| SetAppMode Jobs
+                ]
+                [ text "Jobs" ]
+            ]
+        , (case model.appMode of
+            ScanSubmission ->
+                scanSubmissionView
+                    UpdateScanSubmission
+                    model.alanineScanModel.alanineScanSub
+
+            ConstellationSubmission ->
+                div [ class "control-panel constellation-panel" ]
+                    [ h2 [] [ text "Constellation Submission" ] ]
+
+            Jobs ->
+                div [ class "control-panel jobs-panel" ]
+                    [ h2 [] [ text "Jobs" ] ]
+          )
+        ]
+
+
+scanSubmissionView : (ScanMsg -> msg) -> AlanineScanSub -> Html msg
+scanSubmissionView updateMsg scanSub =
+    div
+        [ class "control-panel scan-panel" ]
+        [ h2 [] [ text "Scan Submission" ]
+        , div []
+            [ input [ type_ "file", id "pdbFileToLoad" ] []
+            , button [ onClick <| updateMsg GetInputPDB ] [ text "Upload" ]
+            ]
+        , div []
+            (case scanSub.chainVisibility of
+                Just chainVisibility ->
+                    [ h3 [] [ text "" ]
+                    , table []
+                        ([ tr []
+                            [ th [] [ text "Chain" ]
+                            , th [] [ text "Visibility" ]
+                            , th [] [ text "Receptor" ]
+                            , th [] [ text "Ligand" ]
+                            ]
+                         ]
+                            ++ (Dict.toList chainVisibility
+                                    |> List.map
+                                        (chainSelect updateMsg
+                                            scanSub.receptor
+                                            scanSub.ligand
+                                        )
+                               )
+                        )
+                    , button
+                        [ onClick <| updateMsg SubmitScanJob
+                        , validScanSub scanSub |> not |> disabled
+                        ]
+                        [ text "Start Scan" ]
+                    ]
+
+                Nothing ->
+                    []
             )
         ]
 
 
-scanSubmissionView : (ScanMsg -> msg) -> AlanineScanSub -> List (Html msg)
-scanSubmissionView updateMsg scanSub =
-    [ h2 [] [ text "Scan Submission" ]
-    , div []
-        [ input [ type_ "file", id "pdbFileToLoad" ] []
-        , button [ onClick <| updateMsg GetInputPDB ] [ text "Upload" ]
-        ]
-    , div []
-        (case scanSub.chainVisibility of
-            Just chainVisibility ->
-                [ h3 [] [ text "" ]
-                , table []
-                    ([ tr []
-                        [ th [] [ text "Chain" ]
-                        , th [] [ text "Visibility" ]
-                        , th [] [ text "Ligand" ]
-                        ]
-                     ]
-                        ++ (Dict.toList chainVisibility
-                                |> List.map
-                                    (chainSelect updateMsg
-                                        scanSub.ligand
-                                    )
-                           )
-                    )
-                , button
-                    [ onClick <| updateMsg SubmitScanJob
-                    , validScanSub scanSub |> not |> disabled
-                    ]
-                    [ text "Submit" ]
-                ]
-
-            Nothing ->
-                []
-        )
-    ]
-
-
-chainSelect : (ScanMsg -> msg) -> Maybe ChainID -> ( ChainID, Bool ) -> Html msg
-chainSelect updateMsg mLigandLabel ( label, visible ) =
+chainSelect :
+    (ScanMsg -> msg)
+    -> Maybe ChainID
+    -> Maybe ChainID
+    -> ( ChainID, Bool )
+    -> Html msg
+chainSelect updateMsg mReceptorLabel mLigandLabel ( label, visible ) =
     tr []
         [ td [] [ text label ]
         , td []
@@ -384,6 +452,36 @@ chainSelect updateMsg mLigandLabel ( label, visible ) =
                 []
             ]
         , td []
+            (case mReceptorLabel of
+                Just receptorLabel ->
+                    if receptorLabel == label then
+                        [ button [ onClick <| updateMsg ClearReceptor ]
+                            [ text "Clear" ]
+                        ]
+                    else
+                        []
+
+                Nothing ->
+                    let
+                        recButton =
+                            button
+                                [ onClick <|
+                                    updateMsg <|
+                                        SetReceptor label
+                                ]
+                                [ text "Set" ]
+                    in
+                        case mLigandLabel of
+                            Just ligandLabel ->
+                                if ligandLabel == label then
+                                    []
+                                else
+                                    [ recButton ]
+
+                            Nothing ->
+                                [ recButton ]
+            )
+        , td []
             (case mLigandLabel of
                 Just ligandLabel ->
                     if ligandLabel == label then
@@ -394,8 +492,19 @@ chainSelect updateMsg mLigandLabel ( label, visible ) =
                         []
 
                 Nothing ->
-                    [ button [ onClick <| updateMsg <| SetLigand label ]
-                        [ text "Set" ]
-                    ]
+                    let
+                        ligButton =
+                            button [ onClick <| updateMsg <| SetLigand label ]
+                                [ text "Set" ]
+                    in
+                        case mReceptorLabel of
+                            Just receptorLabel ->
+                                if receptorLabel == label then
+                                    []
+                                else
+                                    [ ligButton ]
+
+                            Nothing ->
+                                [ ligButton ]
             )
         ]

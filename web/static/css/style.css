@@ -1,11 +1,33 @@
-#viewer {
-    overflow: hidden;
+/* https://coolors.co/ffffff-412234-6d466b-b49fcc-ead7d7 */
+
+:root {
+    --c1: #678d58; 
+    --c2: #9ad5ca; 
+    --c3: #7579af;
+    --c4: #b49fcc;
+    --c5: #ead7d7;
+}
+
+body {
+    font-family: 'Titillium Web', sans-serif;
+}
+
+h1 {
+    color: var(--c1);
+    font-family: 'IBM Plex Sans Condensed', sans-serif;
+    margin: auto;
+    padding: 3px;
+}
+
+h2 {
+    margin: auto;
+    padding: 3px;
 }
 
 .main-grid {
     display: grid;
     grid-template-columns: 2fr 1fr;
-    grid-template-rows: 1fr;
+    grid-template-rows: 5% 95%;
     height: 100%;
     left: 0;
     min-width: 500px;
@@ -14,20 +36,83 @@
     width: 100%;
 }
 
+.title-bar {
+    background-color: var(--c2);
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+}
+
+#viewer {
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+    overflow: hidden;
+}
+
+.tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+    text-align: center;
+}
+
+.tabs:hover {
+    cursor: pointer;
+}
+
+.scan-tab {
+    background-color: var(--c3);
+    padding: 3px;
+}
+
+.constellation-tab {
+    background-color: var(--c4);
+    padding: 3px;
+}
+
+.jobs-tab {
+    background-color: var(--c5);
+    padding: 3px;
+}
+
+.control-panel {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+    padding: 10px;
+}
+
+.scan-panel {
+    background-color: var(--c3);
+}
+
+.constellation-panel {
+    background-color: var(--c4);
+}
+
+.jobs-panel {
+    background-color: var(--c5);
+}
+
 @media (max-width: 960px) {
     .main-grid {
         grid-template-columns: 2fr 1fr;
-        grid-template-rows: 1fr;
     }
 }
 
 @media (max-width: 700px) {
     .main-grid {
-        grid-template-columns: 1fr;
-        grid-template-rows: 2fr 1fr;
+        grid-template-columns: 100%;
+        grid-template-rows: 5% 50% 5% 40%;
+    }
+
+    .control-panel {
+        grid-column: 1 / 2;
+        grid-row: 4 / 5;
+    }
+
+    .tabs {
+        grid-column: 1 / 2;
+        grid-row: 3 / 4;
     }
 }
-.control-panel {
-    background-color: lightblue;
-    padding: 10px;
-}
+

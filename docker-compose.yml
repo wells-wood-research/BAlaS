@@ -8,4 +8,8 @@ services:
       - "3803:80"
     volumes:
       - ./web:/app
+    depends_on:
+      - db
     restart: on-failure
+  db:
+    image: mongo
