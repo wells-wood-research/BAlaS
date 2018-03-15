@@ -12,6 +12,7 @@ import Http
 import Json.Decode as JDe
 import Json.Decode.Extra exposing ((|:))
 import Json.Encode as JEn
+import Notifications exposing ((#), Notification)
 import Time
 
 
@@ -32,6 +33,8 @@ main =
 type alias Model =
     { appMode : AppMode
     , alanineScanModel : AlanineScanModel
+    , notifications : List Notification
+    , notificationsOpen : Bool
     }
 
 
@@ -85,6 +88,8 @@ emptyModel =
     Model
         ScanSubmission
         emptyAlaScanModel
+        []
+        False
 
 
 type alias ChainID =
@@ -164,6 +169,8 @@ init =
 type Msg
     = SetAppMode AppMode
     | UpdateScanSubmission ScanMsg
+    | ToggleNotificationPanel
+    | DismissNotification Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -174,7 +181,7 @@ update msg model =
 
         UpdateScanSubmission scanMsg ->
             let
-                ( updatedScanModel, scanSubCmds ) =
+                ( updatedScanModel, scanSubCmds, notifications ) =
                     updateScanInput scanMsg model.alanineScanModel
             in
                 { model
@@ -182,6 +189,25 @@ update msg model =
                         updatedScanModel
                 }
                     ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
+
+        ToggleNotificationPanel ->
+            { model | notificationsOpen = not model.notificationsOpen }
+                ! []
+
+        DismissNotification idx ->
+            { model
+                | notifications =
+                    removeListItem idx
+                        model.notifications
+            }
+                ! []
+
+
+removeListItem : Int -> List a -> List a
+removeListItem idx editList =
+    List.indexedMap (,) editList
+        |> List.filter (\( refIdx, _ ) -> refIdx /= idx)
+        |> List.map Tuple.second
 
 
 type ScanMsg
@@ -198,7 +224,10 @@ type ScanMsg
     | ProcessScanStatus (Result Http.Error JobDetails)
 
 
-updateScanInput : ScanMsg -> AlanineScanModel -> ( AlanineScanModel, Cmd ScanMsg )
+updateScanInput :
+    ScanMsg
+    -> AlanineScanModel
+    -> ( AlanineScanModel, Cmd ScanMsg, List Notification )
 updateScanInput scanMsg scanModel =
     let
         scanSub =
@@ -206,12 +235,12 @@ updateScanInput scanMsg scanModel =
     in
         case scanMsg of
             GetInputPDB ->
-                scanModel ! [ requestPDBFile () ]
+                scanModel ! [ requestPDBFile () ] # []
 
             ProcessPDBInput pdbString ->
                 case pdbString of
                     "Failed to find file." ->
-                        scanModel ! []
+                        scanModel ! [] # []
 
                     _ ->
                         { scanModel
@@ -223,6 +252,7 @@ updateScanInput scanMsg scanModel =
                                 }
                         }
                             ! [ showStructure pdbString ]
+                            # []
 
             ProcessStructureInfo chainVisibility ->
                 { scanModel
@@ -235,6 +265,7 @@ updateScanInput scanMsg scanModel =
                         }
                 }
                     ! []
+                    # []
 
             SetChainVisibility label visible ->
                 case scanSub.chainVisibility of
@@ -248,9 +279,10 @@ updateScanInput scanMsg scanModel =
                                 }
                         }
                             ! [ setChainVisibility ( label, visible ) ]
+                            # []
 
                     Nothing ->
-                        scanModel ! []
+                        scanModel ! [] # []
 
             SetReceptor chainID ->
                 case scanSub.chainVisibility of
@@ -262,9 +294,10 @@ updateScanInput scanMsg scanModel =
                                 }
                         }
                             ! [ colourGeometry ( "red", chainID ) ]
+                            # []
 
                     Nothing ->
-                        scanModel ! []
+                        scanModel ! [] # []
 
             SetLigand chainID ->
                 case scanSub.chainVisibility of
@@ -276,9 +309,10 @@ updateScanInput scanMsg scanModel =
                                 }
                         }
                             ! [ colourGeometry ( "blue", chainID ) ]
+                            # []
 
                     Nothing ->
-                        scanModel ! []
+                        scanModel ! [] # []
 
             ClearReceptorLigand ->
                 case scanSub.pdbFile of
@@ -291,12 +325,13 @@ updateScanInput scanMsg scanModel =
                                 }
                         }
                             ! [ showStructure pdb ]
+                            # []
 
                     Nothing ->
-                        scanModel ! []
+                        scanModel ! [] # []
 
             SubmitScanJob ->
-                scanModel ! [ submitAlanineScan scanModel.alanineScanSub ]
+                scanModel ! [ submitAlanineScan scanModel.alanineScanSub ] # []
 
             ScanJobSubmitted (Ok jobDetails) ->
                 { scanModel
@@ -304,16 +339,25 @@ updateScanInput scanMsg scanModel =
                     , alanineScanJobs = jobDetails :: scanModel.alanineScanJobs
                 }
                     ! []
+                    # []
 
             ScanJobSubmitted (Err error) ->
                 let
                     err =
                         Debug.log "Scan job submission error" error
                 in
-                    scanModel ! []
+                    scanModel
+                        ! []
+                        # [ Notifications.errorToNotification
+                                "Failed to Submit Scan Job"
+                                error
+                          ]
 
             CheckScanJobs _ ->
-                scanModel ! List.map checkScanJobStatus scanModel.alanineScanJobs
+                scanModel
+                    ! List.map checkScanJobStatus
+                        scanModel.alanineScanJobs
+                    # []
 
             ProcessScanStatus (Ok jobDetails) ->
                 { scanModel
@@ -326,13 +370,14 @@ updateScanInput scanMsg scanModel =
                             |> List.map (\( jobID, status ) -> JobDetails jobID status)
                 }
                     ! []
+                    # []
 
             ProcessScanStatus (Err error) ->
                 let
                     err =
                         Debug.log "Scan status check error" error
                 in
-                    scanModel ! []
+                    scanModel ! [] # []
 
 
 
@@ -419,6 +464,12 @@ view model =
         [ header
             [ class "title-bar" ]
             [ h1 [] [ text "BUDE Alanine Scan" ] ]
+        , notificationPanel model.notificationsOpen model.notifications
+        , div
+            [ class "notifications-button"
+            , onClick <| ToggleNotificationPanel
+            ]
+            [ List.length model.notifications |> toString |> (++) "🔔" |> text ]
         , div
             [ id "viewer" ]
             []
@@ -453,6 +504,25 @@ view model =
             Jobs ->
                 jobsView model
           )
+        ]
+
+
+notificationPanel : Bool -> List Notification -> Html Msg
+notificationPanel open notifications =
+    div [ class "notification-panel", hidden <| not open ]
+        [ h3 [] [ text "Notifications" ]
+        , button [ onClick ToggleNotificationPanel ] [ text "Close" ]
+        , div [] <| List.indexedMap notificationView notifications
+        ]
+
+
+notificationView : Int -> Notification -> Html Msg
+notificationView idx notification =
+    div [ class "notification" ]
+        [ h4 [] [ text notification.title ]
+        , button [ onClick <| DismissNotification idx ] [ text "Dismiss" ]
+        , p [ class "details" ]
+            [ text notification.message ]
         ]
 
 

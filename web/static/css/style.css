@@ -52,6 +52,45 @@ h2 {
     overflow: hidden;
 }
 
+.notifications {
+    text-align: right;
+}
+
+.notifications-button {
+    background-color: var(--c2);
+    left: 1%;
+    padding: 2px 4px;
+    position: absolute;
+    top: 6%;
+    z-index: 999;
+}
+
+.notification-panel {
+    background-color: var(--c2);
+    border-width: 3px;
+    box-shadow: 0 5px 10px 0 rgba(133,133,133,1);
+    height: 100%;
+    left: 0;
+    position: fixed;
+    text-align: center;
+    top: 0;
+    width: 300px;
+    z-index:1000;
+}
+
+.notification {
+    background: var(--l2-colour);
+    margin: 3px;
+    padding: 3px;
+    text-align: left;
+}
+
+.notification > .details {
+    background: var(--l3-colour);
+    margin: 3px;
+    padding: 3px;
+}
+
 .tabs {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
