@@ -37,15 +37,28 @@ class AlanineScanJobs(Resource):
 
 class AlanineScanJob(Resource):
     def get(self, job_id):
-        if app.debug:
-            print(f"Getting Scan Job {job_id}...", file=sys.stderr)
-        job_details = database.export_job_details(
-            database.get_scan_job(job_id))
-        if job_details is None:
-            flask.abort(404)
-        if app.debug:
-            print(f"Got job details for job {job_id}.", file=sys.stderr)
-        return job_details, 201
+        if "get-status" in request.args:
+            if app.debug:
+                print(f"Getting Scan Job {job_id}...", file=sys.stderr)
+            job_details = database.export_job_details(
+                database.get_scan_job(job_id))
+            if job_details is None:
+                flask.abort(404)
+            if app.debug:
+                print(f"Got job details for job {job_id}.", file=sys.stderr)
+            return job_details, 200
+        elif "get-results" in request.args:
+            if app.debug:
+                print(f"Getting Scan Job results {job_id}...", file=sys.stderr)
+            job = database.get_scan_job(job_id)
+            if job is None:
+                flask.abort(404)
+            elif job['status'] != database.JobStatus.COMPLETED.value:
+                flask.abort(404)
+            if app.debug:
+                print(f"Got job results for job {job_id}.", file=sys.stderr)
+            return job['results'], 200
+        return "No arguments supplied.", 400
 
 
 API.add_resource(AlanineScanJobs, '/api/v0.1/alanine-scan-jobs')

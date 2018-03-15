@@ -24,6 +24,16 @@ h2 {
     padding: 3px;
 }
 
+h3 {
+    margin: auto;
+    padding: 3px;
+}
+
+h4 {
+    margin: auto;
+    padding: 3px;
+}
+
 .details {
     font-size: 10pt;
 }
@@ -79,14 +89,14 @@ h2 {
 }
 
 .notification {
-    background: var(--l2-colour);
+    background: var(--c3);
     margin: 3px;
     padding: 3px;
     text-align: left;
 }
 
 .notification > .details {
-    background: var(--l3-colour);
+    background: var(--c4);
     margin: 3px;
     padding: 3px;
 }

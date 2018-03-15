@@ -38,6 +38,15 @@ type alias Model =
     }
 
 
+emptyModel : Model
+emptyModel =
+    Model
+        ScanSubmission
+        emptyAlaScanModel
+        []
+        False
+
+
 type AppMode
     = ScanSubmission
     | ConstellationSubmission
@@ -87,15 +96,6 @@ intToJobStatus statusNumber =
             JDe.fail "Unknown status."
 
 
-emptyModel : Model
-emptyModel =
-    Model
-        ScanSubmission
-        emptyAlaScanModel
-        []
-        False
-
-
 type alias ChainID =
     String
 
@@ -103,12 +103,13 @@ type alias ChainID =
 type alias AlanineScanModel =
     { alanineScanSub : AlanineScanSub
     , jobs : List JobDetails
+    , results : Maybe AlanineScanResults
     }
 
 
 emptyAlaScanModel : AlanineScanModel
 emptyAlaScanModel =
-    AlanineScanModel emptyScanSub []
+    AlanineScanModel emptyScanSub [] Nothing
 
 
 type alias AlanineScanSub =
@@ -148,6 +149,38 @@ encodeAlanineScanSub scanSub =
         [ ( "pdbFile", Maybe.withDefault "Invalid" scanSub.pdbFile |> JEn.string )
         , ( "ligand", Maybe.withDefault "Invalid" scanSub.ligand |> JEn.string )
         ]
+
+
+type alias AlanineScanResults =
+    { dG : Float
+    , residueResults : List ResidueResult
+    }
+
+
+type alias ResidueResult =
+    { residueNumber : String
+    , aminoAcid : String
+    , chainID : ChainID
+    , ddG : Float
+    , residueSize : Int
+    , stdDevDDG : Float
+    }
+
+
+scanResultsDecoder : JDe.Decoder AlanineScanResults
+scanResultsDecoder =
+    JDe.succeed AlanineScanResults
+        |: (JDe.field "dG" JDe.float)
+        |: (JDe.field "residueData" <|
+                JDe.list <|
+                    JDe.succeed ResidueResult
+                        |: (JDe.index 0 JDe.string)
+                        |: (JDe.index 1 JDe.string)
+                        |: (JDe.index 2 JDe.string)
+                        |: (JDe.index 3 JDe.float)
+                        |: (JDe.index 4 JDe.int)
+                        |: (JDe.index 5 JDe.float)
+           )
 
 
 type alias ResidueInfo =
@@ -191,6 +224,7 @@ update msg model =
                 { model
                     | alanineScan =
                         updatedScanModel
+                    , notifications = List.append model.notifications notifications
                 }
                     ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
 
@@ -226,6 +260,8 @@ type ScanMsg
     | ScanJobSubmitted (Result Http.Error JobDetails)
     | CheckScanJobs Time.Time
     | ProcessScanStatus (Result Http.Error JobDetails)
+    | GetScanResults String
+    | ProcessScanResults (Result Http.Error AlanineScanResults)
 
 
 updateScanInput :
@@ -374,12 +410,48 @@ updateScanInput scanMsg scanModel =
                             |> List.map (\( jobID, status ) -> JobDetails jobID status)
                 }
                     ! []
-                    # []
+                    # case jobDetails.status of
+                        Completed ->
+                            [ Notification
+                                ""
+                                "Alanine Scan Completed"
+                                ("Alanine scan job "
+                                    ++ jobDetails.jobID
+                                    ++ " complete. Retrieve the results from"
+                                    ++ " the 'Jobs' tab."
+                                )
+                            ]
+
+                        Failed ->
+                            [ Notification
+                                ""
+                                "Alanine Scan Failed"
+                                ("Alanine scan job "
+                                    ++ jobDetails.jobID
+                                    ++ " failed."
+                                )
+                            ]
+
+                        _ ->
+                            []
 
             ProcessScanStatus (Err error) ->
                 let
                     err =
                         Debug.log "Scan status check error" error
+                in
+                    scanModel ! [] # []
+
+            GetScanResults scanID ->
+                scanModel ! [ getScanResults scanID ] # []
+
+            ProcessScanResults (Ok results) ->
+                { scanModel | results = Just results } ! [] # []
+
+            ProcessScanResults (Err error) ->
+                let
+                    err =
+                        Debug.log "Failed to retrieve scan results" error
                 in
                     scanModel ! [] # []
 
@@ -424,7 +496,17 @@ submitAlanineScan scanSub =
 checkScanJobStatus : JobDetails -> Cmd ScanMsg
 checkScanJobStatus { jobID } =
     Http.send ProcessScanStatus <|
-        Http.get ("/api/v0.1/alanine-scan-job/" ++ jobID) jobDetailsDecoder
+        Http.get
+            ("/api/v0.1/alanine-scan-job/" ++ jobID ++ "?get-status")
+            jobDetailsDecoder
+
+
+getScanResults : String -> Cmd ScanMsg
+getScanResults jobID =
+    Http.send ProcessScanResults <|
+        Http.get
+            ("/api/v0.1/alanine-scan-job/" ++ jobID ++ "?get-results")
+            scanResultsDecoder
 
 
 
@@ -674,6 +756,20 @@ jobTable tableTitle jobs =
             tr [ class "details" ]
                 [ td [] [ text jobID ]
                 , td [] [ text <| toString status ]
+                , td []
+                    [ button
+                        [ GetScanResults jobID
+                            |> UpdateScanSubmission
+                            |> onClick
+                        , (if (status == Completed) then
+                            False
+                           else
+                            True
+                          )
+                            |> disabled
+                        ]
+                        [ text "Get Results" ]
+                    ]
                 ]
     in
         div []
