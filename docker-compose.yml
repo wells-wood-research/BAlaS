@@ -11,5 +11,15 @@ services:
     depends_on:
       - db
     restart: on-failure
+  ala-scan:
+    build:
+      context: .
+      dockerfile: ./ala-scan/Dockerfile
+    depends_on:
+      - db
+    environment:
+      - PYTHONUNBUFFERED=0
+      - SCAN_PROCS=2
+    restart: on-failure
   db:
     image: mongo

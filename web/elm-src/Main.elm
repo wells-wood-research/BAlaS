@@ -32,7 +32,7 @@ main =
 
 type alias Model =
     { appMode : AppMode
-    , alanineScanModel : AlanineScanModel
+    , alanineScan : AlanineScanModel
     , notifications : List Notification
     , notificationsOpen : Bool
     }
@@ -58,9 +58,10 @@ jobDetailsDecoder =
 
 
 type JobStatus
-    = Queued
+    = Submitted
+    | Queued
     | Running
-    | Complete
+    | Completed
     | Failed
 
 
@@ -68,15 +69,18 @@ intToJobStatus : Int -> JDe.Decoder JobStatus
 intToJobStatus statusNumber =
     case statusNumber of
         1 ->
-            JDe.succeed Queued
+            JDe.succeed Submitted
 
         2 ->
-            JDe.succeed Running
+            JDe.succeed Queued
 
         3 ->
-            JDe.succeed Complete
+            JDe.succeed Running
 
         4 ->
+            JDe.succeed Completed
+
+        5 ->
             JDe.succeed Failed
 
         _ ->
@@ -98,7 +102,7 @@ type alias ChainID =
 
 type alias AlanineScanModel =
     { alanineScanSub : AlanineScanSub
-    , alanineScanJobs : List JobDetails
+    , jobs : List JobDetails
     }
 
 
@@ -182,10 +186,10 @@ update msg model =
         UpdateScanSubmission scanMsg ->
             let
                 ( updatedScanModel, scanSubCmds, notifications ) =
-                    updateScanInput scanMsg model.alanineScanModel
+                    updateScanInput scanMsg model.alanineScan
             in
                 { model
-                    | alanineScanModel =
+                    | alanineScan =
                         updatedScanModel
                 }
                     ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
@@ -336,7 +340,7 @@ updateScanInput scanMsg scanModel =
             ScanJobSubmitted (Ok jobDetails) ->
                 { scanModel
                     | alanineScanSub = emptyScanSub
-                    , alanineScanJobs = jobDetails :: scanModel.alanineScanJobs
+                    , jobs = jobDetails :: scanModel.jobs
                 }
                     ! []
                     # []
@@ -356,13 +360,13 @@ updateScanInput scanMsg scanModel =
             CheckScanJobs _ ->
                 scanModel
                     ! List.map checkScanJobStatus
-                        scanModel.alanineScanJobs
+                        scanModel.jobs
                     # []
 
             ProcessScanStatus (Ok jobDetails) ->
                 { scanModel
-                    | alanineScanJobs =
-                        scanModel.alanineScanJobs
+                    | jobs =
+                        scanModel.jobs
                             |> List.map (\{ jobID, status } -> ( jobID, status ))
                             |> Dict.fromList
                             |> Dict.insert jobDetails.jobID jobDetails.status
@@ -378,6 +382,13 @@ updateScanInput scanMsg scanModel =
                         Debug.log "Scan status check error" error
                 in
                     scanModel ! [] # []
+
+
+getActiveJobs : List JobDetails -> List JobDetails
+getActiveJobs jobs =
+    List.filter
+        (\{ status } -> (status /= Completed) && (status /= Failed))
+        jobs
 
 
 
@@ -437,7 +448,7 @@ subscriptions model =
 
         -- , atomClick <| UpdateScanSubmission << ToggleResidueSelection
         ]
-            ++ (if List.length model.alanineScanModel.alanineScanJobs > 0 then
+            ++ (if List.length (getActiveJobs model.alanineScan.jobs) > 0 then
                     [ Time.every (5 * Time.second)
                         (UpdateScanSubmission << CheckScanJobs)
                     ]
@@ -495,7 +506,7 @@ view model =
             ScanSubmission ->
                 scanSubmissionView
                     UpdateScanSubmission
-                    model.alanineScanModel.alanineScanSub
+                    model.alanineScan.alanineScanSub
 
             ConstellationSubmission ->
                 div [ class "control-panel constellation-panel" ]
@@ -648,7 +659,7 @@ jobsView : Model -> Html Msg
 jobsView model =
     let
         alaScanJobs =
-            model.alanineScanModel.alanineScanJobs
+            model.alanineScan.jobs
     in
         div [ class "control-panel jobs-panel" ]
             [ h2 [] [ text "Jobs" ]

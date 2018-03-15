@@ -41,6 +41,8 @@ class AlanineScanJob(Resource):
             print(f"Getting Scan Job {job_id}...", file=sys.stderr)
         job_details = database.export_job_details(
             database.get_scan_job(job_id))
+        if job_details is None:
+            flask.abort(404)
         if app.debug:
             print(f"Got job details for job {job_id}.", file=sys.stderr)
         return job_details, 201

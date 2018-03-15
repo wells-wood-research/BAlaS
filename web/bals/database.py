@@ -13,7 +13,8 @@ ALANINE_SCAN_JOBS = CLIENT.bals.alanine_scan_jobs
 
 def submit_scan_job(scan_submission):
     """Submits an alanine scan job to the queue."""
-    scan_submission['status'] = JobStatus.QUEUED.value
+    scan_submission['status'] = JobStatus.SUBMITTED.value
+    scan_submission['timeSubmitted'] = datetime.datetime.now()
     job_id = ALANINE_SCAN_JOBS.insert_one(scan_submission).inserted_id
     return job_id
 
@@ -35,7 +36,8 @@ def export_job_details(scan_job):
 
 class JobStatus(Enum):
     """Represents the possible states of a job."""
+    SUBMITTED = auto()
     QUEUED = auto()
     RUNNING = auto()
-    COMPLETE = auto()
+    COMPLETED = auto()
     FAILED = auto()
