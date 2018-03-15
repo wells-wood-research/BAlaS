@@ -154,9 +154,8 @@ type ScanMsg
     | ProcessStructureInfo (List ChainID)
     | SetChainVisibility ChainID Bool
     | SetReceptor ChainID
-    | ClearReceptor
     | SetLigand ChainID
-    | ClearLigand
+    | ClearReceptorLigand
     | SubmitScanJob
     | ScanJobSubmitted (Result Http.Error String)
 
@@ -229,20 +228,6 @@ updateScanInput scanMsg scanModel =
                     Nothing ->
                         scanModel ! []
 
-            ClearReceptor ->
-                case scanSub.pdbFile of
-                    Just pdb ->
-                        { scanModel
-                            | alanineScanSub =
-                                { scanSub
-                                    | receptor = Nothing
-                                }
-                        }
-                            ! [ showStructure pdb ]
-
-                    Nothing ->
-                        scanModel ! []
-
             SetLigand chainID ->
                 case scanSub.chainVisibility of
                     Just chainVis ->
@@ -257,13 +242,14 @@ updateScanInput scanMsg scanModel =
                     Nothing ->
                         scanModel ! []
 
-            ClearLigand ->
+            ClearReceptorLigand ->
                 case scanSub.pdbFile of
                     Just pdb ->
                         { scanModel
                             | alanineScanSub =
                                 { scanSub
-                                    | ligand = Nothing
+                                    | receptor = Nothing
+                                    , ligand = Nothing
                                 }
                         }
                             ! [ showStructure pdb ]
@@ -353,24 +339,26 @@ residueInfoDecoder =
 view : Model -> Html Msg
 view model =
     div [ class "main-grid" ]
-        [ header [ class "title-bar" ] [ h1 [] [ text "BALS" ] ]
+        [ header
+            [ class "title-bar" ]
+            [ h1 [] [ text "BUDE Alanine Scan" ] ]
         , div
             [ id "viewer" ]
             []
         , div [ class "tabs" ]
             [ div
-                [ class "scan-tab"
+                [ class "tab scan-tab"
                 , onClick <| SetAppMode ScanSubmission
                 ]
                 [ text "Scan" ]
             , div
-                [ class "constellation-tab"
+                [ class "tab constellation-tab"
                 , onClick <|
                     SetAppMode ConstellationSubmission
                 ]
                 [ text "Constellation" ]
             , div
-                [ class "jobs-tab"
+                [ class "tab jobs-tab"
                 , onClick <| SetAppMode Jobs
                 ]
                 [ text "Jobs" ]
@@ -386,8 +374,7 @@ view model =
                     [ h2 [] [ text "Constellation Submission" ] ]
 
             Jobs ->
-                div [ class "control-panel jobs-panel" ]
-                    [ h2 [] [ text "Jobs" ] ]
+                jobsView model
           )
         ]
 
@@ -455,7 +442,7 @@ chainSelect updateMsg mReceptorLabel mLigandLabel ( label, visible ) =
             (case mReceptorLabel of
                 Just receptorLabel ->
                     if receptorLabel == label then
-                        [ button [ onClick <| updateMsg ClearReceptor ]
+                        [ button [ onClick <| updateMsg ClearReceptorLigand ]
                             [ text "Clear" ]
                         ]
                     else
@@ -485,7 +472,7 @@ chainSelect updateMsg mReceptorLabel mLigandLabel ( label, visible ) =
             (case mLigandLabel of
                 Just ligandLabel ->
                     if ligandLabel == label then
-                        [ button [ onClick <| updateMsg ClearLigand ]
+                        [ button [ onClick <| updateMsg ClearReceptorLigand ]
                             [ text "Clear" ]
                         ]
                     else
@@ -508,3 +495,38 @@ chainSelect updateMsg mReceptorLabel mLigandLabel ( label, visible ) =
                                 [ ligButton ]
             )
         ]
+
+
+jobsView : Model -> Html Msg
+jobsView model =
+    let
+        alaScanJobs =
+            model.alanineScanModel.alanineScanJobs
+    in
+        div [ class "control-panel jobs-panel" ]
+            [ h2 [] [ text "Jobs" ]
+            , jobTable "Alanine Scan Jobs" alaScanJobs
+            ]
+
+
+jobTable : String -> List String -> Html Msg
+jobTable tableTitle jobs =
+    let
+        tableRow jobID =
+            tr [ class "details" ]
+                [ td [] [ text jobID ] ]
+    in
+        div []
+            [ h3 [] [ text tableTitle ]
+            , if List.length jobs > 0 then
+                table []
+                    ([ tr []
+                        [ th [] [ text "Job ID" ]
+                        , th [] [ text "Status" ]
+                        ]
+                     ]
+                        ++ List.map tableRow jobs
+                    )
+              else
+                text "No Jobs submitted."
+            ]
