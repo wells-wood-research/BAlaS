@@ -12,6 +12,7 @@ import Http
 import Json.Decode as JDe
 import Json.Decode.Extra exposing ((|:))
 import Json.Encode as JEn
+import Time
 
 
 main : Program Never Model Msg
@@ -40,8 +41,43 @@ type AppMode
     | Jobs
 
 
-type alias JobID =
-    String
+type alias JobDetails =
+    { jobID : String
+    , status : JobStatus
+    }
+
+
+jobDetailsDecoder : JDe.Decoder JobDetails
+jobDetailsDecoder =
+    JDe.succeed JobDetails
+        |: (JDe.field "_id" JDe.string)
+        |: (JDe.field "status" (JDe.int |> JDe.andThen intToJobStatus))
+
+
+type JobStatus
+    = Queued
+    | Running
+    | Complete
+    | Failed
+
+
+intToJobStatus : Int -> JDe.Decoder JobStatus
+intToJobStatus statusNumber =
+    case statusNumber of
+        1 ->
+            JDe.succeed Queued
+
+        2 ->
+            JDe.succeed Running
+
+        3 ->
+            JDe.succeed Complete
+
+        4 ->
+            JDe.succeed Failed
+
+        _ ->
+            JDe.fail "Unknown status."
 
 
 emptyModel : Model
@@ -57,7 +93,7 @@ type alias ChainID =
 
 type alias AlanineScanModel =
     { alanineScanSub : AlanineScanSub
-    , alanineScanJobs : List JobID
+    , alanineScanJobs : List JobDetails
     }
 
 
@@ -157,7 +193,9 @@ type ScanMsg
     | SetLigand ChainID
     | ClearReceptorLigand
     | SubmitScanJob
-    | ScanJobSubmitted (Result Http.Error String)
+    | ScanJobSubmitted (Result Http.Error JobDetails)
+    | CheckScanJobs Time.Time
+    | ProcessScanStatus (Result Http.Error JobDetails)
 
 
 updateScanInput : ScanMsg -> AlanineScanModel -> ( AlanineScanModel, Cmd ScanMsg )
@@ -260,15 +298,41 @@ updateScanInput scanMsg scanModel =
             SubmitScanJob ->
                 scanModel ! [ submitAlanineScan scanModel.alanineScanSub ]
 
-            ScanJobSubmitted (Ok jobID) ->
+            ScanJobSubmitted (Ok jobDetails) ->
                 { scanModel
                     | alanineScanSub = emptyScanSub
-                    , alanineScanJobs = jobID :: scanModel.alanineScanJobs
+                    , alanineScanJobs = jobDetails :: scanModel.alanineScanJobs
                 }
                     ! []
 
             ScanJobSubmitted (Err error) ->
-                scanModel ! []
+                let
+                    err =
+                        Debug.log "Scan job submission error" error
+                in
+                    scanModel ! []
+
+            CheckScanJobs _ ->
+                scanModel ! List.map checkScanJobStatus scanModel.alanineScanJobs
+
+            ProcessScanStatus (Ok jobDetails) ->
+                { scanModel
+                    | alanineScanJobs =
+                        scanModel.alanineScanJobs
+                            |> List.map (\{ jobID, status } -> ( jobID, status ))
+                            |> Dict.fromList
+                            |> Dict.insert jobDetails.jobID jobDetails.status
+                            |> Dict.toList
+                            |> List.map (\( jobID, status ) -> JobDetails jobID status)
+                }
+                    ! []
+
+            ProcessScanStatus (Err error) ->
+                let
+                    err =
+                        Debug.log "Scan status check error" error
+                in
+                    scanModel ! []
 
 
 
@@ -298,7 +362,13 @@ submitAlanineScan scanSub =
             (encodeAlanineScanSub scanSub
                 |> Http.jsonBody
             )
-            JDe.string
+            jobDetailsDecoder
+
+
+checkScanJobStatus : JobDetails -> Cmd ScanMsg
+checkScanJobStatus { jobID } =
+    Http.send ProcessScanStatus <|
+        Http.get ("/api/v0.1/alanine-scan-job/" ++ jobID) jobDetailsDecoder
 
 
 
@@ -316,12 +386,19 @@ port atomClick : (ResidueInfo -> msg) -> Sub msg
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
+    Sub.batch <|
         [ receivePDBFile <| UpdateScanSubmission << ProcessPDBInput
         , receiveStructureInfo <| UpdateScanSubmission << ProcessStructureInfo
 
         -- , atomClick <| UpdateScanSubmission << ToggleResidueSelection
         ]
+            ++ (if List.length model.alanineScanModel.alanineScanJobs > 0 then
+                    [ Time.every (5 * Time.second)
+                        (UpdateScanSubmission << CheckScanJobs)
+                    ]
+                else
+                    []
+               )
 
 
 residueInfoDecoder : JDe.Decoder ResidueInfo
@@ -509,12 +586,14 @@ jobsView model =
             ]
 
 
-jobTable : String -> List String -> Html Msg
+jobTable : String -> List JobDetails -> Html Msg
 jobTable tableTitle jobs =
     let
-        tableRow jobID =
+        tableRow { jobID, status } =
             tr [ class "details" ]
-                [ td [] [ text jobID ] ]
+                [ td [] [ text jobID ]
+                , td [] [ text <| toString status ]
+                ]
     in
         div []
             [ h3 [] [ text tableTitle ]

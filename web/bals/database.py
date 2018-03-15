@@ -18,9 +18,24 @@ def submit_scan_job(scan_submission):
     return job_id
 
 
+def get_scan_job(job_id):
+    """Gets an alanine scanning job from the database."""
+    scan_job = ALANINE_SCAN_JOBS.find_one({'_id': ObjectId(job_id)})
+    return scan_job
+
+
+def export_job_details(scan_job):
+    """Converts scan job to an exportable format."""
+    job_details = {
+        '_id': str(scan_job['_id']),
+        'status': scan_job['status'],
+    }
+    return job_details
+
+
 class JobStatus(Enum):
     """Represents the possible states of a job."""
     QUEUED = auto()
-    IN_PROGRESS = auto()
+    RUNNING = auto()
     COMPLETE = auto()
     FAILED = auto()
