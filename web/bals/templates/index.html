@@ -43,9 +43,49 @@
             }
         }
     );
+    
+    // This port handles collecting information from selected files
+    // and sending it through to the Elm app.
+    app.ports.requestPDBFile.subscribe(function() {
+        var fileToLoad = document.getElementById("pdbFileToLoad").files[0];
+        var fileReader = new FileReader();
+        fileReader.onload = function(fileLoadedEvent) {
+            var textFromFileLoaded = fileLoadedEvent.target.result;
+            app.ports.receivePDBFile.send(textFromFileLoaded);
+        };
+        if (typeof fileToLoad != 'undefined') {
+            fileReader.readAsText(fileToLoad, "UTF-8");
+        } else {
+            app.ports.receivePDBFile.send("Failed to find file.");
+        }
+    });
 
     // This port handles loading structures into PV
     app.ports.showStructure.subscribe(function (pdbString) {
+        const chainLabels = showStructure(pdbString);
+        app.ports.receiveStructureInfo.send(chainLabels);
+        }
+    );
+    
+    app.ports.setChainVisibility.subscribe(function (chainVisibility) {
+        const chainLabel = chainVisibility[0];
+        const visible = chainVisibility[1];
+        setChainVisibility(chainLabel, visible);
+    });
+
+    app.ports.colourGeometry.subscribe(function (colourAndLabel) {
+        const colour = colourAndLabel[0];
+        const label = colourAndLabel[1];
+        cartoonGeometry[label].colorBy(pv.color.uniform(colour));
+        viewer.requestRedraw();
+    });
+
+    app.ports.colourByDDG.subscribe(function (alaScanResults) {
+        colourByDDG(alaScanResults);
+    });
+
+    // Functions for handling structures.
+    function showStructure (pdbString) {
         viewer.clear();
         currentStructure = pv.io.pdb(pdbString);
         viewer.fitTo(currentStructure);
@@ -75,13 +115,10 @@
                 app.ports.atomClick.send(residueInfo);
             }
         });
-        app.ports.receiveStructureInfo.send(chainLabels);
-        }
-    );
+        return chainLabels;
+    }
 
-    app.ports.setChainVisibility.subscribe(function (chainVisibility) {
-        const chainLabel = chainVisibility[0];
-        const visible = chainVisibility[1];
+    function setChainVisibility(chainLabel, visible) {
         if (visible) {
             viewer.show(chainLabel + '_c');
             viewer.show(chainLabel + '_l');
@@ -90,29 +127,48 @@
             viewer.hide(chainLabel + '_l');
         }
         viewer.requestRedraw();
-    });
+        return;
+    }
 
-    app.ports.colourGeometry.subscribe(function (colourAndLabel) {
-        const colour = colourAndLabel[0];
-        const label = colourAndLabel[1];
-        cartoonGeometry[label].colorBy(pv.color.uniform(colour));
-        viewer.requestRedraw();
-    });
-
-    // This port handles collecting information from selected files
-    // and sending it through to the Elm app.
-    app.ports.requestPDBFile.subscribe(function() {
-        var fileToLoad = document.getElementById("pdbFileToLoad").files[0];
-        var fileReader = new FileReader();
-        fileReader.onload = function(fileLoadedEvent) {
-            var textFromFileLoaded = fileLoadedEvent.target.result;
-            app.ports.receivePDBFile.send(textFromFileLoaded);
-        };
-        if (typeof fileToLoad != 'undefined') {
-            fileReader.readAsText(fileToLoad, "UTF-8");
-        } else {
-            app.ports.receivePDBFile.send("Failed to find file.");
-        }
-    });
+    function colourByDDG(alaScanResults) {
+        currentStructure.eachResidue(function(residue) {
+                residue.setProp('ddG', 0.0);
+            });
+            for (var i = 0; i < alaScanResults.ligandResults.length; i++) {
+                const resResult = alaScanResults.ligandResults[i];
+                var res = currentStructure.select(
+                    {cname : resResult.chainID,
+                     rnum: parseInt(resResult.residueNumber)
+                    });
+                res.eachResidue(function(residue) {
+                    if (resResult.ddG > 0) {
+                        residue.setProp('ddG', resResult.ddG);
+                    }
+                });
+            } 
+        viewer.clear();
+        const receptor = currentStructure.select(
+            {cname : alaScanResults.receptor,
+            });
+        const ligand = currentStructure.select(
+            {cname : alaScanResults.ligand,
+            });
+        const nonZeroResLabels = alaScanResults.ligandResults
+                .filter(x => x.ddG > 0)
+                .map(x => parseInt(x.residueNumber));
+        const nonZeroResidues = ligand.residueSelect(function(res) {
+            return nonZeroResLabels.includes(res.num());
+        });
+        viewer.cartoon('receptor', receptor,
+            { color: pv.color.uniform('#ff000044') });
+        viewer.cartoon('ligand', ligand,
+            { color: pv.color.uniform('#0000ff44') });
+        viewer.ballsAndSticks('recRes', receptor,
+                { color: pv.color.uniform('#ff000044') });
+        viewer.ballsAndSticks('ligDDG', nonZeroResidues,
+                { color: pv.color.byResidueProp(
+                    'ddG', pv.color.gradient(['blue', 'yellow', 'red']))});
+        return;
+    }
 </script>
 </html>

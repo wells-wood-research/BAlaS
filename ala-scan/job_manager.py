@@ -79,7 +79,10 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
         ALANINE_SCAN_JOBS.update_one(
             {'_id': job_id},
             {'$set': {'status': JobStatus.COMPLETED.value,
-                      'results': FAKE_RESULTS}})
+                      'dG': FAKE_RESULTS['dG'],
+                      'receptorData': FAKE_RESULTS['receptorData'],
+                      'ligandData': FAKE_RESULTS['ligandData'],
+                      }})
         print("Finished scan job {}!".format(job_id), file=sys.stderr)
         assigned_jobs[proc_i] = None
     return
@@ -95,7 +98,7 @@ def update_job_status(scan_job_id, status):
 
 FAKE_RESULTS = {
     "dG": -154.6038,
-    "residueData":
+    "receptorData":
         [
             ["25", "GLU", "A", -3.3957, 4, 0.0],
             ["26", "THR", "A", 1.0658, 2, 0.0],
@@ -182,6 +185,22 @@ FAKE_RESULTS = {
             ["107", "LEU", "A", 0.0435, 3, 0.0],
             ["108", "VAL", "A", 0.0, 2, 0.0],
             ["109", "VAL", "A", 0.0, 2, 0.0]
+        ],
+    "ligandData":
+        [
+            [ "17", "GLU", "B", 19.1207, 4, 0.0 ],
+            [ "18", "THR", "B", 0.5949, 2, 0.0 ],
+            [ "19", "PHE", "B", 20.3646, 6, 0.0 ],
+            [ "20", "SER", "B", 0.0, 1, 0.0 ],
+            [ "21", "ASP", "B", 0.0506, 3, 0.0 ],
+            [ "22", "LEU", "B", 6.7914, 3, 0.0 ],
+            [ "23", "TRP", "B", 22.0543, 9, 0.0 ],
+            [ "24", "LYS", "B", 0.5078, 4, 0.0 ],
+            [ "25", "LEU", "B", 0.4186, 3, 0.0 ],
+            [ "26", "LEU", "B", 8.3254, 3, 0.0 ],
+            [ "27", "PRO", "B", 4.1877, 2, 0.0 ],
+            [ "28", "GLU", "B", 15.6824, 4, 0.0 ],
+            [ "29", "ASN", "B", 0.5048, 3, 0.0 ]
         ]
 }
 

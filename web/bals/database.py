@@ -26,12 +26,19 @@ def get_scan_job(job_id):
 
 
 def export_job_details(scan_job):
-    """Converts scan job to an exportable format."""
+    """Creates job status details from a scan job."""
     job_details = {
         '_id': str(scan_job['_id']),
         'status': scan_job['status'],
     }
     return job_details
+
+
+def export_scan_job(scan_job):
+    """Converts scan job to an exportable format."""
+    scan_job['_id'] = str(scan_job['_id'])
+    scan_job['timeSubmitted'] = str(scan_job['timeSubmitted'])
+    return scan_job
 
 
 class JobStatus(Enum):

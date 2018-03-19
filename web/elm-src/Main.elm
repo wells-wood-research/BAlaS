@@ -147,13 +147,18 @@ encodeAlanineScanSub : AlanineScanSub -> JEn.Value
 encodeAlanineScanSub scanSub =
     JEn.object
         [ ( "pdbFile", Maybe.withDefault "Invalid" scanSub.pdbFile |> JEn.string )
+        , ( "receptor", Maybe.withDefault "Invalid" scanSub.receptor |> JEn.string )
         , ( "ligand", Maybe.withDefault "Invalid" scanSub.ligand |> JEn.string )
         ]
 
 
 type alias AlanineScanResults =
-    { dG : Float
-    , residueResults : List ResidueResult
+    { pdbFile : String
+    , receptor : String
+    , ligand : String
+    , dG : Float
+    , receptorResults : List ResidueResult
+    , ligandResults : List ResidueResult
     }
 
 
@@ -170,8 +175,21 @@ type alias ResidueResult =
 scanResultsDecoder : JDe.Decoder AlanineScanResults
 scanResultsDecoder =
     JDe.succeed AlanineScanResults
+        |: (JDe.field "pdbFile" JDe.string)
+        |: (JDe.field "receptor" JDe.string)
+        |: (JDe.field "ligand" JDe.string)
         |: (JDe.field "dG" JDe.float)
-        |: (JDe.field "residueData" <|
+        |: (JDe.field "receptorData" <|
+                JDe.list <|
+                    JDe.succeed ResidueResult
+                        |: (JDe.index 0 JDe.string)
+                        |: (JDe.index 1 JDe.string)
+                        |: (JDe.index 2 JDe.string)
+                        |: (JDe.index 3 JDe.float)
+                        |: (JDe.index 4 JDe.int)
+                        |: (JDe.index 5 JDe.float)
+           )
+        |: (JDe.field "ligandData" <|
                 JDe.list <|
                     JDe.succeed ResidueResult
                         |: (JDe.index 0 JDe.string)
@@ -221,12 +239,32 @@ update msg model =
                 ( updatedScanModel, scanSubCmds, notifications ) =
                     updateScanInput scanMsg model.alanineScan
             in
-                { model
-                    | alanineScan =
-                        updatedScanModel
-                    , notifications = List.append model.notifications notifications
-                }
-                    ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
+                case scanMsg of
+                    ScanJobSubmitted (Ok _) ->
+                        { model
+                            | alanineScan =
+                                updatedScanModel
+                            , appMode = Jobs
+                            , notifications = List.append model.notifications notifications
+                        }
+                            ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
+
+                    ProcessScanResults (Ok _) ->
+                        { model
+                            | alanineScan =
+                                updatedScanModel
+                            , appMode = ScanSubmission
+                            , notifications = List.append model.notifications notifications
+                        }
+                            ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
+
+                    _ ->
+                        { model
+                            | alanineScan =
+                                updatedScanModel
+                            , notifications = List.append model.notifications notifications
+                        }
+                            ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
 
         ToggleNotificationPanel ->
             { model | notificationsOpen = not model.notificationsOpen }
@@ -262,6 +300,8 @@ type ScanMsg
     | ProcessScanStatus (Result Http.Error JobDetails)
     | GetScanResults String
     | ProcessScanResults (Result Http.Error AlanineScanResults)
+    | ColourByDDG
+    | ClearScanSubmission
 
 
 updateScanInput :
@@ -446,7 +486,9 @@ updateScanInput scanMsg scanModel =
                 scanModel ! [ getScanResults scanID ] # []
 
             ProcessScanResults (Ok results) ->
-                { scanModel | results = Just results } ! [] # []
+                { scanModel | results = Just results }
+                    ! [ colourByDDG results ]
+                    # []
 
             ProcessScanResults (Err error) ->
                 let
@@ -454,6 +496,19 @@ updateScanInput scanMsg scanModel =
                         Debug.log "Failed to retrieve scan results" error
                 in
                     scanModel ! [] # []
+
+            ColourByDDG ->
+                case scanModel.results of
+                    Just results ->
+                        scanModel
+                            ! [ colourByDDG results ]
+                            # []
+
+                    Nothing ->
+                        scanModel ! [] # []
+
+            ClearScanSubmission ->
+                { scanModel | results = Nothing } ! [] # []
 
 
 getActiveJobs : List JobDetails -> List JobDetails
@@ -480,6 +535,9 @@ port setChainVisibility : ( ChainID, Bool ) -> Cmd msg
 
 
 port colourGeometry : ( String, ChainID ) -> Cmd msg
+
+
+port colourByDDG : AlanineScanResults -> Cmd msg
 
 
 submitAlanineScan : AlanineScanSub -> Cmd ScanMsg
@@ -586,9 +644,14 @@ view model =
             ]
         , (case model.appMode of
             ScanSubmission ->
-                scanSubmissionView
-                    UpdateScanSubmission
-                    model.alanineScan.alanineScanSub
+                case model.alanineScan.results of
+                    Just results ->
+                        scanResultsView UpdateScanSubmission results
+
+                    Nothing ->
+                        scanSubmissionView
+                            UpdateScanSubmission
+                            model.alanineScan.alanineScanSub
 
             ConstellationSubmission ->
                 div [ class "control-panel constellation-panel" ]
@@ -659,6 +722,39 @@ scanSubmissionView updateMsg scanSub =
                     []
             )
         ]
+
+
+scanResultsView : (ScanMsg -> msg) -> AlanineScanResults -> Html msg
+scanResultsView updateMsg results =
+    let
+        resultsRow { residueNumber, aminoAcid, ddG } =
+            tr []
+                [ td [] [ text residueNumber ]
+                , td [] [ text aminoAcid ]
+                , td [] [ toString ddG |> text ]
+                ]
+    in
+        div
+            [ class "control-panel scan-panel" ]
+            [ h2 [] [ text "Alanine Scan Results" ]
+            , button
+                [ onClick <| updateMsg ClearScanSubmission ]
+                [ text "New Submission" ]
+            , h3 [] [ text "ΔG" ]
+            , p [] [ toString results.dG |> text ]
+            , h3 [] [ text "Residue Results" ]
+            , div [ class "scan-results-table" ]
+                [ table []
+                    ([ tr []
+                        [ th [] [ text "Residue Number" ]
+                        , th [] [ text "Amino Acid" ]
+                        , th [] [ text "ΔΔG" ]
+                        ]
+                     ]
+                        ++ List.map resultsRow results.ligandResults
+                    )
+                ]
+            ]
 
 
 chainSelect :
