@@ -1,0 +1,316 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+    <title>Using ALAscanApp</title>
+
+    <style>
+      .holder {
+        max-width: 900px;
+        margin: auto;
+        border: 3px solid #73AD21;
+        font-family: Arial, Courier, Verdana, Times, serif, "Times New Roman";
+        font-size: 1.2em;
+      }
+      .content {
+        margin-right: 10px;
+        margin-left: 10px;
+        text-align: justify
+      }
+      .dir {
+        color: #5454ff;
+        font-weight: bold;
+      }
+      kbd {
+        font-style: italic
+      }
+      .cmpress {
+        color: #b21818;
+      }
+      .cmds {
+        color: #18b218;
+      }
+
+      ol {
+        list-style-type: lower-alpha;
+      }
+
+      .emph {
+        font-weight: bold;
+      }
+      .title {
+        text-align: center;
+      }
+
+    </style>
+
+  </head>
+
+  <body>
+    <div class="holder">
+      <div class="content">
+
+        <h2 class="title">How to use ALAscanApp</h2>
+
+        <h3>Using ALAscanApp.py</h3>
+
+        <p>
+          The utility will create hot constellations and calculate ddG
+          for them from a PDB file. Hot constellations will only be formed from
+          the &lsquo;ligand&rsquo;. The PDB file must
+          have at least two chains and no non-standard amino acids.
+        </p>
+
+        <p>
+          It has two modes, auto and manual. In manual mode the constellations are space
+          separated. Each constellation is composed by comma separated residue numbers.
+          Each residue number must be preceded by the chain ID it belongs to. Residues can
+          belong to different chains as long as the chains are part of the ligand.
+        </p>
+
+        <p>
+          e.g.
+          <br />
+          If we have two constellations, one from chain &lsquo;C&rsquo; with residues 6 and 7 and the
+          second one from chain &lsquo;D&rsquo; with residues 10, 12 and 17.
+          <br />
+          C6,C7 D10,D12,D17
+        </p>
+
+        <p>
+          By default the script runs silently and shows the plots at the end of the
+          calculations. This behaviour can be toggled from a general perspective or from
+          the used mode.
+        </p>
+
+        <p>
+          Finally, it writes the plot data into a comma separated values (csv) file and the
+          calculations&apos; results into a json file.
+        </p>
+
+        <p>
+          The csv file can be used to plot the data with other plotting programs and the
+          json file to replot the data using the
+          <span class="cmds">replotAlaScan.py</span> script.
+        </p>
+
+        <p>
+          If the number of hot constellations created in the auto mode exceeds the
+          &lsquo;<span class="emph">MaxAutoNumber</span>&rsquo;. 
+          We will calculate 
+          &lsquo;<span class="emph">MaxAutoNumber</span>&rsquo; of them. 
+          The rest will be written to a file so they can be calculated using the
+          manual mode. Alternatively the
+          &lsquo;<span class="emph">MaxAutoNumber</span>&rsquo;
+          could be increased in the initialisation file
+          &lsquo;<span class="emph">.alascanapp.ini</span>&rsquo;.
+        </p>
+
+        <p>
+          There are three ways to run the script.
+        </p>
+
+        <ol>
+          <li>
+            Giving the full path.
+          </li>
+          <li>
+            Creating a symbolic link into the PATH and calling <span class="cmds">ALAscanApp.py</span> like an ordinary command.
+          </li>
+          <li>
+            Invoking the python interpreter with the full path of the script.
+          </li>
+        </ol>
+
+        <p>
+          We will assume that you got the file
+          <span class="cmpress">alaScanApp-dist.tar.gz</span> 
+          unpacked and uncompressed in your home directory creating 
+          the following directory structure.
+        </p>
+
+        <code>
+          /HOME/<span class="dir">alaScanApp-dist</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="cmpress">alaScanApp.tar.gz</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="cmds">setup_utils.py</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>/<span class="dir">getSD</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>/<span class="dir">colourBySD</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>/<span class="dir">dividePDB</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>/<span class="cmpress">BUDE-1.2.9.tar.gz</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>/<span class="cmds">comp_utils.sh</span>
+        </code>
+
+        <p>
+          We are also assuming that you ran
+          &lsquo;<span class="cmds">setup_utils.py</span>&rsquo;, it
+          was done successfully and we also have this
+          additional directory structure.
+        </p>
+
+        <code>
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">alaScanApp</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">alaScanApp</span>/<span class="cmds">ALAscanApp.py</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">alaScanApp</span>/<span class="cmds">replotAlaScan.py</span>
+        </code>
+
+        <p>
+          The final assumption is that you have &lsquo;/HOME/bin&rsquo; in your PATH.
+        </p>
+
+        <h4>Invoking the Script</h4>
+
+        <ol>
+          <li>
+            <kbd>&gt;/HOME/alaScanApp-dist/alaScanApp/ALAscanApp.py -h</kbd>
+          </li>
+
+          <li>
+            <kbd>&gt;ALAscanApp.py -h</kbd>
+          </li>
+
+          <li>
+            <kbd>&gt;python /HOME/alaScanApp-dist/alaScanApp/ALAscanApp.py -h</kbd>
+          </li>
+        </ol>
+
+        <p>
+          To use option b. we need to link the script to the path first.
+        </p>
+
+        <kbd> &gt;cd /HOME/bin
+          <br />
+          &gt;ln -s /HOME/alaScanApp-dist/alaScanApp/ALAscanApp.py
+          <br />
+          &gt;ln -s /HOME/alaScanApp-dist/alaScanApp/replotAlaScan.py </kbd>
+
+        <p>
+          From now on we will use option b. in our examples.
+        </p>
+
+        <h4> Usage: </h4>
+        <p>
+          ALAscanApp.py [options] [auto|manua] [options]
+        </p>
+
+        <h4>To see general help:</h4>
+
+        <kbd>&gt;ALAscanApp.py -h</kbd>
+
+        <h4>To see auto mode help:</h4>
+        <kbd>&gt;ALAscanApp.py auto -h</kbd>
+
+        <h4>To see manual mode help:</h4>
+        <kbd>&gt;ALAscanApp.py manual -h</kbd>
+
+        <h4> To automatically create hot constellations and calculate ddG for
+        them. </h4>
+
+        <kbd>&gt;ALAscanApp.py auto -p pdb_id.pdb -r A -l B -z 3 -d 10.5</kbd>
+
+        <p>
+          Where options are:
+        </p>
+
+        <p>
+          <span class="emph">-p pdb_id.pdb</span> is the PDB file eg: 1r8u.pdb
+          <br />
+          <br />
+          <span class="emph">-r A</span> for using chain &lsquo;A&rsquo; as the receptor.
+          <br />
+          <br />
+          <span class="emph">-l B</span> for using chain &lsquo;B&rsquo; as the ligand and the chain to create hot
+          constellations from.
+          <br />
+          <br />
+          <span class="emph">-z 3</span> Size of the constellations, number of residues.
+          <br />
+          <br />
+          <span class="emph">-d 10.5</span> Residues with a ddG of 10.5 or more will be used.
+        </p>
+
+        <h4> To manually calculate ddG for given hot constellations. </h4>
+
+        <kbd>&gt;ALAscanApp.py manual -p pdb_id.pdb -r A -l B -c B345,b348,b349 b352,b353,b354</kbd>
+
+        <p>
+          Where options are:
+        </p>
+
+        <p>
+          <span class="emph">-p pdb_id.pdb</span> is the PDB file eg: 1r8u.pdb
+          <br />
+          <br />
+          <span class="emph">-r A</span> for using chain &lsquo;A&rsquo; as the receptor.
+          <br />
+          <br />
+          <span class="emph">-l B</span> for using chain &lsquo;B&rsquo; as the ligand and the chain that hot constellations are
+          from.
+          <br />
+          <br />
+          <span class="emph">-c B345,b348,b349 b352,b353,b354</span> are the two hot constellations.
+          <br />
+          &nbsp;&nbsp;Two constellations from chain B
+          <br />
+          &nbsp;&nbsp;First one with residues 345, 348 and 349
+          <br />
+          &nbsp;&nbsp;Second one with residues 352, 353 and 354
+        </p>
+
+        <h4> To turn off the showing the plots: </h4>
+
+        <p>
+          Use option -t
+        </p>
+
+        <p>
+          <kbd>&gt;ALAscanApp.py auto -p pdb_id.pdb -r A -l B -z 3 -d 10.5 -t</kbd>
+          <br />
+          or
+          <br />
+          <kbd>&gt;ALAscanApp.py -t auto -p pdb_id.pdb -r A -l B -z 3 -d 10.5</kbd>
+        </p>
+
+        <h4> To turn on verbose output, not running silently. </h4>
+
+        <p>
+          Use option -v
+        </p>
+
+        <p>
+          <kbd>&gt;ALAscanApp.py auto -p pdb_id.pdb -r A -l B -z 3 -d 10.5 -v</kbd>
+          <br />
+          or
+          <br />
+          <kbd>&gt;ALAscanApp.py -v auto -p pdb_id.pdb -r A -l B -z 3 -d 10.5</kbd>
+        </p>
+
+        <h4> To replot the alanine scanning results. </h4>
+
+        <kbd>&gt;replotAlaScan.py -j pdb_id_auto_timestamp_scan.json</kbd>
+
+        <p>
+          Where:
+          <br />
+          <span class="emph">-j pdb_id_auto_timestamp_scan.json</span> is the json file created by ALAscanApp for
+          pdb_id.pdb file in auto mode at timestamp.
+        </p>
+
+      </div>
+    </div>
+
+  </body>
+</html>

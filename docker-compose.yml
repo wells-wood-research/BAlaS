@@ -20,6 +20,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=0
       - SCAN_PROCS=2
+      - PYTHONPATH=/app/alaScanApp-dist/alaScanApp
     restart: on-failure
   db:
     image: mongo

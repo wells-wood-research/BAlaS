@@ -1,0 +1,848 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+    <title>ALAscanApp README</title>
+
+    <style>
+      .holder {
+        max-width: 900px;
+        margin: auto;
+        border: 3px solid #73AD21;
+        font-family: Arial, Courier, Verdana, Times, serif, "Times New Roman";
+        font-size: 1.2em;
+      }
+      .content {
+        margin-right: 10px;
+        margin-left: 10px;
+        text-align: justify
+      }
+      .dir {
+        color: #5454ff;
+        font-weight: bold;
+      }
+      kbd {
+        font-style: italic
+      }
+      .cmpress {
+        color: #b21818;
+      }
+      .cmds {
+        color: #18b218;
+      }
+
+      ul {
+        list-style-type: square;
+      }
+
+      .emph {
+        font-weight: bold;
+      }
+      .title {
+        text-align: center;
+      }
+
+    </style>
+
+  </head>
+
+  <body>
+    <div class="holder">
+      <div class="content">
+
+        <h2 class="title">README</h2>
+
+        <h3>ALAscanApp.py</h3>
+
+        <p>
+          This is a python 3 utility to do alanine scanning using ISAMBARD and BUDE.
+          It is a self-contained utility. It does not need installation. 
+          However, it needs to have Python 3.5 or greater. 
+          It also needs a reasonably recent C++ compiler.  We recommend GCC.
+        </p>
+
+        <p>
+          This utility is meant to work in Linux and Mac systems.
+          This document explains how 
+          to get it working in these systems.
+        </p>
+
+        <p>
+          For the App to work it is required to compile BUDE, the 
+          C++ utilities and update/create the App initialisation file
+          &lpar;.alascanapp.ini&rpar;. Hopefully all of that was/will 
+          be done with the <span class="cmds">setup_utils.py</span> script.
+        </p>
+
+        <p>
+          If using a different compiler from GCC or Mac system, exporting 
+          the CC and CXX environment variables should be done before 
+          attempting any compilation procedure or running the 
+          <span class="cmds">setup_utils.py</span>.
+          To use <span class="cmds">setup_utils.py</span> python 3
+          must be available.
+        </p>
+
+        <h3>Definitions for Running Commands</h3>
+
+        <p>
+          PATH: Environment variable containing information on where to look for executable.
+          <br />
+          HOME: Environment variable containing the information of the
+          user&apos;s home directory.
+          <br />
+          username: User&apos;s name in the system. e.g. ai7766
+          <br />
+          &lsquo;<kbd>&gt;</kbd>&rsquo; means prompt from a terminal as ordinary user.
+          <br />
+          &lsquo;<kbd>&num;</kbd>&rsquo; means prompt from a terminal as root or admin user.
+          <br />
+          &lsquo;<kbd>&gt;&gt;&gt;</kbd>&rsquo; means prompt for python interpreter.
+        </p>
+
+        <p>
+          HOME usually is expanded to
+          &lsquo;<span class="emph">/home/username</span>&rsquo;
+          in Mac systems
+          &lsquo;<span class="emph">/Users/username</span>&rsquo;.
+        </p>
+
+        <p>
+          e.g.
+          <br />
+          <kbd>&gt;ls dir</kbd>
+          <br />
+          List content of dir as ordinary user
+          <br />
+          <br />
+          <kbd>&num;zypper install package</kbd>
+          <br />
+          Install package as root user.
+          <br />
+          <br />
+          <kbd>&gt;&gt;&gt;quit&lpar;&rpar;</kbd>
+          <br />
+          Quit python interpreter.
+        </p>
+
+        <p>
+          Italics show a command and its output.
+
+          <br />
+          <kbd>&gt;command
+            <br />
+            command output</kbd>
+        </p>
+        
+        <h3>Requirements:</h3>
+
+        <ul>
+          <li>
+            GCC 4.6 or modern C++ compiler.
+          </li>
+          <li>
+            Python 3.5 or greater &lpar;Anaconda&rpar;.
+          </li>
+          <li>
+            ISAMBARD
+          </li>
+          <li>
+            BUDE
+          </li>
+        </ul>
+
+        <h3>Linux</h3>
+
+        <p>
+          Most Linux systems have GCC available. Checking if you
+          have GCC, using the command
+          &lsquo;which&rsquo;.
+        </p>
+
+        <p>
+          <kbd>&gt;which gcc</kbd>
+          
+          <br />
+          
+          <code>
+            /usr/bin/gcc
+          </code>
+          
+          &lpar;Or similar, depending on where gcc is installed&rpar;.
+          <br />
+          <br />
+          
+          <kbd>&gt;which g++</kbd>
+          
+          <br />
+          
+          <code>
+            /usr/bin/g++
+          </code>
+          
+        </p>
+
+        <p>
+          If it is not available it should display something along these lines:
+          <br />
+          <code>
+            which: no g++ in PATH
+          </code>
+        </p>
+
+        <p>
+          If it is not installed in your computer you will need admin rights to install it.
+          Depending on your Linux distribution.
+        </p>
+
+        <p>
+          SuSE family
+          <br />
+          <kbd>&num;zypper install gcc</kbd>
+        </p>
+
+        <p>
+          Red Hat family
+          <br />
+          <kbd>&num;yum install gcc</kbd>
+        </p>
+
+        <p>
+          Debian family
+          <br />
+          <kbd>&gt;sudo apt-get install gcc</kbd>
+        </p>
+
+        <p>
+          Once GCC is installed you can check with
+          &lsquo;which&rsquo; command again and it should
+          give you the full path where g++, gcc was installed.
+        </p>
+
+        <p>
+          If you have a different compiler, type at the terminal.
+        </p>
+
+        <kbd>&gt;export CC=my_C_Compiler CXX=my_C++_Compiler</kbd>
+
+        <h3>Getting python anaconda</h3>
+
+        <p>
+          Go to website: 
+          <a href="https://www.continuum.io/downloads">https://www.continuum.io/downloads</a>:
+          <br />
+          Download the appropriate installer for python 3.X, most likely it will be
+          &lpar;64-BIT &lpar;X86&rpar; INSTALLER&rpar;, it should download the file
+          <span class="cmds">Anaconda3-X.X.X-Linux-x86_64.sh</span>
+          where &lpar;X.X.X&rpar; is the version.
+        </p>
+
+        <p>
+          Open a terminal and change directory to wherever the installer was downloaded,
+          run the command and follow the instructions.
+        </p>
+
+        <kbd>&gt; bash Anaconda3-X.X.X-Linux-x86_64.sh</kbd>
+
+        <p>
+          accept the license, press enter and the letter
+          &lsquo;<span class="emph">q</span>&rsquo;,
+          type &lsquo;<span class="emph">yes</span>&rsquo; after the question:
+          <br />
+          <br />
+          <code>
+            Do you approve the license terms&quest; [yes|no]
+          </code>
+          <br />
+          <br />
+        </p>
+
+        <p>
+          After this you will be asked the location for installing Anaconda3.
+          It suggests
+          <br />
+          <br />
+          <code>
+            /home/username/anaconda3
+          </code>
+          <br />
+          <br />
+          You must have writing access to this location. The default value usually
+          is a good place. If you wish a different location type it.
+        </p>
+
+        <p>
+          It will output:
+          <br />
+          <br />
+          <code>
+            PREFIX=/home/username/anaconda3
+          </code>
+          <br />
+          <br />
+          and the installation begins.
+        </p>
+
+        <p>
+        All going well you should see this message
+        </p>
+        
+        <code>
+          Python 3.6.1 :: Continuum Analytics, Inc.
+          <br />
+          creating default environment...
+          <br />
+          installation finished.
+          <br />
+          Do you wish the installer to prepend the Anaconda3 install location
+          <br />
+          to PATH in your /home/username/.bashrc &quest; [yes|no]
+          <br />
+          [no] &gt;&gt;&gt;
+        </code>
+        <p>
+          Answer &lsquo;<span class="emph">yes</span>&rsquo; to that final
+          question. This will allow you to use
+          that python version whenever you open a terminal.
+          All done with anaconda.
+        </p>
+
+        <p>
+          Close that terminal and open a new one. This will ensure that
+          you are using the right version of python. To check it use the
+          &lsquo;which&rsquo; command.
+        </p>
+
+        <p>
+          <kbd>&gt;which python
+            <br />
+            /home/username/anaconda3/bin/python</kbd> &lpar;or wherever you installed it&rpar;
+        </p>
+
+        <p>
+          Checking python version:
+        </p>
+
+        <p>
+          <kbd>&gt;python --version
+            <br />
+            Python 3.6.X :: Anaconda X.X.X &lpar;64-bit&rpar;</kbd> &lpar;
+          according to the downloaded version&rpar;
+        </p>
+
+        <p>
+          Please check that the version is <span class="emph">greater than 3.5</span>.
+        </p>
+
+        <h3>Installing ISAMBARD</h3>
+
+        <kbd>&gt;pip install isambard</kbd>
+
+        <p>
+          This should install all required packages.
+        </p>
+
+        <p>
+          Have a look at this page for more information.
+          <br />
+          <a href="https://github.com/woolfson-group/isambard/blob/master/README.md">https://github.com/woolfson-group/isambard/blob/master/README.md</a>
+        </p>
+
+        <p>
+          We will need <span class="emph">Scwrl4</span>
+          for creating the mutants for the hot constellations. 
+          If Scwrl4 is not present only the single alanine 
+          mutants will be calculated without any sidechain repacking.
+        </p>
+
+        <h3>Configuring ISAMBARD</h3>
+
+        <p>
+          We need to run the python interpreter and import isambard
+        </p>
+
+        <p>
+          <kbd>&gt;python</kbd>
+          <br />
+          <br />
+          It will show the message below and will open a python
+          prompt &lsquo;&gt;&gt;&gt;&rsquo;
+          <br />
+          <br />
+          <kbd>Python 3.6.X :: Anaconda X.X.X &lpar;64-bit&rpar;
+            <br />
+            ...
+            &gt;&gt;&gt;
+          </kbd>
+        </p>
+        
+        <p>
+          Once you have the python prompt type:
+        </p>
+
+        <kbd>&gt;&gt;&gt;import isambard</kbd>
+
+        <p>
+          This will start isambard configuration. It will ask a few questions. 
+          For hot constellations we are interested in the Scwrl4 path. 
+          You should be able to see the following information. 
+          Bold text is meant to be input by the user. 
+          We are particularly interested in the SCWRL path, Rigid packing mode 
+          and Bude_2016v1 force field. 
+          If some of the executables are not present, 
+          pressing &lsquo;Enter&rsquo; should suffice.
+        </p>
+
+        <p>
+          <code>
+            Running configure.py...
+            <br />
+            Generating configuration files for ISAMBARD.
+            <br />
+            All required input can use tab completion for paths.
+            <br />
+            Setting up SCWRL 4.0 &lpar;Recommended&rpar;
+            <br />
+            Please provide a path to your SCWRL executable Tab completion enabled:
+            <br />
+            <span class="emph">/path/to/scwrl4/Scwrl4</span>
+            <br />
+            Path set to "/path/to/scwrl4/Scwrl4"
+            <br />
+            Please choose your packing mode &lpar;flexible is significantly slower but is
+            more accurate&rpar;. Use a number to select an option:
+            <br />
+            [1] Flexible
+            <br />
+            [2] Rigid
+            <br />
+            <span class="emph">2</span>
+            <br />
+            Setting up DSSP &lpar;Recommended&rpar;
+            <br />
+            Please provide a path to your DSSP executable. Tab completion enabled:
+            <br />
+            Setting up BUFF &lpar;Required&rpar;
+            <br />
+            Please choose the default BUFF force field, this can be modified during runtime.
+            Use a number to select an option:
+            <br />
+            [1] Standard
+            <br />
+            [2] Bude_2016v1
+            <br />
+            <span class="emph">2</span>
+            <br />
+            Setting up Reduce &lpar;optional&rpar;
+            <br />
+            Please provide a path to your reduce executable. Tab completion enabled:
+            <br />
+
+            Setting up naccess &lpar;optional&rpar;
+            <br />
+            Please provide a path to your naccess executable. Tab completion enabled:
+            <br />
+
+            Setting up ProFit &lpar;optional&rpar;
+            <br />
+            Please provide a path to your ProFit executable. Tab completion enabled:
+            <br />
+            Writing settings file to &apos;/HOME/.isambard_settings&apos;
+            <br />
+            Configuration completed successfully.
+            <br />
+            ...Some C++ messages, safe to ignore ...
+            <br />
+            &gt;&gt;&gt;
+            <br />
+          </code>
+        </p>
+        <p>
+          After that is done, isambard should be ready to use.
+          We can exit the python interpreter.
+        </p>
+
+        <p>
+          <kbd>&gt;&gt;&gt;quit&lpar;&rpar;</kbd>
+        </p>
+
+        <h3>C++ Utilities</h3>
+
+        <p>
+          I am assuming that you have the
+          <span class="cmpress">alaScanApp-dist.tar.gz</span>
+          file and it was unpacked and uncompressed creating a directory
+          <span class="dir">alaScanApp-dist</span>
+          in your home directory with the following structure.
+        </p>
+
+        <code>
+          /HOME/<span class="dir">alaScanApp-dist</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="cmpress">alaScanApp.tar.gz</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="cmds">setup_utils.py</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>/<span class="dir">getSD</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>/<span class="dir">colourBySD</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>/<span class="dir">dividePDB</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>/<span class="cmpress">BUDE-1.2.9.tar.gz</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">ccpCode</span>/<span class="cmds">comp_utils.sh</span>
+          <br />
+          /HOME/<span class="dir">alaScanApp-dist</span>/<span class="dir">doc</span>
+        </code>
+
+        <p>
+          We change into that directory from HOME.
+        </p>
+
+        <kbd>&gt;cd alaScanApp-dist</kbd>
+
+        <p>
+          We should run the <span class="cmds">setup_utils.py</span>
+          script. It will display information and waits for user input at
+          three stages. Typing &lsquo;<span class="emph">yes</span>&rsquo; or pressing enter will be understood as
+          &lsquo;Yes&rsquo; and the script will continue.
+          Typing &lsquo;<span class="emph">no</span>&rsquo; will avoid that step.
+          Typing anything else will enter a loop until any of
+          those three options is typed.
+        </p>
+
+        <p>
+          <kbd>&gt;./setup_utils.py</kbd>
+          <br />
+
+          <kbd> ...
+            <br />
+            Loads of information,
+            <br />
+            Do you want to continue [yes|no]&quest; [yes]
+            <br />
+            Loads of information,
+            <br />
+            ... </kbd>
+
+        </p>
+
+        <p>
+          Please be patient, it might take a few minutes. 
+          Hopefully, all C++ programs were compiled with 
+          <span class="cmds">setup_utils.py</span>. If that was not
+          the case this is how to do them.
+        </p>
+
+        <h3>BUDE</h3>
+
+        <p>
+          We need to unpack and uncompress bude
+          &lpar;<span class="cmpress">BUDE-1.2.9.tar.gz</span>&rpar;.
+          There is no need to install it but we will need to compile it.
+          If we have installed a modern version of GCC it should be painless.
+          The compress file should be within the
+          <span class="dir">cppCode</span> directory.
+        </p>
+
+        <p>
+          Change to the C++ directory.
+        </p>
+
+        <kbd>&gt;cd cppCode</kbd>
+
+        <p>
+          Extract and decompress BUDE
+        </p>
+
+        <kbd>&gt;tar -xzvf BUDE-1.2.9.tar.gz</kbd>
+
+        <p>
+          This should create a directory called
+          <span class="dir">BUDE-1.2.9</span>.
+          Let’s change into that directory, make a build directory 
+          and change into it by executing the commands below.
+        </p>
+
+        <kbd>&gt;cd BUDE-1.2.9
+          <br />
+          &gt;mkdir build
+          <br />
+          &gt;cd build</kbd>
+
+        <p>
+          Once we are in the build directory, we compile BUDE.
+        </p>
+
+        <kbd>&gt;../configure --prefix=$HOME</kbd>
+
+        <p>
+          A few messages will appear:
+        </p>
+
+        <p>
+          <code>
+            checking ...
+            <br />
+            ...
+          </code>
+        </p>
+
+        <p>
+          After the <span class="cmds">../configure</span> script is finished we type the command
+        </p>
+
+        <p>
+          <kbd>&gt;make</kbd>
+        </p>
+
+        <p>
+          Please be patient, the make command produces a healthy amount of
+          output and it will take a few minutes depending on the speed of your
+          machine. All going well there will be a directory called 
+          &lsquo;<span class="dir">bin</span>&rsquo; with a few <span class="emph">bude_xxx</span>
+          utilities and one called <span class="emph">budeScan</span>.
+        </p>
+
+        <p>
+          To check that all went well type
+        </p>
+
+        <kbd>&gt;bin/budeScan -h</kbd>
+
+        <p>
+          And the BUDE help should be displayed.
+          If we want to install BUDE in the home directory type
+        </p>
+
+        <kbd>&gt;make install</kbd>
+
+        <p>
+          This will install all bude applications in
+          /<span class="dir">HOME</span>/<span class="dir">bin</span>
+          and libraries in
+          /<span class="dir">HOME</span>/<span class="dir">lib&lpar;64&rpar;</span>
+        </p>
+
+        <p>
+          If you do not want to install it take note of the path where the executable is.
+          It will be needed for the ALAscanApp configuration.
+        </p>
+
+        <p>
+          Then we should compile the C++ utilities. They are in the
+          <span class="dir">cppCode</span> directory.
+          If we are doing it after compiling BUDE. Change to the
+          <span class="dir">cppCode</span> directory.
+        </p>
+        <kbd>&gt;cd ../../</kbd>
+
+        <p>
+          Once you are in the cppCode directory we use the
+          <span class="cmds">comp_utils.sh</span>
+          script to compile all C++ utilities. Type:
+        </p>
+
+        <kbd>&gt;./comp_utils.sh</kbd>
+        <br />
+        <br />
+        <code>
+          Compiling getSD
+          <br />
+          ...
+          <br />
+          Compiling colourBySD
+          <br />
+          ...
+          <br />
+          Compiling dividePDB
+        </code>
+        <p>
+          That should be all about compilation.
+        </p>
+
+        <h3>Initialization file</h3>
+
+        <p>
+          The initialisation file
+          &lsquo;<span class="emph">.alascanapp.ini</span>&rsquo;
+          will be created or
+          updated in the user&apos;s home directory when running
+          <span class="cmds">ALAscanApp.py</span> or <span class="cmds">setup_utils.py</span>.
+          The file will be created by either script, if it does not exist.
+          <span class="cmds">ALAscanApp.py</span>
+          will update the file only if any section or option is missing.
+          <span class="cmds">setup_utils.py</span> will always update the
+          relevant sections of the compiled utilities.
+        </p>
+
+        <p>
+          The file is composed by sections,  defined by square brackets
+           &lsquo;<span class="emph">&lsqb;Section&rsqb;</span>&rsquo;. 
+           Each section may have several options and their values, 
+           &lsquo;<span class="emph">AnOption &equals; a_value</span>&rsquo;.
+        </p>
+       <p>
+          This file could be edited to alter the ALAscanApp behaviour. 
+          Only the values can be modified. 
+          Options the values of which contain curly brackets preceded by the sign
+          &lsquo;<span class="emph">&dollar;</span>&rsquo;
+          should not be modified. eg.
+          &lsquo;<span class="emph">AnOptionX &equals; &dollar;&lcub;doNoModify&rcub;</span>&rsquo;.
+        </p>
+
+        <p>
+          The sections have self-explanatory names. There are some options
+          that must be updated if the
+          <span class="cmds">setup_utils.py</span>
+          script was not run.
+        </p>
+
+        <p>
+          In section 
+           &lsquo;<span class="emph">&lsqb;Directories&rsqb;</span>&rsquo;,
+          option 
+          &lsquo;<span class="emph">CppCode</span>&rsquo;,
+          its value should be updated to its proper location.
+          If executables budeScan, getSD and colourBySD are not within that
+          directory then options
+          &lsquo;<span class="emph">BUDE</span>&rsquo;,
+          &lsquo;<span class="emph">GetSD</span>&rsquo;,
+          and
+          &lsquo;<span class="emph">ColourBySD</span>&rsquo;
+          must also be updated accordingly.
+        </p>
+        
+        <p>
+          Alternatively, in section
+          &lsquo;<span class="emph">&lsqb;Executables&rsqb;</span>&rsquo;
+          the options
+          &lsquo;<span class="emph">BUDE</span>&rsquo;,
+          &lsquo;<span class="emph">GetSD</span>&rsquo;,
+          and
+          &lsquo;<span class="emph">ColourBySD</span>&rsquo; 
+          could be updated with 
+          the full path to these executables.
+        </p>
+        
+        <h3>Behaviour Options</h3>
+        
+        <p>
+          Any option&apos;s value within the section 
+           &lsquo;<span class="emph">&lsqb;File Names&rsqb;</span>&rsquo;
+          can be modified. They will change the naming of those particular files.
+         </p> 
+         
+         <p>
+           In section 
+           &lsquo;<span class="emph">&lsqb;Directories&rsqb;</span>&rsquo; the
+           &lsquo;<span class="emph">Work</span>&rsquo; 
+           option should be changed to the directory where the 
+           Hot Constellations will be created
+           and <span class="cmds">ALAscanApp.py</span>
+           will be run from, by default it will be 
+           &lsquo;/HOME/<span class="dir">ALAscanApp</span>&rsquo;.
+           Directories from the options 
+           &lsquo;<span class="emph">Scan</span>&rsquo;,
+           &lsquo;<span class="emph">BudeLibs</span>&rsquo;,
+           &lsquo;<span class="emph">BudeResults</span>&rsquo;,
+           &lsquo;<span class="emph">PdbSources</span>&rsquo;,
+           and
+           &lsquo;<span class="emph">Chimera</span>&rsquo;
+           will be created within the work directory. 
+           Their values could be modified.
+          </p>
+          
+          <p>
+            To specify the maximum number of hot constellations that will be 
+            calculated in the  auto mode, the option 
+            &lsquo;<span class="emph">MaxAutoNumber</span>&rsquo;   
+            in section 
+            &lsquo;<span class="emph">&lsqb;General&rsqb;</span>&rsquo;
+            can be modified. Very large numbers must be avoided.
+           </p>
+        
+        <h3>Mac</h3>
+
+        <p>
+          The procedure is practically the same. The only difference is 
+          that we will need to install a proper GCC, the one 
+          that comes with Xcode is not a recent one.
+        </p>
+
+        <p>
+          To install GCC we will need Xcode and, Homebrew. If they are not installed
+          already we will need to install them first.
+          <span class="emph">For installing these programs we will need admin rights</span>.
+        </p>
+
+        <p>
+          Open terminal. In finder&apos;s menu go &rArr; Utilities find the Terminal icon.
+        </p>
+
+        <h3>Xcode:</h3>
+
+        <kbd>&gt;xcode-select --install</kbd>
+
+        <p>
+          Follow the instructions on the screen. Please be aware that there are several
+          Web tutorials on how to install Xcode in the different flavours of Mac.
+          A simple search &lsquo;install Xcode Mac&rsquo; will return
+          very comprehensive tutorials.
+        </p>
+
+        <h3>Homebrew:</h3>
+
+        <p>
+          Please follow the installation instructions in the Homebrew&apos;s Website.
+          <br />
+          <a href="https://github.com/Homebrew/brew/blob/master/docs/Installation.md"> https://github.com/Homebrew/brew/blob/master/docs/Installation.md </a>
+        </p>
+
+        <h3>GCC:</h3>
+
+        <p>
+          Once we have Xcode and Homebrew we can install GCC.
+        </p>
+
+        <kbd>&gt;brew install gcc
+          <br />
+          ... </kbd>
+
+        <p>
+          This will install GCC, there should be
+          <span class="emph">gcc-X</span> and <span class="emph">g++-X</span> where <span class="emph">X</span> is the version
+          of GCC.
+        </p>
+
+        <p>
+          We need to set the CC and CXX variable
+        </p>
+
+        <kbd>&gt;export CC=gcc-X CXX=g++-X</kbd>
+
+        <p>
+          Exporting these variables must be done whenever we open a Terminal. 
+          To avoid this it is recommended to add it into
+          <span class="emph">.bash_profile</span> file, which is in your
+          HOME directory.
+        </p>
+
+        <p>
+          Then we follow the same procedure as described from the Linux 
+          section for getting anaconda. Bear in mind that you will need the 
+          Mac installer and you have two flavours, the command line and a 
+          graphical one. The command line behaviour is pretty much like in 
+          Linux. The graphical one has a very self-explanatory frontend.
+        </p>
+      </div>
+    </div>
+
+  </body>
+</html>

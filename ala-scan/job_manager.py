@@ -8,6 +8,7 @@ import sys
 
 import database
 from database import JobStatus, ALANINE_SCAN_JOBS
+import alascanapp.alascan as alascan
 
 
 def main():

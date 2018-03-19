@@ -1,0 +1,153 @@
+﻿How to use ALAscanApp
+
+ALAscanApp.py
+
+The utility will create hot constellations and calculate ddG for them from a PDB 
+file. Hot constellations will only be formed from the ‘ligand’. The PDB file 
+must have at least two chains and no non-standard amino acids.
+
+It has two modes, auto and manual. In manual mode the constellations are space 
+separated. Each constellation is composed by comma separated residue numbers. 
+Each residue number must be preceded by the chain ID it belongs to. Residues can 
+belong to different chains as long as the chains are part of the ligand.
+
+e.g.
+If we have two constellations, one from chain ‘C’ with residues 6 and 7 and the 
+second one from chain ‘D’ with residues 10, 12 and 17.
+C6,C7 D10,D12,D17
+
+By default the script runs silently and shows the plots at the end of the 
+calculations. This behaviour can be toggled from a general perspective or from 
+the used mode.
+
+Finally, it writes the plot data into a comma separated values (csv) file and 
+the calculations’ results into a json file.
+
+The csv file can be used to plot the data with other plotting programs and the 
+json file to replot the data using the replotAlaScan.py script.
+
+If the number of hot constellations created in the auto mode exceeds the 
+‘MaxAutoNumber’. We will calculate ‘MaxAutoNumber’ of them. The rest will be 
+written to a file, so they can be calculated using the manual mode. 
+Alternatively the ‘MaxAutoNumber’ could be increased in initialization file 
+‘.alascanapp.ini’.
+
+There are three ways to run the script.
+
+a. Giving the full path.
+b. Creating a symbolic link into the PATH and calling ALAscanApp.py like an 
+ordinary command.
+c. Invoking the python interpreter with the full path of the script.
+
+We will assume that you got the file alaScanApp-dist.tar.gz unpacked and 
+uncompressed in your home directory creating the following directory structure.
+
+
+/HOME/alaScanApp-dist
+/HOME/alaScanApp-dist/alaScanApp.tar.gz
+/HOME/alaScanApp-dist/setup_utils.py
+/HOME/alaScanApp-dist/ccpCode
+/HOME/alaScanApp-dist/ccpCode/getSD
+/HOME/alaScanApp-dist/ccpCode/colourBySD
+/HOME/alaScanApp-dist/ccpCode/dividePDB
+/HOME/alaScanApp-dist/ccpCode/BUDE-1.2.9.tar.gz
+/HOME/alaScanApp-dist/ccpCode/comp_utils.sh  
+
+We are also assuming that you ran ‘setup_utils.py’, it was done successfully and 
+we also have this additional directory structure.
+
+/HOME/alaScanApp-dist/alaScanApp
+/HOME/alaScanApp-dist/alaScanApp/ALAscanApp.py
+/HOME/alaScanApp-dist/alaScanApp/replotAlaScan.py
+
+The final assumption is that you have ‘/HOME/bin’ in your PATH.
+
+Invoking the Script
+
+a.
+>/HOME/alaScanApp-dist/alaScanApp/ALAscanApp.py -h
+
+b.
+>ALAscanApp.py -h
+
+c.
+>python /HOME/alaScanApp-dist/alaScanApp/ALAscanApp.py -h
+
+To use option b. we need to link the script to the path first.
+
+>cd /HOME/bin
+>ln -s /HOME/alaScanApp-dist/alaScanApp/ALAscanApp.py
+>ln -s /HOME/alaScanApp-dist/alaScanApp/replotAlaScan.py
+
+From now on we will use option b. in our examples.
+
+Usage:
+ALAscanApp.py [options] [auto|manual] [options]
+
+To see general help:
+>ALAscanApp.py -h
+
+To see auto mode help:
+>ALAscanApp.py auto -h
+
+To see manual mode help:
+>ALAscanApp.py manual -h
+
+To automatically create hot constellations and calculate ddG for them.
+
+>ALAscanApp.py auto -p pdb_id.pdb -r A -l B -z 3 -d 10.5
+
+Where options are:
+
+-p pdb_id.pdb is the PDB file e.g.: 1r8u.pdb
+
+-r A for using chain ‘A’ as the receptor.
+
+-l B for using chain ‘B’ as the ligand and the chain to create hot 
+constellations from.
+
+-z 3 Size of the constellations, number of residues.
+
+-d 10.5 Residues with a ddG of 10.5 or more will be used.
+
+To manually calculate ddG for given hot constellations.
+
+>ALAscanApp.py manual -p pdb_id.pdb -r A -l B -c B345,b348,b349 b352,b353,b354
+
+Where options are:
+
+-p pdb_id.pdb is the PDB file e.g.: 1r8u.pdb
+
+-r A for using chain ‘A’ as the receptor.
+
+-l B for using chain ‘B’ as the ligand and the chain that hot constellations are 
+from.
+
+-c B345,b348,b349 b352,b353,b354 are the hot constellations.
+  Two constellations from chain B
+  First one with residues 345, 348 and 349
+  Second one with residues 352, 353 and 354
+
+To turn off the showing the plots:
+
+Use option -t
+
+>ALAscanApp.py auto -p pdb_id.pdb -r A -l B -z 3 -d 10.5 -t
+or
+>ALAscanApp.py -t auto -p pdb_id.pdb -r A -l B -z 3 -d 10.5
+
+To turn on verbose output, not running silently.
+
+Use option -v
+
+>ALAscanApp.py auto -p pdb_id.pdb -r A -l B -z 3 -d 10.5 -v
+or
+>ALAscanApp.py -v auto -p pdb_id.pdb -r A -l B -z 3 -d 10.5
+
+To replot the alanine scanning results.
+
+>replotAlaScan.py -j pdb_id_auto_timestamp_scan.json
+
+Where:
+-j pdb_id_auto_timestamp_scan.json is the json file created by ALAscanApp for 
+pdb_id.pdb file in auto mode at timestamp.
