@@ -41,43 +41,66 @@ def tempdir():
 
 def main():
     """Establishes the manager and listener subprocesses"""
-    processes = int(os.getenv(key='SCAN_PROCS', default='1'))
+    scan_processes = int(os.getenv(key='SCAN_PROCS', default='1'))
+    auto_processes = int(os.getenv(key='AUTO_PROCS', default='1'))
     with mp.Manager() as manager:
-        queue = manager.Queue()
-        assigned_jobs = manager.list([None] * processes)
-        listeners = [
-            mp.Process(target=get_and_run_scan_job,
-                       args=(queue, assigned_jobs, proc_i))
-            for proc_i in range(processes)
-        ]
-        for listener in listeners:
-            listener.start()
+        scan_queue, scan_assigned, scan_listeners = make_queue_components(
+            scan_processes, manager)
+        auto_queue, auto_assigned, auto_listeners = make_queue_components(
+            auto_processes, manager)
         while True:
-            running_jobs = ALANINE_SCAN_JOBS.find(
-                {'status': JobStatus.RUNNING.value})
-            # This block checks that all running jobs in the db are actually
-            # running.
-            for job in running_jobs:
-                if job['_id'] not in assigned_jobs:
-                    update_job_status(job['_id'],
-                                      JobStatus.FAILED)
-            # This block restarts any dead listeners
-            for (i, proc) in enumerate(listeners):
-                if not proc.is_alive():
-                    proc.terminate()
-                    assigned_jobs[i] = None
-                    listeners[i] = mp.Process(
-                        target=get_and_run_scan_job,
-                        args=(queue, assigned_jobs, i))
-                    listeners[i].start()
-            submitted_jobs = ALANINE_SCAN_JOBS.find(
-                {'status': JobStatus.SUBMITTED.value})
-            for job in sorted(submitted_jobs,
-                              key=lambda x: x['timeSubmitted']):
-                queue.put(job['_id'])
-                update_job_status(job['_id'],
-                                  JobStatus.QUEUED)
-            time.sleep(10)
+            check_for_lost_jobs(scan_assigned, ALANINE_SCAN_JOBS)
+            # check_for_lost_jobs(auto_assigned, AUTO_JOBS)
+            check_for_dead_jobs(scan_assigned, scan_queue, scan_listeners)
+            # check_for_dead_jobs(auto_assigned, auto_listeners)
+            populate_queue(scan_queue, ALANINE_SCAN_JOBS)
+            # populate_queue(auto_queue, AUTO_JOBS)
+            time.sleep(2)
+    return
+
+
+def make_queue_components(processes, manager):
+    queue = manager.Queue()
+    assigned_jobs = manager.list([None] * processes)
+    listeners = [
+        mp.Process(target=get_and_run_scan_job,
+                   args=(queue, assigned_jobs, proc_i))
+        for proc_i in range(processes)
+    ]
+    for listener in listeners:
+        listener.start()
+    return queue, assigned_jobs, listeners
+
+
+def check_for_lost_jobs(assigned_jobs, collection):
+    running_jobs = collection.find(
+        {'status': JobStatus.RUNNING.value})
+    for job in running_jobs:
+        if job['_id'] not in assigned_jobs:
+            update_job_status(
+                job['_id'], JobStatus.FAILED, collection)
+    return
+
+
+def check_for_dead_jobs(assigned_jobs, queue, listeners):
+    for (i, proc) in enumerate(listeners):
+        if not proc.is_alive():
+            proc.terminate()
+            assigned_jobs[i] = None
+            listeners[i] = mp.Process(
+                target=get_and_run_scan_job,
+                args=(queue, assigned_jobs, i))
+            listeners[i].start()
+    return
+
+
+def populate_queue(queue, collection):
+    submitted_jobs = collection.find(
+        {'status': JobStatus.SUBMITTED.value})
+    for job in sorted(submitted_jobs,
+                      key=lambda x: x['timeSubmitted']):
+        queue.put(job['_id'])
+        update_job_status(job['_id'], JobStatus.QUEUED, collection)
     return
 
 
@@ -102,7 +125,7 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
         job_id = scan_job_queue.get()
         print(f"Got scan job {job_id}!", file=sys.stderr)
         scan_job = ALANINE_SCAN_JOBS.find_one(job_id)
-        update_job_status(job_id, JobStatus.RUNNING)
+        update_job_status(job_id, JobStatus.RUNNING, ALANINE_SCAN_JOBS)
         assigned_jobs[proc_i] = job_id
         print("Running scan job {}!".format(job_id), file=sys.stderr)
         with tempdir() as dirpath:
@@ -160,9 +183,9 @@ def parser_friendly_output(bals_rec_output, bals_lig_output):
     return pfo
 
 
-def update_job_status(scan_job_id, status):
+def update_job_status(scan_job_id, status, collection):
     """Updates status in database entry for alanine scan job."""
-    ALANINE_SCAN_JOBS.update_one(
+    collection.update_one(
         {'_id': scan_job_id},
         {'$set': {'status': status.value}})
     return

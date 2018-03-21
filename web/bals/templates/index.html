@@ -154,7 +154,7 @@
             {cname : alaScanResults.ligand,
             });
         const nonZeroResLabels = alaScanResults.ligandResults
-                .filter(x => x.ddG > 0)
+                // .filter(x => x.ddG > 0)
                 .map(x => parseInt(x.residueNumber));
         const nonZeroResidues = ligand.residueSelect(function(res) {
             return nonZeroResLabels.includes(res.num());
@@ -167,7 +167,7 @@
                 { color: pv.color.uniform('#ff000044') });
         viewer.ballsAndSticks('ligDDG', nonZeroResidues,
                 { color: pv.color.byResidueProp(
-                    'ddG', pv.color.gradient(['blue', 'yellow', 'red']))});
+                    'ddG', pv.color.gradient(['blue', 'red']))});
         return;
     }
 </script>
