@@ -1,14 +1,42 @@
 """Contains code for managing and processing alanine scan job requests."""
 
+import contextlib
+import glob
 import importlib
+import json
 import multiprocessing as mp
-import time
 import os
+import shutil
+import subprocess
 import sys
+import time
+import tempfile
+
+import isambard
 
 import database
 from database import JobStatus, ALANINE_SCAN_JOBS
-import alascanapp.alascan as alascan
+
+
+@contextlib.contextmanager
+def cd(newdir, cleanup=lambda: True):
+    prevdir = os.getcwd()
+    os.chdir(os.path.expanduser(newdir))
+    try:
+        yield
+    finally:
+        os.chdir(prevdir)
+        cleanup()
+
+
+@contextlib.contextmanager
+def tempdir():
+    dirpath = tempfile.mkdtemp()
+
+    def cleanup():
+        shutil.rmtree(dirpath)
+    with cd(dirpath, cleanup):
+        yield dirpath
 
 
 def main():
@@ -77,16 +105,59 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
         update_job_status(job_id, JobStatus.RUNNING)
         assigned_jobs[proc_i] = job_id
         print("Running scan job {}!".format(job_id), file=sys.stderr)
-        ALANINE_SCAN_JOBS.update_one(
-            {'_id': job_id},
-            {'$set': {'status': JobStatus.COMPLETED.value,
-                      'dG': FAKE_RESULTS['dG'],
-                      'receptorData': FAKE_RESULTS['receptorData'],
-                      'ligandData': FAKE_RESULTS['ligandData'],
-                      }})
+        with tempdir() as dirpath:
+            results = run_bals_scan(
+                job_id, scan_job['pdbFile'],
+                [scan_job['receptor']], [scan_job['ligand']])
+            results['status'] = JobStatus.COMPLETED.value
+            ALANINE_SCAN_JOBS.update_one(
+                {'_id': job_id},
+                {'$set': results})
         print("Finished scan job {}!".format(job_id), file=sys.stderr)
         assigned_jobs[proc_i] = None
     return
+
+
+def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains):
+    pdb_filename = f'{job_id}.pdb'
+    with open(pdb_filename, 'w') as outf:
+        outf.write(pdb_string)
+    scan_cmd = ['/root/bin/ALAscanApp.py', 'scan',
+                '-p', pdb_filename,
+                '-r', ' '.join(receptor_chains),
+                '-l', ' '.join(ligand_chains),
+                '-t'  # Suppresses the plots from being displayed.
+                ]
+    scan_process = subprocess.run(scan_cmd)
+    scan_process.check_returncode()
+    rec_json_paths = glob.glob('replot/*Rec_scan*.json')
+    lig_json_paths = glob.glob('replot/*Lig_scan*.json')
+    assert len(rec_json_paths) == 1
+    assert len(lig_json_paths) == 1
+    with open(rec_json_paths[0], 'r') as inf:
+        rec_results = json.load(inf)
+    with open(lig_json_paths[0], 'r') as inf:
+        lig_results = json.load(inf)
+    processed_output = parser_friendly_output(rec_results, lig_results)
+    return processed_output
+
+
+def parser_friendly_output(bals_rec_output, bals_lig_output):
+    rec_output = bals_rec_output['ala_scan'][0]
+    lig_output = bals_lig_output['ala_scan'][0]
+    rec_dg = rec_output.pop('dG')
+    lig_dg = lig_output.pop('dG')
+    assert rec_dg == lig_dg
+    pfo = {
+        'dG': rec_dg,
+        'receptorData': [
+            data for (_, data) in sorted(
+                rec_output.items(), key=lambda x: int(x[0]))],
+        'ligandData': [
+            data for (_, data) in sorted(
+                lig_output.items(), key=lambda x: int(x[0]))]
+    }
+    return pfo
 
 
 def update_job_status(scan_job_id, status):
@@ -96,114 +167,6 @@ def update_job_status(scan_job_id, status):
         {'$set': {'status': status.value}})
     return
 
-
-FAKE_RESULTS = {
-    "dG": -154.6038,
-    "receptorData":
-        [
-            ["25", "GLU", "A", -3.3957, 4, 0.0],
-            ["26", "THR", "A", 1.0658, 2, 0.0],
-            ["27", "LEU", "A", 0.0, 3, 0.0],
-            ["28", "VAL", "A", 0.1736, 2, 0.0],
-            ["29", "ARG", "A", 0.0, 6, 0.0],
-            ["30", "PRO", "A", 0.0, 2, 0.0],
-            ["31", "LYS", "A", 0.0, 4, 0.0],
-            ["32", "PRO", "A", 0.0, 2, 0.0],
-            ["33", "LEU", "A", 0.0, 3, 0.0],
-            ["34", "LEU", "A", 0.0215, 3, 0.0],
-            ["35", "LEU", "A", 0.0, 3, 0.0],
-            ["36", "LYS", "A", 0.0, 4, 0.0],
-            ["37", "LEU", "A", 0.0, 3, 0.0],
-            ["38", "LEU", "A", 0.0066, 3, 0.0],
-            ["39", "LYS", "A", 0.0, 4, 0.0],
-            ["40", "SER", "A", 0.0, 1, 0.0],
-            ["41", "VAL", "A", 0.0, 2, 0.0],
-            ["42", "GLY", "A", 0.0, 0, 0.0],
-            ["43", "ALA", "A", 0.0, 0, 0.0],
-            ["44", "GLN", "A", 0.0, 4, 0.0],
-            ["45", "LYS", "A", 0.0, 4, 0.0],
-            ["46", "ASP", "A", 0.0, 3, 0.0],
-            ["47", "THR", "A", 0.0, 2, 0.0],
-            ["48", "TYR", "A", 0.0, 7, 0.0],
-            ["49", "THR", "A", 0.099, 2, 0.0],
-            ["50", "MET", "A", 1.9407, 3, 0.0],
-            ["51", "LYS", "A", 15.7255, 4, 0.0],
-            ["52", "GLU", "A", 0.0, 4, 0.0],
-            ["53", "VAL", "A", 0.1434, 2, 0.0],
-            ["54", "LEU", "A", 6.9093, 3, 0.0],
-            ["55", "PHE", "A", 0.5992, 6, 0.0],
-            ["56", "TYR", "A", 0.0017, 7, 0.0],
-            ["57", "LEU", "A", 1.9481, 3, 0.0],
-            ["58", "GLY", "A", 0.0, 0, 0.0],
-            ["59", "GLN", "A", 0.0555, 4, 0.0],
-            ["60", "TYR", "A", 0.0812, 7, 0.0],
-            ["61", "ILE", "A", 3.5197, 3, 0.0],
-            ["62", "MET", "A", 1.0486, 3, 0.0],
-            ["63", "THR", "A", 0.0, 2, 0.0],
-            ["64", "LYS", "A", 0.0, 4, 0.0],
-            ["65", "ARG", "A", 0.055, 6, 0.0],
-            ["66", "LEU", "A", 0.1652, 3, 0.0],
-            ["67", "TYR", "A", 5.0938, 7, 0.0],
-            ["68", "ASP", "A", 0.0, 3, 0.0],
-            ["69", "GLU", "A", 0.0, 4, 0.0],
-            ["70", "LYS", "A", 0.0, 4, 0.0],
-            ["71", "GLN", "A", 0.1976, 4, 0.0],
-            ["72", "GLN", "A", 2.3428, 4, 0.0],
-            ["73", "HIS", "A", 1.5448, 5, 0.0],
-            ["74", "ILE", "A", 0.0607, 3, 0.0],
-            ["75", "VAL", "A", 1.6566, 2, 0.0],
-            ["76", "TYR", "A", 0.0, 7, 0.0],
-            ["77", "CYS", "A", 0.0, 1, 0.0],
-            ["78", "SER", "A", 0.0, 1, 0.0],
-            ["79", "ASN", "A", 0.0, 3, 0.0],
-            ["80", "ASP", "A", 0.0, 3, 0.0],
-            ["81", "LEU", "A", 0.0, 3, 0.0],
-            ["82", "LEU", "A", 0.5274, 3, 0.0],
-            ["83", "GLY", "A", 0.0, 0, 0.0],
-            ["84", "ASP", "A", 0.0, 3, 0.0],
-            ["85", "LEU", "A", 0.0078, 3, 0.0],
-            ["86", "PHE", "A", 0.8994, 6, 0.0],
-            ["87", "GLY", "A", 0.0, 0, 0.0],
-            ["88", "VAL", "A", 0.0, 2, 0.0],
-            ["89", "PRO", "A", 0.0, 2, 0.0],
-            ["90", "SER", "A", 0.0, 1, 0.0],
-            ["91", "PHE", "A", 2.4162, 6, 0.0],
-            ["92", "SER", "A", 0.0, 1, 0.0],
-            ["93", "VAL", "A", 5.3015, 2, 0.0],
-            ["94", "LYS", "A", 19.6974, 4, 0.0],
-            ["95", "GLU", "A", 0.0124, 4, 0.0],
-            ["96", "HIS", "A", 1.3488, 5, 0.0],
-            ["97", "ARG", "A", 0.1101, 6, 0.0],
-            ["98", "LYS", "A", 0.0, 4, 0.0],
-            ["99", "ILE", "A", 3.7571, 3, 0.0],
-            ["100", "TYR", "A", 6.2154, 7, 0.0],
-            ["101", "THR", "A", 0.0, 2, 0.0],
-            ["102", "MET", "A", 0.0507, 3, 0.0],
-            ["103", "ILE", "A", 1.7513, 3, 0.0],
-            ["104", "TYR", "A", 0.078, 7, 0.0],
-            ["105", "ARG", "A", 0.0, 6, 0.0],
-            ["106", "ASN", "A", 0.0, 3, 0.0],
-            ["107", "LEU", "A", 0.0435, 3, 0.0],
-            ["108", "VAL", "A", 0.0, 2, 0.0],
-            ["109", "VAL", "A", 0.0, 2, 0.0]
-        ],
-    "ligandData":
-        [
-            [ "17", "GLU", "B", 19.1207, 4, 0.0 ],
-            [ "18", "THR", "B", 0.5949, 2, 0.0 ],
-            [ "19", "PHE", "B", 20.3646, 6, 0.0 ],
-            [ "20", "SER", "B", 0.0, 1, 0.0 ],
-            [ "21", "ASP", "B", 0.0506, 3, 0.0 ],
-            [ "22", "LEU", "B", 6.7914, 3, 0.0 ],
-            [ "23", "TRP", "B", 22.0543, 9, 0.0 ],
-            [ "24", "LYS", "B", 0.5078, 4, 0.0 ],
-            [ "25", "LEU", "B", 0.4186, 3, 0.0 ],
-            [ "26", "LEU", "B", 8.3254, 3, 0.0 ],
-            [ "27", "PRO", "B", 4.1877, 2, 0.0 ],
-            [ "28", "GLU", "B", 15.6824, 4, 0.0 ],
-            [ "29", "ASN", "B", 0.5048, 3, 0.0 ]
-        ]
-}
 
 if __name__ == '__main__':
     main()
