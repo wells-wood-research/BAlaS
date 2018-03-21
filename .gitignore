@@ -106,5 +106,7 @@ elm-stuff/
 dependencies_for_isambard/*
 !dependencies_for_isambard/.isambard_settings
 ala-scan/bude-src
+web/instance/*
+!web/instance/.gitkeep
 web/static/css/elm.css
 web/static/elm/*
