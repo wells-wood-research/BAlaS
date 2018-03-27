@@ -33,6 +33,7 @@ main =
 type alias Model =
     { appMode : AppMode
     , alanineScan : AlanineScanModel
+    , constellation : ConstellationModel
     , notifications : List Notification
     , notificationsOpen : Bool
     }
@@ -41,15 +42,16 @@ type alias Model =
 emptyModel : Model
 emptyModel =
     Model
-        ScanSubmission
+        Scan
         emptyAlaScanModel
+        emptyConstellationModel
         []
         False
 
 
 type AppMode
-    = ScanSubmission
-    | ConstellationSubmission
+    = Scan
+    | Constellation
     | Jobs
 
 
@@ -208,6 +210,119 @@ type alias ResidueInfo =
     }
 
 
+type alias ConstellationModel =
+    { constellationSub : ConstellationMode
+    , jobs : List JobDetails
+    , results : Maybe AlanineScanResults
+    }
+
+
+emptyConstellationModel : ConstellationModel
+emptyConstellationModel =
+    ConstellationModel
+        (Auto defaultAutoSettings)
+        []
+        Nothing
+
+
+type ConstellationMode
+    = Auto AutoSettings
+
+
+type alias AutoSettings =
+    { ddGCutOff : String
+    , constellationSize : String
+    , cutOffDistance : String
+    }
+
+
+defaultAutoSettings : AutoSettings
+defaultAutoSettings =
+    AutoSettings
+        "5.0"
+        "3"
+        "13.0"
+
+
+validAutoSettings : AutoSettings -> Bool
+validAutoSettings { ddGCutOff, constellationSize, cutOffDistance } =
+    let
+        validDDGCutOff =
+            representsFloat ddGCutOff
+
+        validConSize =
+            representsInt constellationSize
+
+        validDistance =
+            representsFloat cutOffDistance
+
+        anyEmpty =
+            List.map
+                String.isEmpty
+                [ ddGCutOff, constellationSize, cutOffDistance ]
+                |> List.any identity
+    in
+        List.all identity
+            [ validDDGCutOff
+            , validConSize
+            , validDistance
+            , not anyEmpty
+            ]
+
+
+encodeAutoJob : AlanineScanResults -> AutoSettings -> JEn.Value
+encodeAutoJob scanResults settings =
+    JEn.object
+        [ ( "ddGCutOff"
+          , Result.withDefault
+                5.0
+                (String.toFloat
+                    settings.ddGCutOff
+                )
+                |> JEn.float
+          )
+        , ( "constellationSize"
+          , Result.withDefault
+                3
+                (String.toInt
+                    settings.constellationSize
+                )
+                |> JEn.int
+          )
+        , ( "cutOffDistance"
+          , Result.withDefault
+                13.0
+                (String.toFloat
+                    settings.ddGCutOff
+                )
+                |> JEn.float
+          )
+        , ( "pdbFile", scanResults.pdbFile |> JEn.string )
+        , ( "receptor", List.map JEn.string scanResults.receptor |> JEn.list )
+        , ( "ligand", List.map JEn.string scanResults.ligand |> JEn.list )
+        ]
+
+
+representsFloat : String -> Bool
+representsFloat inString =
+    case String.toFloat inString of
+        Ok _ ->
+            True
+
+        Err _ ->
+            False
+
+
+representsInt : String -> Bool
+representsInt inString =
+    case String.toInt inString of
+        Ok _ ->
+            True
+
+        Err _ ->
+            False
+
+
 
 -- Init
 
@@ -223,7 +338,8 @@ init =
 
 type Msg
     = SetAppMode AppMode
-    | UpdateScanSubmission ScanMsg
+    | UpdateScan ScanMsg
+    | UpdateConstellation ConstellationMsg
     | ToggleNotificationPanel
     | DismissNotification Int
 
@@ -234,10 +350,10 @@ update msg model =
         SetAppMode appMode ->
             { model | appMode = appMode } ! []
 
-        UpdateScanSubmission scanMsg ->
+        UpdateScan scanMsg ->
             let
                 ( updatedScanModel, scanSubCmds, notifications ) =
-                    updateScanInput scanMsg model.alanineScan
+                    updateScan scanMsg model.alanineScan
             in
                 case scanMsg of
                     ScanJobSubmitted (Ok _) ->
@@ -250,19 +366,19 @@ update msg model =
                                     model.notifications
                                     notifications
                         }
-                            ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
+                            ! [ Cmd.map UpdateScan scanSubCmds ]
 
                     ProcessScanResults (Ok _) ->
                         { model
                             | alanineScan =
                                 updatedScanModel
-                            , appMode = ScanSubmission
+                            , appMode = Scan
                             , notifications =
                                 List.append
                                     model.notifications
                                     notifications
                         }
-                            ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
+                            ! [ Cmd.map UpdateScan scanSubCmds ]
 
                     _ ->
                         { model
@@ -273,7 +389,22 @@ update msg model =
                                     model.notifications
                                     notifications
                         }
-                            ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
+                            ! [ Cmd.map UpdateScan scanSubCmds ]
+
+        UpdateConstellation constellationMsg ->
+            let
+                ( updatedConModel, conSubCmds, notifications ) =
+                    updateConstellation constellationMsg model.constellation
+            in
+                { model
+                    | constellation =
+                        updatedConModel
+                    , notifications =
+                        List.append
+                            model.notifications
+                            notifications
+                }
+                    ! [ Cmd.map UpdateConstellation conSubCmds ]
 
         ToggleNotificationPanel ->
             { model | notificationsOpen = not model.notificationsOpen }
@@ -314,11 +445,11 @@ type ScanMsg
     | ClearScanSubmission
 
 
-updateScanInput :
+updateScan :
     ScanMsg
     -> AlanineScanModel
     -> ( AlanineScanModel, Cmd ScanMsg, List Notification )
-updateScanInput scanMsg scanModel =
+updateScan scanMsg scanModel =
     let
         scanSub =
             scanModel.alanineScanSub
@@ -555,6 +686,91 @@ getActiveJobs jobs =
         jobs
 
 
+type ConstellationMsg
+    = ChangeMode String
+    | UpdateAutoSettings AutoSettingsMsg
+    | SubmitConstellationJob AlanineScanResults
+    | AutoJobSubmitted (Result Http.Error JobDetails)
+
+
+updateConstellation :
+    ConstellationMsg
+    -> ConstellationModel
+    -> ( ConstellationModel, Cmd ConstellationMsg, List Notification )
+updateConstellation msg model =
+    let
+        conSub =
+            model.constellationSub
+    in
+        case msg of
+            ChangeMode modeString ->
+                case modeString of
+                    "Auto" ->
+                        { model
+                            | constellationSub = Auto defaultAutoSettings
+                        }
+                            ! []
+                            # []
+
+                    _ ->
+                        model ! [] # []
+
+            UpdateAutoSettings settingsMsg ->
+                case model.constellationSub of
+                    Auto settings ->
+                        { model
+                            | constellationSub =
+                                updateAutoSettings settingsMsg settings
+                                    |> Auto
+                        }
+                            ! []
+                            # []
+
+            SubmitConstellationJob alaScanResults ->
+                case model.constellationSub of
+                    Auto settings ->
+                        model ! [ submitAutoJob alaScanResults settings ] # []
+
+            AutoJobSubmitted (Ok jobDetails) ->
+                { model
+                    | constellationSub = Auto defaultAutoSettings
+                    , jobs = jobDetails :: model.jobs
+                }
+                    ! []
+                    # []
+
+            AutoJobSubmitted (Err error) ->
+                let
+                    err =
+                        Debug.log "Auto job submission error" error
+                in
+                    model
+                        ! []
+                        # [ Notifications.errorToNotification
+                                "Failed to Constellation Scan Auto Job"
+                                error
+                          ]
+
+
+type AutoSettingsMsg
+    = UpdateDDGCutOff String
+    | UpdateSize String
+    | UpdateDistanceCutOff String
+
+
+updateAutoSettings : AutoSettingsMsg -> AutoSettings -> AutoSettings
+updateAutoSettings msg settings =
+    case msg of
+        UpdateDDGCutOff ddGValue ->
+            { settings | ddGCutOff = ddGValue }
+
+        UpdateSize constellationSize ->
+            { settings | constellationSize = constellationSize }
+
+        UpdateDistanceCutOff distance ->
+            { settings | cutOffDistance = distance }
+
+
 
 -- Cmds
 
@@ -604,6 +820,17 @@ getScanResults jobID =
             scanResultsDecoder
 
 
+submitAutoJob : AlanineScanResults -> AutoSettings -> Cmd ConstellationMsg
+submitAutoJob scanResults settings =
+    Http.send AutoJobSubmitted <|
+        Http.post
+            "/api/v0.1/auto-jobs"
+            (encodeAutoJob scanResults settings
+                |> Http.jsonBody
+            )
+            jobDetailsDecoder
+
+
 
 -- Subscriptions
 
@@ -620,14 +847,14 @@ port atomClick : (ResidueInfo -> msg) -> Sub msg
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch <|
-        [ receivePDBFile <| UpdateScanSubmission << ProcessPDBInput
-        , receiveStructureInfo <| UpdateScanSubmission << ProcessStructureInfo
+        [ receivePDBFile <| UpdateScan << ProcessPDBInput
+        , receiveStructureInfo <| UpdateScan << ProcessStructureInfo
 
-        -- , atomClick <| UpdateScanSubmission << ToggleResidueSelection
+        -- , atomClick <| UpdateScan << ToggleResidueSelection
         ]
             ++ (if List.length (getActiveJobs model.alanineScan.jobs) > 0 then
                     [ Time.every (5 * Time.second)
-                        (UpdateScanSubmission << CheckScanJobs)
+                        (UpdateScan << CheckScanJobs)
                     ]
                 else
                     []
@@ -664,13 +891,13 @@ view model =
         , div [ class "tabs" ]
             [ div
                 [ class "tab scan-tab"
-                , onClick <| SetAppMode ScanSubmission
+                , onClick <| SetAppMode Scan
                 ]
                 [ text "Scan" ]
             , div
                 [ class "tab constellation-tab"
                 , onClick <|
-                    SetAppMode ConstellationSubmission
+                    SetAppMode Constellation
                 ]
                 [ text "Constellation" ]
             , div
@@ -680,19 +907,26 @@ view model =
                 [ text "Jobs" ]
             ]
         , (case model.appMode of
-            ScanSubmission ->
+            Scan ->
                 case model.alanineScan.results of
                     Just results ->
-                        scanResultsView UpdateScanSubmission results
+                        scanResultsView UpdateScan results
 
                     Nothing ->
                         scanSubmissionView
-                            UpdateScanSubmission
+                            UpdateScan
                             model.alanineScan.alanineScanSub
 
-            ConstellationSubmission ->
-                div [ class "control-panel constellation-panel" ]
-                    [ h2 [] [ text "Constellation Submission" ] ]
+            Constellation ->
+                case model.constellation.results of
+                    Just results ->
+                        div [] [ text "results" ]
+
+                    Nothing ->
+                        constellationSubmissionView
+                            UpdateConstellation
+                            model.constellation
+                            model.alanineScan.results
 
             Jobs ->
                 jobsView model
@@ -880,7 +1114,7 @@ jobTable tableTitle jobs =
                 , td []
                     [ button
                         [ GetScanResults jobID
-                            |> UpdateScanSubmission
+                            |> UpdateScan
                             |> onClick
                         , (if (status == Completed) then
                             False
@@ -907,3 +1141,97 @@ jobTable tableTitle jobs =
               else
                 text "No Jobs submitted."
             ]
+
+
+
+-- Constellations
+
+
+constellationSubmissionView :
+    (ConstellationMsg -> msg)
+    -> ConstellationModel
+    -> Maybe AlanineScanResults
+    -> Html msg
+constellationSubmissionView updateMsg model mScanResults =
+    div [ class "control-panel constellation-panel" ]
+        [ h2 [] [ text "Constellation Submission" ]
+        , case mScanResults of
+            Just results ->
+                activeConstellationSub updateMsg model results
+
+            Nothing ->
+                div []
+                    [ text
+                        ("You must run a scan job before you run a constellation"
+                            ++ " scan. If you've already ran a scan job, reload the"
+                            ++ " results from the jobs tab."
+                        )
+                    ]
+        ]
+
+
+activeConstellationSub :
+    (ConstellationMsg -> msg)
+    -> ConstellationModel
+    -> AlanineScanResults
+    -> Html msg
+activeConstellationSub updateMsg model scanRes =
+    div []
+        [ text "Select Mode"
+        , br [] []
+        , select [ onInput <| updateMsg << ChangeMode ] <|
+            List.map simpleOption [ "Auto" ]
+        , case model.constellationSub of
+            Auto settings ->
+                autoSettingsView updateMsg scanRes settings
+        ]
+
+
+simpleOption : String -> Html msg
+simpleOption labelValue =
+    option [ value labelValue ] [ text labelValue ]
+
+
+autoSettingsView :
+    (ConstellationMsg -> msg)
+    -> AlanineScanResults
+    -> AutoSettings
+    -> Html msg
+autoSettingsView updateMsg scanRes settings =
+    let
+        { ddGCutOff, constellationSize, cutOffDistance } =
+            settings
+    in
+        div []
+            ([ text "ΔΔG Cut Off Value"
+             , input
+                [ onInput <| updateMsg << UpdateAutoSettings << UpdateDDGCutOff
+                , pattern "[+-]?([0-9]*[.])?[0-9]+"
+                , value ddGCutOff
+                , placeholder "ΔΔG"
+                ]
+                []
+             , text "Constellation Size"
+             , input
+                [ onInput <| updateMsg << UpdateAutoSettings << UpdateSize
+                , pattern "[0-9]*"
+                , value constellationSize
+                , placeholder "Size"
+                ]
+                []
+             , text "Cut Off Distance"
+             , input
+                [ onInput <| updateMsg << UpdateAutoSettings << UpdateDistanceCutOff
+                , pattern "[+-]?([0-9]*[.])?[0-9]+"
+                , value cutOffDistance
+                , placeholder "Distance"
+                ]
+                []
+             , button
+                [ onClick <| updateMsg <| SubmitConstellationJob scanRes
+                , disabled <| not <| validAutoSettings settings
+                ]
+                [ text "Submit" ]
+             ]
+                |> List.intersperse (br [] [])
+            )
