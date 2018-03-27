@@ -131,7 +131,7 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
         with tempdir() as dirpath:
             results = run_bals_scan(
                 job_id, scan_job['pdbFile'],
-                [scan_job['receptor']], [scan_job['ligand']])
+                scan_job['receptor'], scan_job['ligand'])
             results['status'] = JobStatus.COMPLETED.value
             ALANINE_SCAN_JOBS.update_one(
                 {'_id': job_id},
@@ -145,12 +145,12 @@ def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains):
     pdb_filename = f'{job_id}.pdb'
     with open(pdb_filename, 'w') as outf:
         outf.write(pdb_string)
-    scan_cmd = ['/root/bin/ALAscanApp.py', 'scan',
-                '-p', pdb_filename,
-                '-r', ' '.join(receptor_chains),
-                '-l', ' '.join(ligand_chains),
-                '-t'  # Suppresses the plots from being displayed.
-                ]
+    scan_cmd = [
+        '/root/bin/ALAscanApp.py', 'scan',
+        '-p', pdb_filename,
+        '-r'] + receptor_chains + [
+        '-l'] + ligand_chains + [
+        '-t']  # Suppresses the plots from being displayed.
     scan_process = subprocess.run(scan_cmd)
     scan_process.check_returncode()
     rec_json_paths = glob.glob('replot/*Rec_scan*.json')

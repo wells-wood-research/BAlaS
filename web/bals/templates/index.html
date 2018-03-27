@@ -136,7 +136,7 @@
             });
             for (var i = 0; i < alaScanResults.ligandResults.length; i++) {
                 const resResult = alaScanResults.ligandResults[i];
-                var res = currentStructure.select(
+                const res = currentStructure.select(
                     {cname : resResult.chainID,
                      rnum: parseInt(resResult.residueNumber)
                     });
@@ -148,16 +148,17 @@
             } 
         viewer.clear();
         const receptor = currentStructure.select(
-            {cname : alaScanResults.receptor,
+            {cnames : alaScanResults.receptor,
             });
         const ligand = currentStructure.select(
-            {cname : alaScanResults.ligand,
+            {cnames : alaScanResults.ligand,
             });
         const nonZeroResLabels = alaScanResults.ligandResults
-                // .filter(x => x.ddG > 0)
-                .map(x => parseInt(x.residueNumber));
+                .filter(x => x.ddG > 0)
+                .map(x => x.chainID + x.residueNumber);
         const nonZeroResidues = ligand.residueSelect(function(res) {
-            return nonZeroResLabels.includes(res.num());
+            return nonZeroResLabels
+                       .includes(res.chain().name() + res.num().toString());
         });
         viewer.cartoon('receptor', receptor,
             { color: pv.color.uniform('#ff000044') });

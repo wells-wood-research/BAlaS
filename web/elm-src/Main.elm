@@ -115,8 +115,8 @@ emptyAlaScanModel =
 type alias AlanineScanSub =
     { pdbFile : Maybe String
     , chainVisibility : Maybe (Dict.Dict ChainID Bool)
-    , receptor : Maybe ChainID
-    , ligand : Maybe ChainID
+    , receptor : List ChainID
+    , ligand : List ChainID
     }
 
 
@@ -131,7 +131,7 @@ validScanSub { pdbFile, receptor, ligand } =
                 Nothing ->
                     False
     in
-        isJust pdbFile && isJust receptor && isJust ligand
+        isJust pdbFile && List.length receptor > 0 && List.length ligand > 0
 
 
 emptyScanSub : AlanineScanSub
@@ -139,23 +139,23 @@ emptyScanSub =
     AlanineScanSub
         Nothing
         Nothing
-        Nothing
-        Nothing
+        []
+        []
 
 
 encodeAlanineScanSub : AlanineScanSub -> JEn.Value
 encodeAlanineScanSub scanSub =
     JEn.object
         [ ( "pdbFile", Maybe.withDefault "Invalid" scanSub.pdbFile |> JEn.string )
-        , ( "receptor", Maybe.withDefault "Invalid" scanSub.receptor |> JEn.string )
-        , ( "ligand", Maybe.withDefault "Invalid" scanSub.ligand |> JEn.string )
+        , ( "receptor", List.map JEn.string scanSub.receptor |> JEn.list )
+        , ( "ligand", List.map JEn.string scanSub.ligand |> JEn.list )
         ]
 
 
 type alias AlanineScanResults =
     { pdbFile : String
-    , receptor : String
-    , ligand : String
+    , receptor : List ChainID
+    , ligand : List ChainID
     , dG : Float
     , receptorResults : List ResidueResult
     , ligandResults : List ResidueResult
@@ -176,8 +176,8 @@ scanResultsDecoder : JDe.Decoder AlanineScanResults
 scanResultsDecoder =
     JDe.succeed AlanineScanResults
         |: (JDe.field "pdbFile" JDe.string)
-        |: (JDe.field "receptor" JDe.string)
-        |: (JDe.field "ligand" JDe.string)
+        |: (JDe.field "receptor" (JDe.list JDe.string))
+        |: (JDe.field "ligand" (JDe.list JDe.string))
         |: (JDe.field "dG" JDe.float)
         |: (JDe.field "receptorData" <|
                 JDe.list <|
@@ -245,7 +245,10 @@ update msg model =
                             | alanineScan =
                                 updatedScanModel
                             , appMode = Jobs
-                            , notifications = List.append model.notifications notifications
+                            , notifications =
+                                List.append
+                                    model.notifications
+                                    notifications
                         }
                             ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
 
@@ -254,7 +257,10 @@ update msg model =
                             | alanineScan =
                                 updatedScanModel
                             , appMode = ScanSubmission
-                            , notifications = List.append model.notifications notifications
+                            , notifications =
+                                List.append
+                                    model.notifications
+                                    notifications
                         }
                             ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
 
@@ -262,7 +268,10 @@ update msg model =
                         { model
                             | alanineScan =
                                 updatedScanModel
-                            , notifications = List.append model.notifications notifications
+                            , notifications =
+                                List.append
+                                    model.notifications
+                                    notifications
                         }
                             ! [ Cmd.map UpdateScanSubmission scanSubCmds ]
 
@@ -293,7 +302,8 @@ type ScanMsg
     | SetChainVisibility ChainID Bool
     | SetReceptor ChainID
     | SetLigand ChainID
-    | ClearReceptorLigand
+    | ClearReceptor ChainID
+    | ClearLigand ChainID
     | SubmitScanJob
     | ScanJobSubmitted (Result Http.Error JobDetails)
     | CheckScanJobs Time.Time
@@ -328,7 +338,8 @@ updateScanInput scanMsg scanModel =
                                 { emptyScanSub
                                     | pdbFile = Just pdbString
                                     , chainVisibility = Nothing
-                                    , ligand = Nothing
+                                    , receptor = []
+                                    , ligand = []
                                 }
                         }
                             ! [ showStructure pdbString ]
@@ -370,7 +381,10 @@ updateScanInput scanMsg scanModel =
                         { scanModel
                             | alanineScanSub =
                                 { scanSub
-                                    | receptor = Just chainID
+                                    | receptor =
+                                        List.append
+                                            scanSub.receptor
+                                            [ chainID ]
                                 }
                         }
                             ! [ colourGeometry ( "red", chainID ) ]
@@ -385,7 +399,10 @@ updateScanInput scanMsg scanModel =
                         { scanModel
                             | alanineScanSub =
                                 { scanSub
-                                    | ligand = Just chainID
+                                    | ligand =
+                                        List.append
+                                            scanSub.ligand
+                                            [ chainID ]
                                 }
                         }
                             ! [ colourGeometry ( "blue", chainID ) ]
@@ -394,17 +411,37 @@ updateScanInput scanMsg scanModel =
                     Nothing ->
                         scanModel ! [] # []
 
-            ClearReceptorLigand ->
+            ClearReceptor chainID ->
                 case scanSub.pdbFile of
                     Just pdb ->
                         { scanModel
                             | alanineScanSub =
                                 { scanSub
-                                    | receptor = Nothing
-                                    , ligand = Nothing
+                                    | receptor =
+                                        List.filter
+                                            (\r -> r /= chainID)
+                                            scanSub.receptor
                                 }
                         }
-                            ! [ showStructure pdb ]
+                            ! [ colourGeometry ( "white", chainID ) ]
+                            # []
+
+                    Nothing ->
+                        scanModel ! [] # []
+
+            ClearLigand chainID ->
+                case scanSub.pdbFile of
+                    Just pdb ->
+                        { scanModel
+                            | alanineScanSub =
+                                { scanSub
+                                    | ligand =
+                                        List.filter
+                                            (\l -> l /= chainID)
+                                            scanSub.ligand
+                                }
+                        }
+                            ! [ colourGeometry ( "white", chainID ) ]
                             # []
 
                     Nothing ->
@@ -727,9 +764,10 @@ scanSubmissionView updateMsg scanSub =
 scanResultsView : (ScanMsg -> msg) -> AlanineScanResults -> Html msg
 scanResultsView updateMsg results =
     let
-        resultsRow { residueNumber, aminoAcid, ddG } =
+        resultsRow { chainID, residueNumber, aminoAcid, ddG } =
             tr []
-                [ td [] [ text residueNumber ]
+                [ td [] [ text chainID ]
+                , td [] [ text residueNumber ]
                 , td [] [ text aminoAcid ]
                 , td [] [ toString ddG |> text ]
                 ]
@@ -742,16 +780,19 @@ scanResultsView updateMsg results =
                 [ text "New Submission" ]
             , h3 [] [ text "ΔG" ]
             , p [] [ toString results.dG |> text ]
-            , h3 [] [ text "Residue Results" ]
+            , h3 [] [ text "Residue Results (Non-Zero)" ]
             , div [ class "scan-results-table" ]
                 [ table []
                     ([ tr []
-                        [ th [] [ text "Residue Number" ]
+                        [ th [] [ text "Chain" ]
+                        , th [] [ text "Residue" ]
                         , th [] [ text "Amino Acid" ]
                         , th [] [ text "ΔΔG" ]
                         ]
                      ]
-                        ++ List.map resultsRow results.ligandResults
+                        ++ (List.filter (\res -> res.ddG /= 0) results.ligandResults
+                                |> List.map resultsRow
+                           )
                     )
                 ]
             ]
@@ -759,11 +800,11 @@ scanResultsView updateMsg results =
 
 chainSelect :
     (ScanMsg -> msg)
-    -> Maybe ChainID
-    -> Maybe ChainID
+    -> List ChainID
+    -> List ChainID
     -> ( ChainID, Bool )
     -> Html msg
-chainSelect updateMsg mReceptorLabel mLigandLabel ( label, visible ) =
+chainSelect updateMsg receptorLabels ligandLabels ( label, visible ) =
     tr []
         [ td [] [ text label ]
         , td []
@@ -775,60 +816,44 @@ chainSelect updateMsg mReceptorLabel mLigandLabel ( label, visible ) =
                 []
             ]
         , td []
-            (case mReceptorLabel of
-                Just receptorLabel ->
-                    if receptorLabel == label then
-                        [ button [ onClick <| updateMsg ClearReceptorLigand ]
-                            [ text "Clear" ]
-                        ]
-                    else
-                        []
-
-                Nothing ->
-                    let
-                        recButton =
-                            button
-                                [ onClick <|
-                                    updateMsg <|
-                                        SetReceptor label
-                                ]
-                                [ text "Set" ]
-                    in
-                        case mLigandLabel of
-                            Just ligandLabel ->
-                                if ligandLabel == label then
-                                    []
-                                else
-                                    [ recButton ]
-
-                            Nothing ->
-                                [ recButton ]
+            (if List.member label receptorLabels then
+                [ button
+                    [ onClick <|
+                        updateMsg <|
+                            ClearReceptor label
+                    ]
+                    [ text "Clear" ]
+                ]
+             else if List.member label ligandLabels then
+                []
+             else
+                [ button
+                    [ onClick <|
+                        updateMsg <|
+                            SetReceptor label
+                    ]
+                    [ text "Set" ]
+                ]
             )
         , td []
-            (case mLigandLabel of
-                Just ligandLabel ->
-                    if ligandLabel == label then
-                        [ button [ onClick <| updateMsg ClearReceptorLigand ]
-                            [ text "Clear" ]
-                        ]
-                    else
-                        []
-
-                Nothing ->
-                    let
-                        ligButton =
-                            button [ onClick <| updateMsg <| SetLigand label ]
-                                [ text "Set" ]
-                    in
-                        case mReceptorLabel of
-                            Just receptorLabel ->
-                                if receptorLabel == label then
-                                    []
-                                else
-                                    [ ligButton ]
-
-                            Nothing ->
-                                [ ligButton ]
+            (if List.member label ligandLabels then
+                [ button
+                    [ onClick <|
+                        updateMsg <|
+                            ClearLigand label
+                    ]
+                    [ text "Clear" ]
+                ]
+             else if List.member label receptorLabels then
+                []
+             else
+                [ button
+                    [ onClick <|
+                        updateMsg <|
+                            SetLigand label
+                    ]
+                    [ text "Set" ]
+                ]
             )
         ]
 
