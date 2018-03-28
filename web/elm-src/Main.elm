@@ -388,9 +388,15 @@ update msg model =
                                         Nothing
                                 }
                             , notifications =
-                                List.append
-                                    model.notifications
+                                List.filter
+                                    (\n ->
+                                        List.member n
+                                            model.notifications
+                                            |> not
+                                    )
                                     notifications
+                                    |> List.append
+                                        model.notifications
                         }
                             ! [ Cmd.map UpdateScan scanSubCmds ]
 
@@ -400,9 +406,15 @@ update msg model =
                                 updatedScanModel
                             , appMode = Jobs
                             , notifications =
-                                List.append
-                                    model.notifications
+                                List.filter
+                                    (\n ->
+                                        List.member n
+                                            model.notifications
+                                            |> not
+                                    )
                                     notifications
+                                    |> List.append
+                                        model.notifications
                         }
                             ! [ Cmd.map UpdateScan scanSubCmds ]
 
@@ -417,9 +429,15 @@ update msg model =
                                 }
                             , appMode = Scan
                             , notifications =
-                                List.append
-                                    model.notifications
+                                List.filter
+                                    (\n ->
+                                        List.member n
+                                            model.notifications
+                                            |> not
+                                    )
                                     notifications
+                                    |> List.append
+                                        model.notifications
                         }
                             ! [ Cmd.map UpdateScan scanSubCmds ]
 
@@ -428,9 +446,15 @@ update msg model =
                             | alanineScan =
                                 updatedScanModel
                             , notifications =
-                                List.append
-                                    model.notifications
+                                List.filter
+                                    (\n ->
+                                        List.member n
+                                            model.notifications
+                                            |> not
+                                    )
                                     notifications
+                                    |> List.append
+                                        model.notifications
                         }
                             ! [ Cmd.map UpdateScan scanSubCmds ]
 
@@ -446,9 +470,15 @@ update msg model =
                             , constellation =
                                 updatedConModel
                             , notifications =
-                                List.append
-                                    model.notifications
+                                List.filter
+                                    (\n ->
+                                        List.member n
+                                            model.notifications
+                                            |> not
+                                    )
                                     notifications
+                                    |> List.append
+                                        model.notifications
                         }
                             ! [ Cmd.map UpdateConstellation conSubCmds ]
 
@@ -466,9 +496,15 @@ update msg model =
                                 , constellation =
                                     updatedConModel
                                 , notifications =
-                                    List.append
-                                        model.notifications
+                                    List.filter
+                                        (\n ->
+                                            List.member n
+                                                model.notifications
+                                                |> not
+                                        )
                                         notifications
+                                        |> List.append
+                                            model.notifications
                             }
                                 ! [ Cmd.map UpdateConstellation conSubCmds
                                   , scanCmds
@@ -479,9 +515,15 @@ update msg model =
                             | constellation =
                                 updatedConModel
                             , notifications =
-                                List.append
-                                    model.notifications
+                                List.filter
+                                    (\n ->
+                                        List.member n
+                                            model.notifications
+                                            |> not
+                                    )
                                     notifications
+                                    |> List.append
+                                        model.notifications
                         }
                             ! [ Cmd.map UpdateConstellation conSubCmds ]
 
