@@ -1,10 +1,16 @@
-"""Views for BALS"""
+"""Views for BALS
+
+Notes
+-----
+As BALS has an SPA architecture, almost all of the business logic for the view
+is contained in the Elm application, with this file only really serving the base
+html and providing the RESTful API backend.
+"""
 
 import sys
 
-from bson.json_util import dumps, loads, RELAXED_JSON_OPTIONS
 import flask
-from flask import jsonify, redirect, render_template, request
+from flask import render_template, request
 from flask_restful import Resource, Api
 
 from bals import app
@@ -24,7 +30,17 @@ API = Api(app)
 
 
 class AlanineScanJobs(Resource):
+    """RESTful API endpoint for posting scan jobs and getting aggregate data."""
+
     def post(self):
+        """Creates a new alanine scan job on the server.
+
+        Returns
+        -------
+        job_details : Dict
+            Dict containing the ID of the job, time submitted and the
+            current job status.
+        """
         scan_submission = request.json
         if app.debug:
             print("Submitting Scan Job...", file=sys.stderr)
@@ -37,7 +53,16 @@ class AlanineScanJobs(Resource):
 
 
 class AlanineScanJob(Resource):
+    """RESTful API endpoint for information on specific scan jobs."""
+
     def get(self, job_id):
+        """Returns the status or results of an alanine scan job.
+
+        Notes
+        -----
+        A query string in the URI is used to determine if the status or results
+        should be returned.
+        """
         if "get-status" in request.args:
             if app.debug:
                 print(f"Getting Scan Job {job_id}...", file=sys.stderr)
@@ -63,7 +88,17 @@ class AlanineScanJob(Resource):
 
 
 class AutoConstellationJobs(Resource):
+    """RESTful API endpoint for posting auto jobs and getting aggregate data."""
+
     def post(self):
+        """Creates a new auto job on the server.
+
+        Returns
+        -------
+        job_details : Dict
+            Dict containing the ID of the job, time submitted and the
+            current job status.
+        """
         auto_submission = request.json
         if app.debug:
             print("Submitting auto constellation scan job...", file=sys.stderr)
@@ -77,7 +112,16 @@ class AutoConstellationJobs(Resource):
 
 
 class AutoConstellationJob(Resource):
+    """RESTful API endpoint for information on specific auto jobs."""
+
     def get(self, job_id):
+        """Returns the status or results of an auto job.
+
+        Notes
+        -----
+        A query string in the URI is used to determine if the status or results
+        should be returned.
+        """
         if "get-status" in request.args:
             if app.debug:
                 print(f"Getting auto constellation job status{job_id}...",

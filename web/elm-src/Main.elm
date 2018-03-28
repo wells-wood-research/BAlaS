@@ -2,6 +2,24 @@ port module Main exposing (..)
 
 {-| This module provides the main entry point to the BALS web application
 front end.
+
+This file is composed of 4 sections:
+
+1.  **MODEL** - Contains the types that describe the state of the application,
+    as well functions creating, validating and encode/decoding them to/from
+    JSON.
+2.  **UPDATE** - The update functions and message types used to update the state
+    of the model based on user input.
+3.  **COMMANDS AND SUBSCRIPTIONS** - Handles communication with the world
+    outside the Elm application, including JavaScript interopt and HTTP
+    requests.
+4.  **VIEWS** - All the functions that describe how the current state of the
+    application could be rendered in the browser.
+
+This file is currently quite long, which is not uncommon in Elm applications
+(see [this](https://youtu.be/XpDsk374LDE) video for more info about why that
+is), but it could be broken down later on if it gets really unwieldy.
+
 -}
 
 import Dict
@@ -27,9 +45,14 @@ main =
 
 
 
--- Model
+{- # MODEL
+   This section contains the types that describe the state of the application,
+   as well functions creating, validating and encode/decoding them to/from JSON.
+-}
 
 
+{-| Describes the current state of the application
+-}
 type alias Model =
     { appMode : AppMode
     , alanineScan : AlanineScanModel
@@ -49,59 +72,46 @@ emptyModel =
         False
 
 
+{-| Modes available in the app, corresponding to the 3 main tabs.
+-}
 type AppMode
     = Scan
     | Constellation
     | Jobs
 
 
-type alias JobDetails =
-    { jobID : String
-    , status : JobStatus
-    }
+{-| Creates a model and Cmd Msgs for the initial state of the application.
+-}
+init : ( Model, Cmd msg )
+init =
+    emptyModel ! [ initialiseViewer () ]
 
 
-jobDetailsDecoder : JDe.Decoder JobDetails
-jobDetailsDecoder =
-    JDe.succeed JobDetails
-        |: (JDe.field "_id" JDe.string)
-        |: (JDe.field "status" (JDe.int |> JDe.andThen intToJobStatus))
+
+-- Utility types
 
 
-type JobStatus
-    = Submitted
-    | Queued
-    | Running
-    | Completed
-    | Failed
-
-
-intToJobStatus : Int -> JDe.Decoder JobStatus
-intToJobStatus statusNumber =
-    case statusNumber of
-        1 ->
-            JDe.succeed Submitted
-
-        2 ->
-            JDe.succeed Queued
-
-        3 ->
-            JDe.succeed Running
-
-        4 ->
-            JDe.succeed Completed
-
-        5 ->
-            JDe.succeed Failed
-
-        _ ->
-            JDe.fail "Unknown status."
-
-
+{-| Represents a chain label in a PDB file.
+-}
 type alias ChainID =
     String
 
 
+{-| A helpful record describing the details of a single residue.
+-}
+type alias ResidueInfo =
+    { chainID : ChainID
+    , aminoAcid : String
+    , residueNumber : Int
+    }
+
+
+
+-- Scan Mode
+
+
+{-| Submodel that represents the state for the scan tab.
+-}
 type alias AlanineScanModel =
     { alanineScanSub : AlanineScanSub
     , jobs : List JobDetails
@@ -114,6 +124,8 @@ emptyAlaScanModel =
     AlanineScanModel emptyScanSub [] Nothing
 
 
+{-| Form data required for a scan job submission.
+-}
 type alias AlanineScanSub =
     { pdbFile : Maybe String
     , chainVisibility : Maybe (Dict.Dict ChainID Bool)
@@ -122,6 +134,17 @@ type alias AlanineScanSub =
     }
 
 
+emptyScanSub : AlanineScanSub
+emptyScanSub =
+    AlanineScanSub
+        Nothing
+        Nothing
+        []
+        []
+
+
+{-| Validates an `AlanineScanSub` to determine if it can be safely submitted.
+-}
 validScanSub : AlanineScanSub -> Bool
 validScanSub { pdbFile, receptor, ligand } =
     let
@@ -136,15 +159,8 @@ validScanSub { pdbFile, receptor, ligand } =
         isJust pdbFile && List.length receptor > 0 && List.length ligand > 0
 
 
-emptyScanSub : AlanineScanSub
-emptyScanSub =
-    AlanineScanSub
-        Nothing
-        Nothing
-        []
-        []
-
-
+{-| JSON encoder for `AlanineScanSub`
+-}
 encodeAlanineScanSub : AlanineScanSub -> JEn.Value
 encodeAlanineScanSub scanSub =
     JEn.object
@@ -154,6 +170,8 @@ encodeAlanineScanSub scanSub =
         ]
 
 
+{-| Processed version of BALS results in the `scan` mode.
+-}
 type alias AlanineScanResults =
     { pdbFile : String
     , receptor : List ChainID
@@ -164,6 +182,8 @@ type alias AlanineScanResults =
     }
 
 
+{-| BALS results for a specific residue.
+-}
 type alias ResidueResult =
     { residueNumber : String
     , aminoAcid : String
@@ -174,6 +194,8 @@ type alias ResidueResult =
     }
 
 
+{-| Decodes JSON produced by the server into `AlanineScanResults`.
+-}
 scanResultsDecoder : JDe.Decoder AlanineScanResults
 scanResultsDecoder =
     JDe.succeed AlanineScanResults
@@ -203,13 +225,12 @@ scanResultsDecoder =
            )
 
 
-type alias ResidueInfo =
-    { chainID : ChainID
-    , aminoAcid : String
-    , residueNumber : Int
-    }
+
+-- Constellation
 
 
+{-| Submodel that represents the state for the constellation tab.
+-}
 type alias ConstellationModel =
     { constellationSub : ConstellationMode
     , jobs : List JobDetails
@@ -225,10 +246,14 @@ emptyConstellationModel =
         Nothing
 
 
+{-| Union type of the different modes that can be active.
+-}
 type ConstellationMode
     = Auto AutoSettings
 
 
+{-| Record containing settings required by BALS auto mode.
+-}
 type alias AutoSettings =
     { ddGCutOff : String
     , constellationSize : String
@@ -244,6 +269,8 @@ defaultAutoSettings =
         "13.0"
 
 
+{-| Validates an `AutoSettings` to determine if it can be safely submitted.
+-}
 validAutoSettings : AutoSettings -> Bool
 validAutoSettings { ddGCutOff, constellationSize, cutOffDistance } =
     let
@@ -270,6 +297,33 @@ validAutoSettings { ddGCutOff, constellationSize, cutOffDistance } =
             ]
 
 
+{-| True if a string is a valid representation of a floating point number.
+-}
+representsFloat : String -> Bool
+representsFloat inString =
+    case String.toFloat inString of
+        Ok _ ->
+            True
+
+        Err _ ->
+            False
+
+
+{-| True if a string is a valid representation of an integer.
+-}
+representsInt : String -> Bool
+representsInt inString =
+    case String.toInt inString of
+        Ok _ ->
+            True
+
+        Err _ ->
+            False
+
+
+{-| JSON encoder that creates an auto job from a previous `AlanineScanResults`
+job and the settings for the auto job selected by the user.
+-}
 encodeAutoJob : AlanineScanResults -> AutoSettings -> JEn.Value
 encodeAutoJob scanResults settings =
     JEn.object
@@ -303,32 +357,16 @@ encodeAutoJob scanResults settings =
         ]
 
 
-representsFloat : String -> Bool
-representsFloat inString =
-    case String.toFloat inString of
-        Ok _ ->
-            True
-
-        Err _ ->
-            False
-
-
-representsInt : String -> Bool
-representsInt inString =
-    case String.toInt inString of
-        Ok _ ->
-            True
-
-        Err _ ->
-            False
-
-
+{-| Record containing the processed results of a BALS auto job.
+-}
 type alias ConstellationResults =
     { hotConstellations : List ( String, Float )
     , scanResults : AlanineScanResults
     }
 
 
+{-| Decodes JSON produced by the server into `ConstellationResults`.
+-}
 autoResultsDecoder : JDe.Decoder ConstellationResults
 autoResultsDecoder =
     JDe.succeed ConstellationResults
@@ -343,18 +381,80 @@ autoResultsDecoder =
 
 
 
--- Init
+-- Job
 
 
-init : ( Model, Cmd msg )
-init =
-    emptyModel ! [ initialiseViewer () ]
+type alias JobDetails =
+    { jobID : String
+    , status : JobStatus
+    }
+
+
+{-| Decodes JSON produced by the server into `JobDetails`.
+-}
+jobDetailsDecoder : JDe.Decoder JobDetails
+jobDetailsDecoder =
+    JDe.succeed JobDetails
+        |: (JDe.field "_id" JDe.string)
+        |: (JDe.field "status" (JDe.int |> JDe.andThen intToJobStatus))
+
+
+{-| Represents the possible status that any job on the server could have. This
+must match the `JobStatus` enum in database.py.
+-}
+type JobStatus
+    = Submitted
+    | Queued
+    | Running
+    | Completed
+    | Failed
+
+
+{-| Converts the integer representation of the status into a `JobStatus`. The
+options in this case statement must match the possible options for the
+`JobStatus` enum in database.py.
+-}
+intToJobStatus : Int -> JDe.Decoder JobStatus
+intToJobStatus statusNumber =
+    case statusNumber of
+        1 ->
+            JDe.succeed Submitted
+
+        2 ->
+            JDe.succeed Queued
+
+        3 ->
+            JDe.succeed Running
+
+        4 ->
+            JDe.succeed Completed
+
+        5 ->
+            JDe.succeed Failed
+
+        _ ->
+            JDe.fail "Unknown status."
+
+
+{-| Filters a list of `JobDetails` for jobs that are submitted, queued or
+running.
+-}
+getActiveJobs : List JobDetails -> List JobDetails
+getActiveJobs jobs =
+    List.filter
+        (\{ status } -> (status /= Completed) && (status /= Failed))
+        jobs
 
 
 
--- Update
+{- # UPDATE
+   This section contains all code that updates the state of the application.
+-}
 
 
+{-| Type that signals to the main update function how the model should be
+updated.
+-}
 type Msg
     = SetAppMode AppMode
     | UpdateScan ScanMsg
@@ -363,6 +463,16 @@ type Msg
     | DismissNotification Int
 
 
+{-| The main update function that is run whenever a user interacts with an
+element of the application.
+
+The main update function handles all `Msgs` that are received, but be aware that
+it is also responsive to certain `ScanMsgs` and `ConstellationMsgs`. For example
+when a `ClearScanSubmission` is received, this is processed mainly through
+`updatedScan`, but `update` also modifies the `mode` field of the model and
+clears the current constellation results.
+
+-}
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -540,13 +650,13 @@ update msg model =
                 ! []
 
 
-removeListItem : Int -> List a -> List a
-removeListItem idx editList =
-    List.indexedMap (,) editList
-        |> List.filter (\( refIdx, _ ) -> refIdx /= idx)
-        |> List.map Tuple.second
+
+-- Scan Mode
 
 
+{-| Type that signals to `updateScan` how the current `AlanineScanModel` should
+be updated.
+-}
 type ScanMsg
     = GetInputPDB
     | ProcessPDBInput String
@@ -567,6 +677,10 @@ type ScanMsg
     | ClearScanSubmission
 
 
+{-| Function for updating the state of the currently active `AlanineScanModel`.
+This includes code for manipulating the representation of the currently active
+scan submission structure.
+-}
 updateScan :
     ScanMsg
     -> AlanineScanModel
@@ -804,13 +918,13 @@ updateScan scanMsg scanModel =
                 { scanModel | results = Nothing } ! [] # []
 
 
-getActiveJobs : List JobDetails -> List JobDetails
-getActiveJobs jobs =
-    List.filter
-        (\{ status } -> (status /= Completed) && (status /= Failed))
-        jobs
+
+-- Constellation
 
 
+{-| Type that signals to `updateConstellation` how the current
+`ConstellationModel` should be updated.
+-}
 type ConstellationMsg
     = ChangeMode String
     | UpdateAutoSettings AutoSettingsMsg
@@ -822,6 +936,9 @@ type ConstellationMsg
     | ProcessAutoResults (Result Http.Error ConstellationResults)
 
 
+{-| Function for updating the state of the currently active
+`ConstellationModel`.
+-}
 updateConstellation :
     ConstellationMsg
     -> ConstellationModel
@@ -951,6 +1068,8 @@ type AutoSettingsMsg
     | UpdateDistanceCutOff String
 
 
+{-| Small helper update that handles user input for creating AutoSettings`
+-}
 updateAutoSettings : AutoSettingsMsg -> AutoSettings -> AutoSettings
 updateAutoSettings msg settings =
     case msg of
@@ -965,7 +1084,14 @@ updateAutoSettings msg settings =
 
 
 
--- Cmds
+{- # COMMANDS AND SUBSCRIPTIONS
+   This section contains all code for communicating with the outside world, whether
+   that's with the server or javascript inside the index.html file.
+-}
+{- Each of the following ports corresponds to a JavaScript function in
+   index.html. The function is ran when the port command is returned by the update
+   function.
+-}
 
 
 port initialiseViewer : () -> Cmd msg
@@ -989,6 +1115,12 @@ port colourByDDG : AlanineScanResults -> Cmd msg
 port focusOnResidue : ResidueResult -> Cmd msg
 
 
+
+{- These functions create commands that create HTTP requests. -}
+
+
+{-| Submits an alanine scan job to the server.
+-}
 submitAlanineScan : AlanineScanSub -> Cmd ScanMsg
 submitAlanineScan scanSub =
     Http.send ScanJobSubmitted <|
@@ -1000,6 +1132,8 @@ submitAlanineScan scanSub =
             jobDetailsDecoder
 
 
+{-| Checks the status of an alanine scan job on the server.
+-}
 checkScanJobStatus : JobDetails -> Cmd ScanMsg
 checkScanJobStatus { jobID } =
     Http.send ProcessScanStatus <|
@@ -1008,6 +1142,8 @@ checkScanJobStatus { jobID } =
             jobDetailsDecoder
 
 
+{-| Gets the results of an alanine scan job from the server.
+-}
 getScanResults : String -> Cmd ScanMsg
 getScanResults jobID =
     Http.send ProcessScanResults <|
@@ -1016,6 +1152,9 @@ getScanResults jobID =
             scanResultsDecoder
 
 
+{-| Submits an alanine scan job to the server. Receives a string back containing
+the job id if sucessful.
+-}
 submitAutoJob : AlanineScanResults -> AutoSettings -> Cmd ConstellationMsg
 submitAutoJob scanResults settings =
     Http.send AutoJobSubmitted <|
@@ -1027,6 +1166,8 @@ submitAutoJob scanResults settings =
             jobDetailsDecoder
 
 
+{-| Checks the status of an auto constellation job on the server.
+-}
 checkAutoJobStatus : JobDetails -> Cmd ConstellationMsg
 checkAutoJobStatus { jobID } =
     Http.send ProcessAutoJobStatus <|
@@ -1035,6 +1176,8 @@ checkAutoJobStatus { jobID } =
             jobDetailsDecoder
 
 
+{-| Gets the results of an auto constellation job from the server.
+-}
 getAutoResults : String -> Cmd ConstellationMsg
 getAutoResults jobID =
     Http.send ProcessAutoResults <|
@@ -1045,6 +1188,9 @@ getAutoResults jobID =
 
 
 -- Subscriptions
+{- The following ports are triggered by JavaScript functions in index.html and
+   send data into the Elm application.
+-}
 
 
 port receivePDBFile : (String -> msg) -> Sub msg
@@ -1056,6 +1202,8 @@ port receiveStructureInfo : (List ChainID -> msg) -> Sub msg
 port atomClick : (ResidueInfo -> msg) -> Sub msg
 
 
+{-| Describes the active subscriptions based on the current state of the model.
+-}
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch <|
@@ -1080,18 +1228,15 @@ subscriptions model =
                )
 
 
-residueInfoDecoder : JDe.Decoder ResidueInfo
-residueInfoDecoder =
-    JDe.succeed ResidueInfo
-        |: (JDe.field "chainID" JDe.string)
-        |: (JDe.field "aminoAcid" JDe.string)
-        |: (JDe.field "residueNumber" JDe.int)
+
+{- # VIEWS
+   This section contains all functions for displaying the current state of the
+   model.
+-}
 
 
-
--- View
-
-
+{-| The main view function that is called every time the model is updated.
+-}
 view : Model -> Html Msg
 view model =
     div [ class "main-grid" ]
@@ -1153,6 +1298,8 @@ view model =
         ]
 
 
+{-| Side panel that displays notifications. Can be toggled on and off.
+-}
 notificationPanel : Bool -> List Notification -> Html Msg
 notificationPanel open notifications =
     div [ class "notification-panel", hidden <| not open ]
@@ -1162,6 +1309,8 @@ notificationPanel open notifications =
         ]
 
 
+{-| Displays an individual notification.
+-}
 notificationView : Int -> Notification -> Html Msg
 notificationView idx notification =
     div [ class "notification" ]
@@ -1172,6 +1321,13 @@ notificationView idx notification =
         ]
 
 
+
+-- Scan
+
+
+{-| Main view for the scan tab when in submission mode. This is hidden in
+results mode.
+-}
 scanSubmissionView : (ScanMsg -> msg) -> AlanineScanSub -> Html msg
 scanSubmissionView updateMsg scanSub =
     div
@@ -1214,6 +1370,9 @@ scanSubmissionView updateMsg scanSub =
         ]
 
 
+{-| Main view for the scan tab when in results mode. This is hidden in
+submission mode.
+-}
 scanResultsView : (ScanMsg -> msg) -> AlanineScanResults -> Html msg
 scanResultsView updateMsg results =
     let
@@ -1255,6 +1414,8 @@ scanResultsView updateMsg results =
             ]
 
 
+{-| View for selecting the receptor and ligand chains.
+-}
 chainSelect :
     (ScanMsg -> msg)
     -> List ChainID
@@ -1315,68 +1476,13 @@ chainSelect updateMsg receptorLabels ligandLabels ( label, visible ) =
         ]
 
 
-jobsView : Model -> Html Msg
-jobsView model =
-    let
-        alaScanJobs =
-            model.alanineScan.jobs
-
-        constellationJobs =
-            model.constellation.jobs
-    in
-        div [ class "control-panel jobs-panel" ]
-            [ h2 [] [ text "Jobs" ]
-            , jobTable (UpdateScan << GetScanResults)
-                "Alanine Scan Jobs"
-                alaScanJobs
-            , jobTable (UpdateConstellation << GetAutoResults)
-                "Constellation Scan Jobs"
-                constellationJobs
-            ]
-
-
-jobTable : (String -> Msg) -> String -> List JobDetails -> Html Msg
-jobTable getMsg tableTitle jobs =
-    let
-        tableRow { jobID, status } =
-            tr [ class "details" ]
-                [ td [] [ text jobID ]
-                , td [] [ text <| toString status ]
-                , td []
-                    [ button
-                        [ getMsg jobID
-                            |> onClick
-                        , (if (status == Completed) then
-                            False
-                           else
-                            True
-                          )
-                            |> disabled
-                        ]
-                        [ text "Get Results" ]
-                    ]
-                ]
-    in
-        div []
-            [ h3 [] [ text tableTitle ]
-            , if List.length jobs > 0 then
-                table []
-                    ([ tr []
-                        [ th [] [ text "Job ID" ]
-                        , th [] [ text "Status" ]
-                        ]
-                     ]
-                        ++ List.map tableRow jobs
-                    )
-              else
-                text "No Jobs submitted."
-            ]
-
-
 
 -- Constellations
 
 
+{-| Main view for the constellation tab when in submission mode. This is hidden
+in results mode.
+-}
 constellationSubmissionView :
     (ConstellationMsg -> msg)
     -> ConstellationModel
@@ -1400,6 +1506,9 @@ constellationSubmissionView updateMsg model mScanResults =
         ]
 
 
+{-| Actual submission view for constellation jobs. Only shown if a valid
+`AlanineScanResults` is active in the model.
+-}
 activeConstellationSub :
     (ConstellationMsg -> msg)
     -> ConstellationModel
@@ -1417,11 +1526,8 @@ activeConstellationSub updateMsg model scanRes =
         ]
 
 
-simpleOption : String -> Html msg
-simpleOption labelValue =
-    option [ value labelValue ] [ text labelValue ]
-
-
+{-| View for submission of auto settings input.
+-}
 autoSettingsView :
     (ConstellationMsg -> msg)
     -> AlanineScanResults
@@ -1467,6 +1573,9 @@ autoSettingsView updateMsg scanRes settings =
             )
 
 
+{-| Main view for the constellation tab when in results mode. This is hidden
+in submission mode.
+-}
 constellationResultsView : ConstellationResults -> Html msg
 constellationResultsView { hotConstellations } =
     let
@@ -1491,3 +1600,89 @@ constellationResultsView { hotConstellations } =
                     )
                 ]
             ]
+
+
+
+-- Jobs
+
+
+{-| Main view for the Jobs tabs.
+-}
+jobsView : Model -> Html Msg
+jobsView model =
+    let
+        alaScanJobs =
+            model.alanineScan.jobs
+
+        constellationJobs =
+            model.constellation.jobs
+    in
+        div [ class "control-panel jobs-panel" ]
+            [ h2 [] [ text "Jobs" ]
+            , jobTable (UpdateScan << GetScanResults)
+                "Alanine Scan Jobs"
+                alaScanJobs
+            , jobTable (UpdateConstellation << GetAutoResults)
+                "Constellation Scan Jobs"
+                constellationJobs
+            ]
+
+
+{-| Creates a table of job details. Takes a `Msg` constructor as an argument so
+that it can be reused for all the job queues.
+-}
+jobTable : (String -> Msg) -> String -> List JobDetails -> Html Msg
+jobTable getMsg tableTitle jobs =
+    let
+        tableRow { jobID, status } =
+            tr [ class "details" ]
+                [ td [] [ text jobID ]
+                , td [] [ text <| toString status ]
+                , td []
+                    [ button
+                        [ getMsg jobID
+                            |> onClick
+                        , (if (status == Completed) then
+                            False
+                           else
+                            True
+                          )
+                            |> disabled
+                        ]
+                        [ text "Get Results" ]
+                    ]
+                ]
+    in
+        div []
+            [ h3 [] [ text tableTitle ]
+            , if List.length jobs > 0 then
+                table []
+                    ([ tr []
+                        [ th [] [ text "Job ID" ]
+                        , th [] [ text "Status" ]
+                        ]
+                     ]
+                        ++ List.map tableRow jobs
+                    )
+              else
+                text "No Jobs submitted."
+            ]
+
+
+
+-- Misc helper functions
+
+
+{-| Removes an item for a list at a particular position if list is long enough,
+otherwise leaves the list unchanged.
+-}
+removeListItem : Int -> List a -> List a
+removeListItem idx editList =
+    List.indexedMap (,) editList
+        |> List.filter (\( refIdx, _ ) -> refIdx /= idx)
+        |> List.map Tuple.second
+
+
+simpleOption : String -> Html msg
+simpleOption labelValue =
+    option [ value labelValue ] [ text labelValue ]

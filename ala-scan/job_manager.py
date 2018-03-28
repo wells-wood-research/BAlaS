@@ -20,6 +20,7 @@ from database import JobStatus, ALANINE_SCAN_JOBS, AUTO_JOBS
 
 @contextlib.contextmanager
 def cd(newdir, cleanup=lambda: True):
+    """Changes directory to a temporary folder and cleans up on exit."""
     prevdir = os.getcwd()
     os.chdir(os.path.expanduser(newdir))
     try:
@@ -31,6 +32,7 @@ def cd(newdir, cleanup=lambda: True):
 
 @contextlib.contextmanager
 def tempdir():
+    """Creates a temporary directory context for running analysis."""
     dirpath = tempfile.mkdtemp()
 
     def cleanup():
@@ -40,21 +42,21 @@ def tempdir():
 
 
 def main():
-    """Establishes the manager and listener subprocesses"""
+    """Establishes the manager and worker subprocesses."""
     scan_processes = int(os.getenv(key='SCAN_PROCS', default='1'))
     auto_processes = int(os.getenv(key='AUTO_PROCS', default='1'))
     with mp.Manager() as manager:
-        scan_queue, scan_assigned, scan_listeners = make_queue_components(
+        scan_queue, scan_assigned, scan_workers = make_queue_components(
             get_and_run_scan_job, scan_processes, manager)
-        auto_queue, auto_assigned, auto_listeners = make_queue_components(
+        auto_queue, auto_assigned, auto_workers = make_queue_components(
             get_and_run_auto_job, auto_processes, manager)
         while True:
             check_for_lost_jobs(scan_assigned, ALANINE_SCAN_JOBS)
             check_for_lost_jobs(auto_assigned, AUTO_JOBS)
             check_for_dead_jobs(get_and_run_scan_job,
-                                scan_assigned, scan_queue, scan_listeners)
+                                scan_assigned, scan_queue, scan_workers)
             check_for_dead_jobs(get_and_run_auto_job,
-                                auto_assigned, auto_queue, auto_listeners)
+                                auto_assigned, auto_queue, auto_workers)
             populate_queue(scan_queue, ALANINE_SCAN_JOBS)
             populate_queue(auto_queue, AUTO_JOBS)
             time.sleep(2)
@@ -62,19 +64,21 @@ def main():
 
 
 def make_queue_components(target_fn, processes, manager):
+    """Creates the various objects required to create the job queue."""
     queue = manager.Queue()
     assigned_jobs = manager.list([None] * processes)
-    listeners = [
+    workers = [
         mp.Process(target=target_fn,
                    args=(queue, assigned_jobs, proc_i))
         for proc_i in range(processes)
     ]
-    for listener in listeners:
-        listener.start()
-    return queue, assigned_jobs, listeners
+    for worker in workers:
+        worker.start()
+    return queue, assigned_jobs, workers
 
 
 def check_for_lost_jobs(assigned_jobs, collection):
+    """Checks for jobs that are assigned and have failed."""
     running_jobs = collection.find(
         {'status': JobStatus.RUNNING.value})
     for job in running_jobs:
@@ -84,19 +88,21 @@ def check_for_lost_jobs(assigned_jobs, collection):
     return
 
 
-def check_for_dead_jobs(target_fn, assigned_jobs, queue, listeners):
-    for (i, proc) in enumerate(listeners):
+def check_for_dead_jobs(target_fn, assigned_jobs, queue, workers):
+    """Checks status of workers and restarts any that are dead."""
+    for (i, proc) in enumerate(workers):
         if not proc.is_alive():
             proc.terminate()
             assigned_jobs[i] = None
-            listeners[i] = mp.Process(
+            workers[i] = mp.Process(
                 target=target_fn,
                 args=(queue, assigned_jobs, i))
-            listeners[i].start()
+            workers[i].start()
     return
 
 
 def populate_queue(queue, collection):
+    """Adds jobs from the database to the queue shared by workers."""
     submitted_jobs = collection.find(
         {'status': JobStatus.SUBMITTED.value})
     for job in sorted(submitted_jobs,
@@ -112,12 +118,12 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
     Parameters
     ----------
     scan_job_queue : multiprocessing.Queue
-        Optimisation job queue.
+        Scan job queue.
     assigned_jobs : list
         A list of jobs ids currently being processed by the
-        listeners.
+        workers.
     proc_i : int
-        The index of the processor in the listener list and the
+        The index of the processor in the worker list and the
         assigned_jobs list.
     """
     # The module is reloaded to establish a new connection
@@ -144,6 +150,7 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
 
 
 def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains):
+    """Runs a BALS job in `scan` mode."""
     pdb_filename = f'{job_id}.pdb'
     with open(pdb_filename, 'w') as outf:
         outf.write(pdb_string)
@@ -168,6 +175,7 @@ def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains):
 
 
 def parser_friendly_output(bals_rec_output, bals_lig_output):
+    """Formats the BALS output to make it better structured for Elm."""
     rec_output = bals_rec_output['ala_scan'][0]
     lig_output = bals_lig_output['ala_scan'][0]
     rec_dg = rec_output.pop('dG')
@@ -194,9 +202,9 @@ def get_and_run_auto_job(auto_job_queue, assigned_jobs, proc_i):
         Auto job queue.
     assigned_jobs : list
         A list of jobs ids currently being processed by the
-        listeners.
+        workers.
     proc_i : int
-        The index of the processor in the listener list and the
+        The index of the processor in the worker list and the
         assigned_jobs list.
     """
     # The module is reloaded to establish a new connection
@@ -226,6 +234,7 @@ def get_and_run_auto_job(auto_job_queue, assigned_jobs, proc_i):
 
 def run_bals_auto(job_id, pdb_string, receptor_chains, ligand_chains,
                   ddg_cutoff, constellation_size, distance_cutoff):
+    """Runs a BALS job in `auto` mode."""
     pdb_filename = f'{job_id}.pdb'
     with open(pdb_filename, 'w') as outf:
         outf.write(pdb_string)
