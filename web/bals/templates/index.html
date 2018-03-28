@@ -131,6 +131,7 @@
     }
 
     function colourByDDG(alaScanResults) {
+        showStructure(alaScanResults.pdbFile);
         currentStructure.eachResidue(function(residue) {
                 residue.setProp('ddG', 0.0);
             });

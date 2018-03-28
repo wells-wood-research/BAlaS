@@ -371,10 +371,29 @@ update msg model =
 
         UpdateScan scanMsg ->
             let
+                constellation =
+                    model.constellation
+
                 ( updatedScanModel, scanSubCmds, notifications ) =
                     updateScan scanMsg model.alanineScan
             in
                 case scanMsg of
+                    ClearScanSubmission ->
+                        { model
+                            | alanineScan =
+                                updatedScanModel
+                            , constellation =
+                                { constellation
+                                    | results =
+                                        Nothing
+                                }
+                            , notifications =
+                                List.append
+                                    model.notifications
+                                    notifications
+                        }
+                            ! [ Cmd.map UpdateScan scanSubCmds ]
+
                     ScanJobSubmitted (Ok _) ->
                         { model
                             | alanineScan =
@@ -391,6 +410,11 @@ update msg model =
                         { model
                             | alanineScan =
                                 updatedScanModel
+                            , constellation =
+                                { constellation
+                                    | results =
+                                        Nothing
+                                }
                             , appMode = Scan
                             , notifications =
                                 List.append
@@ -415,15 +439,51 @@ update msg model =
                 ( updatedConModel, conSubCmds, notifications ) =
                     updateConstellation constellationMsg model.constellation
             in
-                { model
-                    | constellation =
-                        updatedConModel
-                    , notifications =
-                        List.append
-                            model.notifications
-                            notifications
-                }
-                    ! [ Cmd.map UpdateConstellation conSubCmds ]
+                case constellationMsg of
+                    AutoJobSubmitted (Ok _) ->
+                        { model
+                            | appMode = Jobs
+                            , constellation =
+                                updatedConModel
+                            , notifications =
+                                List.append
+                                    model.notifications
+                                    notifications
+                        }
+                            ! [ Cmd.map UpdateConstellation conSubCmds ]
+
+                    ProcessAutoResults (Ok { scanResults }) ->
+                        let
+                            scanUpdateMsg =
+                                ProcessScanResults (Ok scanResults)
+                                    |> UpdateScan
+
+                            ( updatedModel, scanCmds ) =
+                                update scanUpdateMsg model
+                        in
+                            { updatedModel
+                                | appMode = Constellation
+                                , constellation =
+                                    updatedConModel
+                                , notifications =
+                                    List.append
+                                        model.notifications
+                                        notifications
+                            }
+                                ! [ Cmd.map UpdateConstellation conSubCmds
+                                  , scanCmds
+                                  ]
+
+                    _ ->
+                        { model
+                            | constellation =
+                                updatedConModel
+                            , notifications =
+                                List.append
+                                    model.notifications
+                                    notifications
+                        }
+                            ! [ Cmd.map UpdateConstellation conSubCmds ]
 
         ToggleNotificationPanel ->
             { model | notificationsOpen = not model.notificationsOpen }
@@ -1030,7 +1090,7 @@ view model =
             Constellation ->
                 case model.constellation.results of
                     Just results ->
-                        div [] [ text "results" ]
+                        constellationResultsView results
 
                     Nothing ->
                         constellationSubmissionView
@@ -1352,3 +1412,29 @@ autoSettingsView updateMsg scanRes settings =
              ]
                 |> List.intersperse (br [] [])
             )
+
+
+constellationResultsView : ConstellationResults -> Html msg
+constellationResultsView { hotConstellations } =
+    let
+        resultsRow ( constellation, meanDDG ) =
+            tr []
+                [ td [] [ text constellation ]
+                , td [] [ text <| toString meanDDG ]
+                ]
+    in
+        div
+            [ class "control-panel constellation-panel" ]
+            [ h2 [] [ text "Constellation Scan Results" ]
+            , h3 [] [ text "🔥 Hot Constellations 🔥" ]
+            , div [ class "scan-results-table" ]
+                [ table []
+                    ([ tr []
+                        [ th [] [ text "Constellation" ]
+                        , th [] [ text "Mean ΔΔG" ]
+                        ]
+                     ]
+                        ++ List.map resultsRow hotConstellations
+                    )
+                ]
+            ]
