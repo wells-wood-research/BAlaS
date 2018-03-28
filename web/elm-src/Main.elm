@@ -213,7 +213,7 @@ type alias ResidueInfo =
 type alias ConstellationModel =
     { constellationSub : ConstellationMode
     , jobs : List JobDetails
-    , results : Maybe AlanineScanResults
+    , results : Maybe ConstellationResults
     }
 
 
@@ -321,6 +321,25 @@ representsInt inString =
 
         Err _ ->
             False
+
+
+type alias ConstellationResults =
+    { hotConstellations : List ( String, Float )
+    , scanResults : AlanineScanResults
+    }
+
+
+autoResultsDecoder : JDe.Decoder ConstellationResults
+autoResultsDecoder =
+    JDe.succeed ConstellationResults
+        |: (JDe.field "hotConstellations" <|
+                JDe.list <|
+                    JDe.map2
+                        (,)
+                        (JDe.index 0 JDe.string)
+                        (JDe.index 1 JDe.float)
+           )
+        |: (JDe.field "scanResults" scanResultsDecoder)
 
 
 
@@ -691,6 +710,10 @@ type ConstellationMsg
     | UpdateAutoSettings AutoSettingsMsg
     | SubmitConstellationJob AlanineScanResults
     | AutoJobSubmitted (Result Http.Error JobDetails)
+    | CheckAutoJobs Time.Time
+    | ProcessAutoJobStatus (Result Http.Error JobDetails)
+    | GetAutoResults String
+    | ProcessAutoResults (Result Http.Error ConstellationResults)
 
 
 updateConstellation :
@@ -750,6 +773,70 @@ updateConstellation msg model =
                                 "Failed to Constellation Scan Auto Job"
                                 error
                           ]
+
+            CheckAutoJobs _ ->
+                model
+                    ! List.map checkAutoJobStatus
+                        model.jobs
+                    # []
+
+            ProcessAutoJobStatus (Ok jobDetails) ->
+                { model
+                    | jobs =
+                        model.jobs
+                            |> List.map (\{ jobID, status } -> ( jobID, status ))
+                            |> Dict.fromList
+                            |> Dict.insert jobDetails.jobID jobDetails.status
+                            |> Dict.toList
+                            |> List.map (\( jobID, status ) -> JobDetails jobID status)
+                }
+                    ! []
+                    # case jobDetails.status of
+                        Completed ->
+                            [ Notification
+                                ""
+                                "Auto Constellation Scan Completed"
+                                ("Auto constellation scan job "
+                                    ++ jobDetails.jobID
+                                    ++ " complete. Retrieve the results from"
+                                    ++ " the 'Jobs' tab."
+                                )
+                            ]
+
+                        Failed ->
+                            [ Notification
+                                ""
+                                "Auto Constellation Scan Failed"
+                                ("Auto constellation scan job "
+                                    ++ jobDetails.jobID
+                                    ++ " failed."
+                                )
+                            ]
+
+                        _ ->
+                            []
+
+            ProcessAutoJobStatus (Err error) ->
+                let
+                    err =
+                        Debug.log "Auto job status check error" error
+                in
+                    model ! [] # []
+
+            GetAutoResults jobID ->
+                model ! [ getAutoResults jobID ] # []
+
+            ProcessAutoResults (Ok results) ->
+                { model | results = Just results }
+                    ! []
+                    # []
+
+            ProcessAutoResults (Err error) ->
+                let
+                    err =
+                        Debug.log "Failed to retrieve scan results" error
+                in
+                    model ! [] # []
 
 
 type AutoSettingsMsg
@@ -831,6 +918,22 @@ submitAutoJob scanResults settings =
             jobDetailsDecoder
 
 
+checkAutoJobStatus : JobDetails -> Cmd ConstellationMsg
+checkAutoJobStatus { jobID } =
+    Http.send ProcessAutoJobStatus <|
+        Http.get
+            ("/api/v0.1/auto-job/" ++ jobID ++ "?get-status")
+            jobDetailsDecoder
+
+
+getAutoResults : String -> Cmd ConstellationMsg
+getAutoResults jobID =
+    Http.send ProcessAutoResults <|
+        Http.get
+            ("/api/v0.1/auto-job/" ++ jobID ++ "?get-results")
+            autoResultsDecoder
+
+
 
 -- Subscriptions
 
@@ -855,6 +958,13 @@ subscriptions model =
             ++ (if List.length (getActiveJobs model.alanineScan.jobs) > 0 then
                     [ Time.every (5 * Time.second)
                         (UpdateScan << CheckScanJobs)
+                    ]
+                else
+                    []
+               )
+            ++ (if List.length (getActiveJobs model.constellation.jobs) > 0 then
+                    [ Time.every (5 * Time.second)
+                        (UpdateConstellation << CheckAutoJobs)
                     ]
                 else
                     []
@@ -1097,15 +1207,23 @@ jobsView model =
     let
         alaScanJobs =
             model.alanineScan.jobs
+
+        constellationJobs =
+            model.constellation.jobs
     in
         div [ class "control-panel jobs-panel" ]
             [ h2 [] [ text "Jobs" ]
-            , jobTable "Alanine Scan Jobs" alaScanJobs
+            , jobTable (UpdateScan << GetScanResults)
+                "Alanine Scan Jobs"
+                alaScanJobs
+            , jobTable (UpdateConstellation << GetAutoResults)
+                "Constellation Scan Jobs"
+                constellationJobs
             ]
 
 
-jobTable : String -> List JobDetails -> Html Msg
-jobTable tableTitle jobs =
+jobTable : (String -> Msg) -> String -> List JobDetails -> Html Msg
+jobTable getMsg tableTitle jobs =
     let
         tableRow { jobID, status } =
             tr [ class "details" ]
@@ -1113,8 +1231,7 @@ jobTable tableTitle jobs =
                 , td [] [ text <| toString status ]
                 , td []
                     [ button
-                        [ GetScanResults jobID
-                            |> UpdateScan
+                        [ getMsg jobID
                             |> onClick
                         , (if (status == Completed) then
                             False

@@ -3,6 +3,7 @@
 import sys
 
 from bson.json_util import dumps, loads, RELAXED_JSON_OPTIONS
+import flask
 from flask import jsonify, redirect, render_template, request
 from flask_restful import Resource, Api
 
@@ -50,7 +51,49 @@ class AlanineScanJob(Resource):
         elif "get-results" in request.args:
             if app.debug:
                 print(f"Getting Scan Job results {job_id}...", file=sys.stderr)
-            job = database.export_scan_job(database.get_scan_job(job_id))
+            job = database.export_job(database.get_scan_job(job_id))
+            if job is None:
+                flask.abort(404)
+            elif job['status'] != database.JobStatus.COMPLETED.value:
+                flask.abort(404)
+            if app.debug:
+                print(f"Got job results for job {job_id}.", file=sys.stderr)
+            return job, 200
+        return "No arguments supplied.", 400
+
+
+class AutoConstellationJobs(Resource):
+    def post(self):
+        auto_submission = request.json
+        if app.debug:
+            print("Submitting auto constellation scan job...", file=sys.stderr)
+        job_id = database.submit_auto_job(auto_submission)
+        job_details = database.export_job_details(
+            database.get_auto_job(job_id))
+        if app.debug:
+            print(
+                f"Auto constellation job submitted: {job_id}", file=sys.stderr)
+        return job_details, 201
+
+
+class AutoConstellationJob(Resource):
+    def get(self, job_id):
+        if "get-status" in request.args:
+            if app.debug:
+                print(f"Getting auto constellation job status{job_id}...",
+                      file=sys.stderr)
+            job_details = database.export_job_details(
+                database.get_auto_job(job_id))
+            if job_details is None:
+                flask.abort(404)
+            if app.debug:
+                print(f"Got job details for job {job_id}.", file=sys.stderr)
+            return job_details, 200
+        elif "get-results" in request.args:
+            if app.debug:
+                print(f"Getting auto constellation job results {job_id}...",
+                      file=sys.stderr)
+            job = database.export_job(database.get_auto_job(job_id))
             if job is None:
                 flask.abort(404)
             elif job['status'] != database.JobStatus.COMPLETED.value:
@@ -63,3 +106,5 @@ class AlanineScanJob(Resource):
 
 API.add_resource(AlanineScanJobs, '/api/v0.1/alanine-scan-jobs')
 API.add_resource(AlanineScanJob, '/api/v0.1/alanine-scan-job/<string:job_id>')
+API.add_resource(AutoConstellationJobs, '/api/v0.1/auto-jobs')
+API.add_resource(AutoConstellationJob, '/api/v0.1/auto-job/<string:job_id>')

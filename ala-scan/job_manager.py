@@ -15,7 +15,7 @@ import tempfile
 import isambard
 
 import database
-from database import JobStatus, ALANINE_SCAN_JOBS
+from database import JobStatus, ALANINE_SCAN_JOBS, AUTO_JOBS
 
 
 @contextlib.contextmanager
@@ -45,25 +45,27 @@ def main():
     auto_processes = int(os.getenv(key='AUTO_PROCS', default='1'))
     with mp.Manager() as manager:
         scan_queue, scan_assigned, scan_listeners = make_queue_components(
-            scan_processes, manager)
+            get_and_run_scan_job, scan_processes, manager)
         auto_queue, auto_assigned, auto_listeners = make_queue_components(
-            auto_processes, manager)
+            get_and_run_auto_job, auto_processes, manager)
         while True:
             check_for_lost_jobs(scan_assigned, ALANINE_SCAN_JOBS)
-            # check_for_lost_jobs(auto_assigned, AUTO_JOBS)
-            check_for_dead_jobs(scan_assigned, scan_queue, scan_listeners)
-            # check_for_dead_jobs(auto_assigned, auto_listeners)
+            check_for_lost_jobs(auto_assigned, AUTO_JOBS)
+            check_for_dead_jobs(get_and_run_scan_job,
+                                scan_assigned, scan_queue, scan_listeners)
+            check_for_dead_jobs(get_and_run_auto_job,
+                                auto_assigned, auto_queue, auto_listeners)
             populate_queue(scan_queue, ALANINE_SCAN_JOBS)
-            # populate_queue(auto_queue, AUTO_JOBS)
+            populate_queue(auto_queue, AUTO_JOBS)
             time.sleep(2)
     return
 
 
-def make_queue_components(processes, manager):
+def make_queue_components(target_fn, processes, manager):
     queue = manager.Queue()
     assigned_jobs = manager.list([None] * processes)
     listeners = [
-        mp.Process(target=get_and_run_scan_job,
+        mp.Process(target=target_fn,
                    args=(queue, assigned_jobs, proc_i))
         for proc_i in range(processes)
     ]
@@ -82,13 +84,13 @@ def check_for_lost_jobs(assigned_jobs, collection):
     return
 
 
-def check_for_dead_jobs(assigned_jobs, queue, listeners):
+def check_for_dead_jobs(target_fn, assigned_jobs, queue, listeners):
     for (i, proc) in enumerate(listeners):
         if not proc.is_alive():
             proc.terminate()
             assigned_jobs[i] = None
             listeners[i] = mp.Process(
-                target=get_and_run_scan_job,
+                target=target_fn,
                 args=(queue, assigned_jobs, i))
             listeners[i].start()
     return
@@ -181,6 +183,82 @@ def parser_friendly_output(bals_rec_output, bals_lig_output):
                 lig_output.items(), key=lambda x: int(x[0]))]
     }
     return pfo
+
+
+def get_and_run_auto_job(auto_job_queue, assigned_jobs, proc_i):
+    """Collects and runs auto constellation jobs from the queue.
+
+    Parameters
+    ----------
+    auto_job_queue : multiprocessing.Queue
+        Auto job queue.
+    assigned_jobs : list
+        A list of jobs ids currently being processed by the
+        listeners.
+    proc_i : int
+        The index of the processor in the listener list and the
+        assigned_jobs list.
+    """
+    # The module is reloaded to establish a new connection
+    # to the database for the process fork
+    importlib.reload(database)
+    while True:
+        job_id = auto_job_queue.get()
+        print(f"Got auto job {job_id}!", file=sys.stderr)
+        auto_job = AUTO_JOBS.find_one(job_id)
+        update_job_status(job_id, JobStatus.RUNNING, AUTO_JOBS)
+        assigned_jobs[proc_i] = job_id
+        print("Running auto job {}!".format(job_id), file=sys.stderr)
+        with tempdir() as dirpath:
+            results = run_bals_auto(
+                job_id, auto_job['pdbFile'],
+                auto_job['receptor'], auto_job['ligand'],
+                auto_job['ddGCutOff'], auto_job['constellationSize'],
+                auto_job['cutOffDistance'])
+            results['status'] = JobStatus.COMPLETED.value
+            AUTO_JOBS.update_one(
+                {'_id': job_id},
+                {'$set': results})
+        print("Finished auto job {}!".format(job_id), file=sys.stderr)
+        assigned_jobs[proc_i] = None
+    return
+
+
+def run_bals_auto(job_id, pdb_string, receptor_chains, ligand_chains,
+                  ddg_cutoff, constellation_size, distance_cutoff):
+    pdb_filename = f'{job_id}.pdb'
+    with open(pdb_filename, 'w') as outf:
+        outf.write(pdb_string)
+    scan_cmd = [
+        '/root/bin/ALAscanApp.py', 'auto',
+        '-p', pdb_filename,
+        '-r'] + receptor_chains + [
+        '-l'] + ligand_chains + [
+        '-d', str(ddg_cutoff),
+        '-z', str(constellation_size),
+        '-u', str(distance_cutoff),
+        '-t']  # Suppresses the plots from being displayed.
+    scan_process = subprocess.run(scan_cmd)
+    scan_process.check_returncode()
+    rec_json_paths = glob.glob('replot/*Rec_auto*.json')
+    lig_json_paths = glob.glob('replot/*Lig_auto*.json')
+    assert len(rec_json_paths) == 1
+    assert len(lig_json_paths) == 1
+    with open(rec_json_paths[0], 'r') as inf:
+        rec_results = json.load(inf)
+    with open(lig_json_paths[0], 'r') as inf:
+        lig_results = json.load(inf)
+    scan_results = parser_friendly_output(rec_results, lig_results)
+    scan_results['pdbFile'] = pdb_string
+    scan_results['receptor'] = receptor_chains
+    scan_results['ligand'] = ligand_chains
+    results = {
+        'scanResults': scan_results,
+        # Currently the multistate hot constellations only returns the mean
+        'hotConstellations': [(k, v[0]) for k, v in
+                              lig_results['mutants'].items()]
+    }
+    return results
 
 
 def update_job_status(scan_job_id, status, collection):
