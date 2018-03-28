@@ -521,6 +521,7 @@ type ScanMsg
     | GetScanResults String
     | ProcessScanResults (Result Http.Error AlanineScanResults)
     | ColourByDDG
+    | FocusOnResidue ResidueResult
     | ClearScanSubmission
 
 
@@ -754,6 +755,9 @@ updateScan scanMsg scanModel =
                     Nothing ->
                         scanModel ! [] # []
 
+            FocusOnResidue residueResult ->
+                scanModel ! [ focusOnResidue residueResult ] # []
+
             ClearScanSubmission ->
                 { scanModel | results = Nothing } ! [] # []
 
@@ -938,6 +942,9 @@ port colourGeometry : ( String, ChainID ) -> Cmd msg
 
 
 port colourByDDG : AlanineScanResults -> Cmd msg
+
+
+port focusOnResidue : ResidueResult -> Cmd msg
 
 
 submitAlanineScan : AlanineScanSub -> Cmd ScanMsg
@@ -1168,13 +1175,17 @@ scanSubmissionView updateMsg scanSub =
 scanResultsView : (ScanMsg -> msg) -> AlanineScanResults -> Html msg
 scanResultsView updateMsg results =
     let
-        resultsRow { chainID, residueNumber, aminoAcid, ddG } =
-            tr []
-                [ td [] [ text chainID ]
-                , td [] [ text residueNumber ]
-                , td [] [ text aminoAcid ]
-                , td [] [ toString ddG |> text ]
-                ]
+        resultsRow resResult =
+            let
+                { chainID, residueNumber, aminoAcid, ddG } =
+                    resResult
+            in
+                tr [ onClick <| updateMsg <| FocusOnResidue resResult ]
+                    [ td [] [ text chainID ]
+                    , td [] [ text residueNumber ]
+                    , td [] [ text aminoAcid ]
+                    , td [] [ toString ddG |> text ]
+                    ]
     in
         div
             [ class "control-panel scan-panel" ]

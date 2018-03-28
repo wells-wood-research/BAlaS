@@ -84,6 +84,10 @@
         colourByDDG(alaScanResults);
     });
 
+    app.ports.focusOnResidue.subscribe(function (residueResult) {
+        focusOnResidue(residueResult);
+    });
+
     // Functions for handling structures.
     function showStructure (pdbString) {
         viewer.clear();
@@ -171,6 +175,16 @@
                 { color: pv.color.byResidueProp(
                     'ddG', pv.color.gradient(['blue', 'red']))});
         return;
+    }
+
+    function focusOnResidue(residueResult) {
+        console.log("FOCUSSING");
+        console.log(residueResult);
+        const residue = currentStructure.select(
+            {cname: residueResult.chainID,
+             rnum: parseInt(residueResult.residueNumber)
+            });
+        viewer.fitTo(residue);
     }
 </script>
 </html>

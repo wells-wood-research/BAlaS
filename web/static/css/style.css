@@ -34,6 +34,26 @@ h4 {
     padding: 3px;
 }
 
+table {
+    background-color: #ffffff;
+    border: 1px solid #000000;
+    border-collapse: collapse;
+    margin: 1% 0 1% 0;
+}
+
+td, th {
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+
+.scan-results-table > table > tr:hover {
+    background-color: #cccccc;
+}
+
 .details {
     font-size: 10pt;
 }
