@@ -293,7 +293,7 @@ encodeAutoJob scanResults settings =
           , Result.withDefault
                 13.0
                 (String.toFloat
-                    settings.ddGCutOff
+                    settings.cutOffDistance
                 )
                 |> JEn.float
           )
