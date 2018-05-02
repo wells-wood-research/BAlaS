@@ -49,5 +49,5 @@ function clean_util {
 
   
 }
-#clean_util
-comp_util
+clean_util
+#comp_util
