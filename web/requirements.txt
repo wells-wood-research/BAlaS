@@ -1,6 +1,6 @@
 pypandoc
 scipy
-isambard
+git+https://github.com/woolfson-group/isambard.git#egg=isambard
 flask
 flask-restful
 pymongo
