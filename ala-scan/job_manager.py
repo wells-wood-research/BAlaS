@@ -219,7 +219,7 @@ def get_and_run_auto_job(auto_job_queue, assigned_jobs, proc_i):
         print("Running auto job {}!".format(job_id), file=sys.stderr)
         with tempdir() as dirpath:
             results = run_bals_auto(
-                job_id, auto_job['pdbFile'],
+                job_id, auto_job['scanName'], auto_job['pdbFile'],
                 auto_job['receptor'], auto_job['ligand'],
                 auto_job['ddGCutOff'], auto_job['constellationSize'],
                 auto_job['cutOffDistance'])
@@ -232,7 +232,7 @@ def get_and_run_auto_job(auto_job_queue, assigned_jobs, proc_i):
     return
 
 
-def run_bals_auto(job_id, pdb_string, receptor_chains, ligand_chains,
+def run_bals_auto(job_id, scanName, pdb_string, receptor_chains, ligand_chains,
                   ddg_cutoff, constellation_size, distance_cutoff):
     """Runs a BALS job in `auto` mode."""
     pdb_filename = f'{job_id}.pdb'
@@ -258,6 +258,7 @@ def run_bals_auto(job_id, pdb_string, receptor_chains, ligand_chains,
     with open(lig_json_paths[0], 'r') as inf:
         lig_results = json.load(inf)
     scan_results = parser_friendly_output(rec_results, lig_results)
+    scan_results['name'] = scanName
     scan_results['pdbFile'] = pdb_string
     scan_results['receptor'] = receptor_chains
     scan_results['ligand'] = ligand_chains

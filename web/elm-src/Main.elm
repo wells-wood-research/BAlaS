@@ -367,6 +367,7 @@ encodeAutoJob scanResults settings =
                 )
                 |> JEn.float
           )
+        , ( "scanName", scanResults.name |> JEn.string )
         , ( "pdbFile", scanResults.pdbFile |> JEn.string )
         , ( "receptor", List.map JEn.string scanResults.receptor |> JEn.list )
         , ( "ligand", List.map JEn.string scanResults.ligand |> JEn.list )
@@ -1092,7 +1093,8 @@ updateConstellation msg model =
 
 
 type AutoSettingsMsg
-    = UpdateDDGCutOff String
+    = UpdateName String
+    | UpdateDDGCutOff String
     | UpdateSize String
     | UpdateDistanceCutOff String
 
@@ -1102,6 +1104,9 @@ type AutoSettingsMsg
 updateAutoSettings : AutoSettingsMsg -> AutoSettings -> AutoSettings
 updateAutoSettings msg settings =
     case msg of
+        UpdateName name ->
+            { settings | name = name }
+
         UpdateDDGCutOff ddGValue ->
             { settings | ddGCutOff = ddGValue }
 
@@ -1574,7 +1579,12 @@ autoSettingsView updateMsg scanRes settings =
             settings
     in
         div []
-            ([ text "ΔΔG Cut Off Value"
+            ([ text "Job Name"
+             , input
+                [ onInput <| updateMsg << UpdateAutoSettings << UpdateName
+                ]
+                []
+             , text "ΔΔG Cut Off Value"
              , input
                 [ onInput <| updateMsg << UpdateAutoSettings << UpdateDDGCutOff
                 , pattern "[+-]?([0-9]*[.])?[0-9]+"
