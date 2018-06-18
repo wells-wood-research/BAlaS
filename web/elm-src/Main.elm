@@ -34,9 +34,9 @@ import Notifications exposing ((#), Notification)
 import Time
 
 
-main : Program Never Model Msg
+main : Program (Maybe ExportableModel) Model Msg
 main =
-    program
+    programWithFlags
         { init = init
         , view = view
         , update = update
@@ -73,6 +73,37 @@ emptyModel =
         False
 
 
+type alias ExportableModel =
+    { alanineScan : List ExportableJobDetails
+    , constellation : List ExportableJobDetails
+    , notifications : List Notification
+    }
+
+
+exportModel : Model -> ExportableModel
+exportModel model =
+    ExportableModel
+        (List.map exportJobDetails model.alanineScan.jobs)
+        (List.map exportJobDetails model.constellation.jobs)
+        model.notifications
+
+
+importModel : ExportableModel -> Model
+importModel exported =
+    Model
+        Scan
+        { emptyAlaScanModel
+            | jobs =
+                List.map importJobDetails exported.alanineScan
+        }
+        { emptyConstellationModel
+            | jobs =
+                List.map importJobDetails exported.constellation
+        }
+        exported.notifications
+        False
+
+
 {-| Modes available in the app, corresponding to the 3 main tabs.
 -}
 type AppMode
@@ -83,9 +114,14 @@ type AppMode
 
 {-| Creates a model and Cmd Msgs for the initial state of the application.
 -}
-init : ( Model, Cmd msg )
-init =
-    emptyModel ! [ initialiseViewer () ]
+init : Maybe ExportableModel -> ( Model, Cmd msg )
+init mExported =
+    case mExported of
+        Just exported ->
+            importModel exported ! [ initialiseViewer () ]
+
+        Nothing ->
+            emptyModel ! [ initialiseViewer () ]
 
 
 
@@ -410,6 +446,23 @@ type alias JobDetails =
     }
 
 
+type alias ExportableJobDetails =
+    { jobID : String
+    , name : String
+    , status : String
+    }
+
+
+exportJobDetails : JobDetails -> ExportableJobDetails
+exportJobDetails details =
+    { details | status = toString details.status }
+
+
+importJobDetails : ExportableJobDetails -> JobDetails
+importJobDetails exported =
+    { exported | status = stringToStatus exported.status }
+
+
 {-| Decodes JSON produced by the server into `JobDetails`.
 -}
 jobDetailsDecoder : JDe.Decoder JobDetails
@@ -429,6 +482,28 @@ type JobStatus
     | Running
     | Completed
     | Failed
+
+
+stringToStatus : String -> JobStatus
+stringToStatus statusString =
+    case statusString of
+        "Submitted" ->
+            Submitted
+
+        "Queued" ->
+            Queued
+
+        "Running" ->
+            Running
+
+        "Completed" ->
+            Completed
+
+        "Failed" ->
+            Failed
+
+        _ ->
+            Submitted
 
 
 {-| Converts the integer representation of the status into a `JobStatus`. The
@@ -482,6 +557,7 @@ type Msg
     | UpdateConstellation ConstellationMsg
     | ToggleNotificationPanel
     | DismissNotification Int
+    | SaveState
 
 
 {-| The main update function that is run whenever a user interacts with an
@@ -532,22 +608,29 @@ update msg model =
                             ! [ Cmd.map UpdateScan scanSubCmds ]
 
                     ScanJobSubmitted (Ok _) ->
-                        { model
-                            | alanineScan =
-                                updatedScanModel
-                            , appMode = Jobs
-                            , notifications =
-                                List.filter
-                                    (\n ->
-                                        List.member n
-                                            model.notifications
-                                            |> not
-                                    )
-                                    notifications
-                                    |> List.append
-                                        model.notifications
-                        }
-                            ! [ Cmd.map UpdateScan scanSubCmds ]
+                        let
+                            ( updatedModel, updatedCmds ) =
+                                { model
+                                    | alanineScan =
+                                        updatedScanModel
+                                    , appMode = Jobs
+                                    , notifications =
+                                        List.filter
+                                            (\n ->
+                                                List.member n
+                                                    model.notifications
+                                                    |> not
+                                            )
+                                            notifications
+                                            |> List.append
+                                                model.notifications
+                                }
+                                    |> update SaveState
+                        in
+                            updatedModel
+                                ! [ Cmd.map UpdateScan scanSubCmds
+                                  , updatedCmds
+                                  ]
 
                     ProcessScanResults (Ok _) ->
                         { model
@@ -596,22 +679,29 @@ update msg model =
             in
                 case constellationMsg of
                     AutoJobSubmitted (Ok _) ->
-                        { model
-                            | appMode = Jobs
-                            , constellation =
-                                updatedConModel
-                            , notifications =
-                                List.filter
-                                    (\n ->
-                                        List.member n
-                                            model.notifications
-                                            |> not
-                                    )
-                                    notifications
-                                    |> List.append
-                                        model.notifications
-                        }
-                            ! [ Cmd.map UpdateConstellation conSubCmds ]
+                        let
+                            ( updatedModel, updatedCmds ) =
+                                { model
+                                    | appMode = Jobs
+                                    , constellation =
+                                        updatedConModel
+                                    , notifications =
+                                        List.filter
+                                            (\n ->
+                                                List.member n
+                                                    model.notifications
+                                                    |> not
+                                            )
+                                            notifications
+                                            |> List.append
+                                                model.notifications
+                                }
+                                    |> update SaveState
+                        in
+                            updatedModel
+                                ! [ Cmd.map UpdateConstellation conSubCmds
+                                  , updatedCmds
+                                  ]
 
                     ProcessAutoResults (Ok { scanResults }) ->
                         let
@@ -669,6 +759,9 @@ update msg model =
                         model.notifications
             }
                 ! []
+
+        SaveState ->
+            model ! [ exportModel model |> saveState ]
 
 
 
@@ -1128,6 +1221,9 @@ updateAutoSettings msg settings =
 -}
 
 
+port saveState : ExportableModel -> Cmd msg
+
+
 port initialiseViewer : () -> Cmd msg
 
 
@@ -1374,7 +1470,12 @@ scanSubmissionView updateMsg scanSub =
         , div []
             (case scanSub.chainVisibility of
                 Just chainVisibility ->
-                    [ table []
+                    [ div []
+                        [ text "Job Name"
+                        , br [] []
+                        , input [ onInput <| updateMsg << SetScanName ] []
+                        ]
+                    , table []
                         ([ tr []
                             [ th [] [ text "Chain" ]
                             , th [] [ text "Visibility" ]
@@ -1390,11 +1491,6 @@ scanSubmissionView updateMsg scanSub =
                                         )
                                )
                         )
-                    , div []
-                        [ text "Job Name"
-                        , br [] []
-                        , input [ onInput <| updateMsg << SetScanName ] []
-                        ]
                     , button
                         [ onClick <| updateMsg SubmitScanJob
                         , validScanSub scanSub |> not |> disabled
