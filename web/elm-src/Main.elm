@@ -1702,7 +1702,7 @@ jobTable getMsg tableTitle jobs =
         div []
             [ h3 [] [ text tableTitle ]
             , if List.length jobs > 0 then
-                table []
+                table [ class "jobs-table" ]
                     ([ tr []
                         [ th [] [ text "Name" ]
                         , th [] [ text "Job ID" ]

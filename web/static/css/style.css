@@ -45,6 +45,10 @@ td, th {
     padding: 8px;
 }
 
+td {
+    word-wrap: break-word;
+}
+
 tr:nth-child(even) {
     background-color: #dddddd;
 }
@@ -160,6 +164,7 @@ p {
     grid-row: 2 / 3;
     padding: 10px;
     overflow: auto;
+    max-width: 100%;
 }
 
 .scan-panel {
@@ -175,15 +180,15 @@ p {
 }
 
 .scan-results-table {
+    width: 100%;
 }
 
-@media (max-width: 960px) {
-    .main-grid {
-        grid-template-columns: 2fr 1fr;
-    }
+.jobs-table {
+    table-layout: fixed;
+    width: 100%;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 1080px) {
     .main-grid {
         grid-template-columns: 100%;
         grid-template-rows: 5% 50% 5% 40%;
@@ -199,4 +204,3 @@ p {
         grid-row: 3 / 4;
     }
 }
-
