@@ -47,7 +47,8 @@ main =
 
 {- # MODEL
    This section contains the types that describe the state of the application,
-   as well functions creating, validating and encode/decoding them to/from JSON.
+   as well functions for creating, validating and encode/decoding them to/from
+   JSON.
 -}
 
 
@@ -127,7 +128,8 @@ emptyAlaScanModel =
 {-| Form data required for a scan job submission.
 -}
 type alias AlanineScanSub =
-    { pdbFile : Maybe String
+    { name : String
+    , pdbFile : Maybe String
     , chainVisibility : Maybe (Dict.Dict ChainID Bool)
     , receptor : List ChainID
     , ligand : List ChainID
@@ -137,6 +139,7 @@ type alias AlanineScanSub =
 emptyScanSub : AlanineScanSub
 emptyScanSub =
     AlanineScanSub
+        ""
         Nothing
         Nothing
         []
@@ -146,7 +149,7 @@ emptyScanSub =
 {-| Validates an `AlanineScanSub` to determine if it can be safely submitted.
 -}
 validScanSub : AlanineScanSub -> Bool
-validScanSub { pdbFile, receptor, ligand } =
+validScanSub { name, pdbFile, receptor, ligand } =
     let
         isJust mA =
             case mA of
@@ -156,7 +159,10 @@ validScanSub { pdbFile, receptor, ligand } =
                 Nothing ->
                     False
     in
-        isJust pdbFile && List.length receptor > 0 && List.length ligand > 0
+        (name /= "")
+            && isJust pdbFile
+            && (List.length receptor > 0)
+            && (List.length ligand > 0)
 
 
 {-| JSON encoder for `AlanineScanSub`
@@ -164,7 +170,8 @@ validScanSub { pdbFile, receptor, ligand } =
 encodeAlanineScanSub : AlanineScanSub -> JEn.Value
 encodeAlanineScanSub scanSub =
     JEn.object
-        [ ( "pdbFile", Maybe.withDefault "Invalid" scanSub.pdbFile |> JEn.string )
+        [ ( "name", scanSub.name |> JEn.string )
+        , ( "pdbFile", Maybe.withDefault "Invalid" scanSub.pdbFile |> JEn.string )
         , ( "receptor", List.map JEn.string scanSub.receptor |> JEn.list )
         , ( "ligand", List.map JEn.string scanSub.ligand |> JEn.list )
         ]
@@ -173,7 +180,8 @@ encodeAlanineScanSub scanSub =
 {-| Processed version of BALS results in the `scan` mode.
 -}
 type alias AlanineScanResults =
-    { pdbFile : String
+    { name : String
+    , pdbFile : String
     , receptor : List ChainID
     , ligand : List ChainID
     , dG : Float
@@ -199,6 +207,7 @@ type alias ResidueResult =
 scanResultsDecoder : JDe.Decoder AlanineScanResults
 scanResultsDecoder =
     JDe.succeed AlanineScanResults
+        |: (JDe.field "name" JDe.string)
         |: (JDe.field "pdbFile" JDe.string)
         |: (JDe.field "receptor" (JDe.list JDe.string))
         |: (JDe.field "ligand" (JDe.list JDe.string))
@@ -255,7 +264,8 @@ type ConstellationMode
 {-| Record containing settings required by BALS auto mode.
 -}
 type alias AutoSettings =
-    { ddGCutOff : String
+    { name : String
+    , ddGCutOff : String
     , constellationSize : String
     , cutOffDistance : String
     }
@@ -264,6 +274,7 @@ type alias AutoSettings =
 defaultAutoSettings : AutoSettings
 defaultAutoSettings =
     AutoSettings
+        ""
         "5.0"
         "3"
         "13.0"
@@ -272,8 +283,11 @@ defaultAutoSettings =
 {-| Validates an `AutoSettings` to determine if it can be safely submitted.
 -}
 validAutoSettings : AutoSettings -> Bool
-validAutoSettings { ddGCutOff, constellationSize, cutOffDistance } =
+validAutoSettings { name, ddGCutOff, constellationSize, cutOffDistance } =
     let
+        validName =
+            name /= ""
+
         validDDGCutOff =
             representsFloat ddGCutOff
 
@@ -290,7 +304,8 @@ validAutoSettings { ddGCutOff, constellationSize, cutOffDistance } =
                 |> List.any identity
     in
         List.all identity
-            [ validDDGCutOff
+            [ validName
+            , validDDGCutOff
             , validConSize
             , validDistance
             , not anyEmpty
@@ -327,7 +342,8 @@ job and the settings for the auto job selected by the user.
 encodeAutoJob : AlanineScanResults -> AutoSettings -> JEn.Value
 encodeAutoJob scanResults settings =
     JEn.object
-        [ ( "ddGCutOff"
+        [ ( "name", settings.name |> JEn.string )
+        , ( "ddGCutOff"
           , Result.withDefault
                 5.0
                 (String.toFloat
@@ -360,7 +376,8 @@ encodeAutoJob scanResults settings =
 {-| Record containing the processed results of a BALS auto job.
 -}
 type alias ConstellationResults =
-    { hotConstellations : List ( String, Float )
+    { name : String
+    , hotConstellations : List ( String, Float )
     , scanResults : AlanineScanResults
     }
 
@@ -370,6 +387,7 @@ type alias ConstellationResults =
 autoResultsDecoder : JDe.Decoder ConstellationResults
 autoResultsDecoder =
     JDe.succeed ConstellationResults
+        |: (JDe.field "name" JDe.string)
         |: (JDe.field "hotConstellations" <|
                 JDe.list <|
                     JDe.map2
@@ -386,6 +404,7 @@ autoResultsDecoder =
 
 type alias JobDetails =
     { jobID : String
+    , name : String
     , status : JobStatus
     }
 
@@ -396,6 +415,7 @@ jobDetailsDecoder : JDe.Decoder JobDetails
 jobDetailsDecoder =
     JDe.succeed JobDetails
         |: (JDe.field "_id" JDe.string)
+        |: (JDe.field "name" JDe.string)
         |: (JDe.field "status" (JDe.int |> JDe.andThen intToJobStatus))
 
 
@@ -666,6 +686,7 @@ type ScanMsg
     | SetLigand ChainID
     | ClearReceptor ChainID
     | ClearLigand ChainID
+    | SetScanName String
     | SubmitScanJob
     | ScanJobSubmitted (Result Http.Error JobDetails)
     | CheckScanJobs Time.Time
@@ -814,6 +835,14 @@ updateScan scanMsg scanModel =
                     Nothing ->
                         scanModel ! [] # []
 
+            SetScanName name ->
+                { scanModel
+                    | alanineScanSub =
+                        { scanSub | name = name }
+                }
+                    ! []
+                    # []
+
             SubmitScanJob ->
                 scanModel ! [ submitAlanineScan scanModel.alanineScanSub ] # []
 
@@ -847,11 +876,11 @@ updateScan scanMsg scanModel =
                 { scanModel
                     | jobs =
                         scanModel.jobs
-                            |> List.map (\{ jobID, status } -> ( jobID, status ))
+                            |> List.map (\job -> ( job.jobID, job ))
                             |> Dict.fromList
-                            |> Dict.insert jobDetails.jobID jobDetails.status
+                            |> Dict.insert jobDetails.jobID jobDetails
                             |> Dict.toList
-                            |> List.map (\( jobID, status ) -> JobDetails jobID status)
+                            |> List.map Tuple.second
                 }
                     ! []
                     # case jobDetails.status of
@@ -1007,11 +1036,11 @@ updateConstellation msg model =
                 { model
                     | jobs =
                         model.jobs
-                            |> List.map (\{ jobID, status } -> ( jobID, status ))
+                            |> List.map (\job -> ( job.jobID, job ))
                             |> Dict.fromList
-                            |> Dict.insert jobDetails.jobID jobDetails.status
+                            |> Dict.insert jobDetails.jobID jobDetails
                             |> Dict.toList
-                            |> List.map (\( jobID, status ) -> JobDetails jobID status)
+                            |> List.map Tuple.second
                 }
                     ! []
                     # case jobDetails.status of
@@ -1340,8 +1369,7 @@ scanSubmissionView updateMsg scanSub =
         , div []
             (case scanSub.chainVisibility of
                 Just chainVisibility ->
-                    [ h3 [] [ text "" ]
-                    , table []
+                    [ table []
                         ([ tr []
                             [ th [] [ text "Chain" ]
                             , th [] [ text "Visibility" ]
@@ -1357,6 +1385,11 @@ scanSubmissionView updateMsg scanSub =
                                         )
                                )
                         )
+                    , div []
+                        [ text "Job Name"
+                        , br [] []
+                        , input [ onInput <| updateMsg << SetScanName ] []
+                        ]
                     , button
                         [ onClick <| updateMsg SubmitScanJob
                         , validScanSub scanSub |> not |> disabled
@@ -1394,6 +1427,8 @@ scanResultsView updateMsg results =
             , button
                 [ onClick <| updateMsg ClearScanSubmission ]
                 [ text "New Submission" ]
+            , h3 [] [ text "Job Name" ]
+            , p [] [ text results.name ]
             , h3 [] [ text "ΔG" ]
             , p [] [ toString results.dG |> text ]
             , h3 [] [ text "Residue Results (Non-Zero)" ]
@@ -1634,9 +1669,10 @@ that it can be reused for all the job queues.
 jobTable : (String -> Msg) -> String -> List JobDetails -> Html Msg
 jobTable getMsg tableTitle jobs =
     let
-        tableRow { jobID, status } =
+        tableRow { jobID, name, status } =
             tr [ class "details" ]
-                [ td [] [ text jobID ]
+                [ td [] [ text name ]
+                , td [] [ text jobID ]
                 , td [] [ text <| toString status ]
                 , td []
                     [ button
@@ -1658,7 +1694,8 @@ jobTable getMsg tableTitle jobs =
             , if List.length jobs > 0 then
                 table []
                     ([ tr []
-                        [ th [] [ text "Job ID" ]
+                        [ th [] [ text "Name" ]
+                        , th [] [ text "Job ID" ]
                         , th [] [ text "Status" ]
                         ]
                      ]

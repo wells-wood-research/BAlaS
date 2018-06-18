@@ -50,6 +50,7 @@ def export_job_details(job):
     """Creates job status details from a job."""
     job_details = {
         '_id': str(job['_id']),
+        'name': job['name'],
         'status': job['status'],
     }
     return job_details
