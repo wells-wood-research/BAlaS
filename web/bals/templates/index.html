@@ -166,14 +166,12 @@
                        .includes(res.chain().name() + res.num().toString());
         });
         viewer.cartoon('receptor', receptor,
-            { color: pv.color.uniform('#ff000044') });
+            { color: pv.color.uniform('#ffffff') });
         viewer.cartoon('ligand', ligand,
-            { color: pv.color.uniform('#0000ff44') });
-        viewer.ballsAndSticks('recRes', receptor,
-                { color: pv.color.uniform('#ff000044') });
-        viewer.ballsAndSticks('ligDDG', nonZeroResidues,
                 { color: pv.color.byResidueProp(
                     'ddG', pv.color.gradient(['blue', 'red']))});
+        viewer.lines('recRes', receptor);
+        viewer.ballsAndSticks('ligDDG', nonZeroResidues);
         return;
     }
 
