@@ -159,7 +159,7 @@
             {cnames : alaScanResults.ligand,
             });
         const nonZeroResLabels = alaScanResults.ligandResults
-                .filter(x => x.ddG > 0)
+                .filter(x => (x.ddG !== 0))
                 .map(x => x.chainID + x.residueNumber);
         const nonZeroResidues = ligand.residueSelect(function(res) {
             return nonZeroResLabels
@@ -171,13 +171,11 @@
                 { color: pv.color.byResidueProp(
                     'ddG', pv.color.gradient(['blue', 'red']))});
         viewer.lines('recRes', receptor);
-        viewer.ballsAndSticks('ligDDG', nonZeroResidues);
+        viewer.ballsAndSticks('ligDDG', ligand);
         return;
     }
 
     function focusOnResidue(residueResult) {
-        console.log("FOCUSSING");
-        console.log(residueResult);
         const residue = currentStructure.select(
             {cname: residueResult.chainID,
              rnum: parseInt(residueResult.residueNumber)

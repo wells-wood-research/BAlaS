@@ -159,6 +159,7 @@ p {
     grid-column: 2 / 3;
     grid-row: 2 / 3;
     padding: 10px;
+    overflow: auto;
 }
 
 .scan-panel {
@@ -174,8 +175,6 @@ p {
 }
 
 .scan-results-table {
-    height: 50%;
-    overflow: auto;
 }
 
 @media (max-width: 960px) {
