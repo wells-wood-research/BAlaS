@@ -1762,10 +1762,10 @@ jobsView model =
             [ h2 [] [ text "Jobs" ]
             , jobTable (UpdateScan << GetScanResults)
                 "Alanine Scan Jobs"
-                alaScanJobs
+                (List.sortBy (\{ name } -> name) alaScanJobs)
             , jobTable (UpdateConstellation << GetAutoResults)
                 "Constellation Scan Jobs"
-                constellationJobs
+                (List.sortBy (\{ name } -> name) constellationJobs)
             ]
 
 
