@@ -63,11 +63,13 @@ class AlanineScanJob(Resource):
         A query string in the URI is used to determine if the status or results
         should be returned.
         """
+        job = database.get_scan_job(job_id)
+        if job is None:
+            flask.abort(404)
         if "get-status" in request.args:
             if app.debug:
                 print(f"Getting Scan Job {job_id}...", file=sys.stderr)
-            job_details = database.export_job_details(
-                database.get_scan_job(job_id))
+            job_details = database.export_job_details(job)
             if job_details is None:
                 flask.abort(404)
             if app.debug:
@@ -76,14 +78,14 @@ class AlanineScanJob(Resource):
         elif "get-results" in request.args:
             if app.debug:
                 print(f"Getting Scan Job results {job_id}...", file=sys.stderr)
-            job = database.export_job(database.get_scan_job(job_id))
-            if job is None:
+            exportable_job = database.export_job(job)
+            if exportable_job is None:
                 flask.abort(404)
-            elif job['status'] != database.JobStatus.COMPLETED.value:
+            elif exportable_job['status'] != database.JobStatus.COMPLETED.value:
                 flask.abort(404)
             if app.debug:
                 print(f"Got job results for job {job_id}.", file=sys.stderr)
-            return job, 200
+            return exportable_job, 200
         return "No arguments supplied.", 400
 
 
@@ -122,12 +124,14 @@ class AutoConstellationJob(Resource):
         A query string in the URI is used to determine if the status or results
         should be returned.
         """
+        job = database.get_auto_job(job_id)
+        if job is None:
+            flask.abort(404)
         if "get-status" in request.args:
             if app.debug:
                 print(f"Getting auto constellation job status{job_id}...",
                       file=sys.stderr)
-            job_details = database.export_job_details(
-                database.get_auto_job(job_id))
+            job_details = database.export_job_details(job)
             if job_details is None:
                 flask.abort(404)
             if app.debug:
@@ -137,14 +141,14 @@ class AutoConstellationJob(Resource):
             if app.debug:
                 print(f"Getting auto constellation job results {job_id}...",
                       file=sys.stderr)
-            job = database.export_job(database.get_auto_job(job_id))
-            if job is None:
+            exportable_job = database.export_job(job)
+            if exportable_job is None:
                 flask.abort(404)
-            elif job['status'] != database.JobStatus.COMPLETED.value:
+            elif exportable_job['status'] != database.JobStatus.COMPLETED.value:
                 flask.abort(404)
             if app.debug:
                 print(f"Got job results for job {job_id}.", file=sys.stderr)
-            return job, 200
+            return exportable_job, 200
         return "No arguments supplied.", 400
 
 
