@@ -53,6 +53,8 @@ def export_job_details(job):
         'name': job['name'],
         'status': job['status'],
     }
+    if 'std_out' in job:
+        job_details['std_out'] = job['std_out']
     return job_details
 
 

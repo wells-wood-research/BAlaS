@@ -443,6 +443,7 @@ type alias JobDetails =
     { jobID : String
     , name : String
     , status : JobStatus
+    , stdOut : Maybe String
     }
 
 
@@ -450,6 +451,7 @@ type alias ExportableJobDetails =
     { jobID : String
     , name : String
     , status : String
+    , stdOut : Maybe String
     }
 
 
@@ -471,6 +473,7 @@ jobDetailsDecoder =
         |: (JDe.field "_id" JDe.string)
         |: (JDe.field "name" JDe.string)
         |: (JDe.field "status" (JDe.int |> JDe.andThen intToJobStatus))
+        |: (JDe.maybe (JDe.field "std_out" JDe.string))
 
 
 {-| Represents the possible status that any job on the server could have. This
@@ -983,8 +986,10 @@ updateScan scanMsg scanModel =
                                 ""
                                 "Alanine Scan Completed"
                                 ("Alanine scan job "
+                                    ++ jobDetails.name
+                                    ++ " ("
                                     ++ jobDetails.jobID
-                                    ++ " complete. Retrieve the results from"
+                                    ++ ") complete. Retrieve the results from"
                                     ++ " the 'Jobs' tab."
                                 )
                             ]
@@ -994,8 +999,13 @@ updateScan scanMsg scanModel =
                                 ""
                                 "Alanine Scan Failed"
                                 ("Alanine scan job "
+                                    ++ jobDetails.name
+                                    ++ " ("
                                     ++ jobDetails.jobID
-                                    ++ " failed."
+                                    ++ ") failed:\n"
+                                    ++ Maybe.withDefault
+                                        "Unknown error."
+                                        jobDetails.stdOut
                                 )
                             ]
 
@@ -1143,6 +1153,8 @@ updateConstellation msg model =
                                 ""
                                 "Auto Constellation Scan Completed"
                                 ("Auto constellation scan job "
+                                    ++ jobDetails.name
+                                    ++ " ("
                                     ++ jobDetails.jobID
                                     ++ " complete. Retrieve the results from"
                                     ++ " the 'Jobs' tab."
@@ -1153,9 +1165,14 @@ updateConstellation msg model =
                             [ Notification
                                 ""
                                 "Auto Constellation Scan Failed"
-                                ("Auto constellation scan job "
+                                ("Alanine constellation scan job "
+                                    ++ jobDetails.name
+                                    ++ " ("
                                     ++ jobDetails.jobID
-                                    ++ " failed."
+                                    ++ ") failed:\n"
+                                    ++ Maybe.withDefault
+                                        "Unknown error."
+                                        jobDetails.stdOut
                                 )
                             ]
 

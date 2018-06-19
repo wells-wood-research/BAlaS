@@ -140,7 +140,6 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
             results = run_bals_scan(
                 job_id, scan_job['pdbFile'],
                 scan_job['receptor'], scan_job['ligand'])
-            results['status'] = JobStatus.COMPLETED.value
             ALANINE_SCAN_JOBS.update_one(
                 {'_id': job_id},
                 {'$set': results})
@@ -160,17 +159,23 @@ def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains):
         '-r'] + receptor_chains + [
         '-l'] + ligand_chains + [
         '-t']  # Suppresses the plots from being displayed.
-    scan_process = subprocess.run(scan_cmd)
-    scan_process.check_returncode()
-    rec_json_paths = glob.glob('replot/*Rec_scan*.json')
-    lig_json_paths = glob.glob('replot/*Lig_scan*.json')
-    assert len(rec_json_paths) == 1
-    assert len(lig_json_paths) == 1
-    with open(rec_json_paths[0], 'r') as inf:
-        rec_results = json.load(inf)
-    with open(lig_json_paths[0], 'r') as inf:
-        lig_results = json.load(inf)
-    processed_output = parser_friendly_output(rec_results, lig_results)
+    scan_process = subprocess.run(
+        scan_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    try:
+        scan_process.check_returncode()
+        rec_json_paths = glob.glob('replot/*Rec_scan*.json')
+        lig_json_paths = glob.glob('replot/*Lig_scan*.json')
+        assert len(rec_json_paths) == 1
+        assert len(lig_json_paths) == 1
+        with open(rec_json_paths[0], 'r') as inf:
+            rec_results = json.load(inf)
+        with open(lig_json_paths[0], 'r') as inf:
+            lig_results = json.load(inf)
+        processed_output = parser_friendly_output(rec_results, lig_results)
+        processed_output['status'] = JobStatus.COMPLETED.value
+    except subprocess.CalledProcessError:
+        processed_output = {'status': JobStatus.FAILED.value}
+    processed_output['std_out'] = scan_process.stdout.decode()
     return processed_output
 
 
@@ -223,7 +228,6 @@ def get_and_run_auto_job(auto_job_queue, assigned_jobs, proc_i):
                 auto_job['receptor'], auto_job['ligand'],
                 auto_job['ddGCutOff'], auto_job['constellationSize'],
                 auto_job['cutOffDistance'])
-            results['status'] = JobStatus.COMPLETED.value
             AUTO_JOBS.update_one(
                 {'_id': job_id},
                 {'$set': results})
@@ -247,27 +251,34 @@ def run_bals_auto(job_id, scanName, pdb_string, receptor_chains, ligand_chains,
         '-z', str(constellation_size),
         '-u', str(distance_cutoff),
         '-t']  # Suppresses the plots from being displayed.
-    scan_process = subprocess.run(scan_cmd)
-    scan_process.check_returncode()
-    rec_json_paths = glob.glob('replot/*Rec_auto*.json')
-    lig_json_paths = glob.glob('replot/*Lig_auto*.json')
-    assert len(rec_json_paths) == 1
-    assert len(lig_json_paths) == 1
-    with open(rec_json_paths[0], 'r') as inf:
-        rec_results = json.load(inf)
-    with open(lig_json_paths[0], 'r') as inf:
-        lig_results = json.load(inf)
-    scan_results = parser_friendly_output(rec_results, lig_results)
-    scan_results['name'] = scanName
-    scan_results['pdbFile'] = pdb_string
-    scan_results['receptor'] = receptor_chains
-    scan_results['ligand'] = ligand_chains
-    results = {
-        'scanResults': scan_results,
-        # Currently the multistate hot constellations only returns the mean
-        'hotConstellations': [(k, v[0]) for k, v in
-                              lig_results['mutants'].items()]
-    }
+    scan_process = subprocess.run(
+        scan_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    try:
+        scan_process.check_returncode()
+        rec_json_paths = glob.glob('replot/*Rec_auto*.json')
+        lig_json_paths = glob.glob('replot/*Lig_auto*.json')
+        assert len(rec_json_paths) == 1
+        assert len(lig_json_paths) == 1
+        with open(rec_json_paths[0], 'r') as inf:
+            rec_results = json.load(inf)
+        with open(lig_json_paths[0], 'r') as inf:
+            lig_results = json.load(inf)
+        scan_results = parser_friendly_output(rec_results, lig_results)
+        scan_results['name'] = scanName
+        scan_results['pdbFile'] = pdb_string
+        scan_results['receptor'] = receptor_chains
+        scan_results['ligand'] = ligand_chains
+        results = {
+            'scanResults': scan_results,
+            # Currently the multistate hot constellations only returns the mean
+            'hotConstellations': [(k, v[0]) for k, v in
+                                  lig_results['mutants'].items()]
+        }
+    except subprocess.CalledProcessError:
+        results = {'status': JobStatus.FAILED.value}
+    except AttributeError:
+        results = {'status': JobStatus.FAILED.value}
+    results['std_out'] = scan_process.stdout.decode()
     return results
 
 
