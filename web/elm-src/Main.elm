@@ -177,7 +177,6 @@ emptyAlaScanModel =
 type alias AlanineScanSub =
     { name : String
     , pdbFile : Maybe String
-    , chainVisibility : Maybe (Dict.Dict ChainID Bool)
     , receptor : List ChainID
     , ligand : List ChainID
     }
@@ -187,7 +186,6 @@ emptyScanSub : AlanineScanSub
 emptyScanSub =
     AlanineScanSub
         ""
-        Nothing
         Nothing
         []
         []
@@ -610,6 +608,7 @@ type Msg
     | UpdateScan ScanMsg
     | UpdateConstellation ConstellationMsg
     | UpdateRepresentation Representation
+    | ChangeVisibility String
     | DismissNotification Int
     | OpenPanel Panel
     | ClosePanel
@@ -807,6 +806,37 @@ update msg model =
         UpdateRepresentation representation ->
             { model | representation = Just representation } ! []
 
+        ChangeVisibility label ->
+            case model.representation of
+                Just representation ->
+                    let
+                        hiddenDict =
+                            List.map2
+                                (,)
+                                representation.chainLabels
+                                representation.hidden
+                                |> Dict.fromList
+                                |> Dict.update label (Maybe.map not)
+                    in
+                        case Dict.get label hiddenDict of
+                            Just hidden ->
+                                { model
+                                    | representation =
+                                        Just
+                                            { representation
+                                                | hidden =
+                                                    Dict.values
+                                                        hiddenDict
+                                            }
+                                }
+                                    ! [ setVisibility ( label, hidden ) ]
+
+                            Nothing ->
+                                model ! []
+
+                Nothing ->
+                    model ! []
+
         DismissNotification idx ->
             { model
                 | notifications =
@@ -842,7 +872,6 @@ be updated.
 type ScanMsg
     = GetInputPDB
     | ProcessPDBInput String
-    | ProcessStructureInfo (List ChainID)
     | SetReceptor ChainID
     | SetLigand ChainID
     | ClearReceptor ChainID
@@ -886,26 +915,12 @@ updateScan scanMsg scanModel =
                             | alanineScanSub =
                                 { emptyScanSub
                                     | pdbFile = Just pdbString
-                                    , chainVisibility = Nothing
                                     , receptor = []
                                     , ligand = []
                                 }
                         }
                             ! [ showStructure pdbString ]
                             # []
-
-            ProcessStructureInfo chainVisibility ->
-                { scanModel
-                    | alanineScanSub =
-                        { scanSub
-                            | chainVisibility =
-                                List.map (\l -> ( l, True )) chainVisibility
-                                    |> Dict.fromList
-                                    |> Just
-                        }
-                }
-                    ! []
-                    # []
 
             SetReceptor chainID ->
                 { scanModel
@@ -1290,6 +1305,9 @@ port requestPDBFile : () -> Cmd msg
 port applyRepresentation : ExportableRepresentation -> Cmd msg
 
 
+port setVisibility : ( String, Bool ) -> Cmd msg
+
+
 port colourGeometry : ( String, ChainID ) -> Cmd msg
 
 
@@ -1530,14 +1548,46 @@ viewerOptions : Maybe Representation -> Html Msg
 viewerOptions mRepresentation =
     div [ class "notification-panel" ]
         [ h3 [] [ text "Viewer Options" ]
+        , button [ onClick ClosePanel ] [ text "Close" ]
         , case mRepresentation of
             Just representation ->
-                div [] [ text "VIEWER OPTIONS" ]
+                div []
+                    [ table []
+                        ([ tr []
+                            [ th [] [ text "Selection" ]
+                            , th [] [ text "Hidden" ]
+                            , th [] [ text "Style" ]
+                            , th [] [ text "Colour" ]
+                            ]
+                         ]
+                            ++ (List.map2 (,)
+                                    representation.chainLabels
+                                    representation.hidden
+                                    |> List.map viewerSelectionRow
+                               )
+                        )
+                    ]
 
             Nothing ->
                 div []
                     [ text "Load a structure before changing representation." ]
-        , button [ onClick ClosePanel ] [ text "Close" ]
+        ]
+
+
+viewerSelectionRow : ( ChainID, Bool ) -> Html Msg
+viewerSelectionRow ( chainID, hidden ) =
+    tr []
+        [ td [] [ text chainID ]
+        , td []
+            [ input
+                [ onClick <| ChangeVisibility chainID
+                , type_ "checkbox"
+                , checked hidden
+                ]
+                []
+            ]
+        , td [] []
+        , td [] []
         ]
 
 

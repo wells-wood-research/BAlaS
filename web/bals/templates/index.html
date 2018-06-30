@@ -82,11 +82,10 @@
         }
     );
     
-    // app.ports.setChainVisibility.subscribe(function (chainVisibility) {
-    //     const chainLabel = chainVisibility[0];
-    //     const visible = chainVisibility[1];
-    //     setChainVisibility(chainLabel, visible);
-    // });
+    app.ports.setVisibility.subscribe(function (selection) {
+        const [label, hidden] = selection;
+        setVisibility(label, hidden);
+    });
 
     app.ports.colourGeometry.subscribe(function (colourAndLabel) {
         const colour = colourAndLabel[0];
@@ -141,13 +140,13 @@
         return representation;
     }
 
-    function setChainVisibility(chainLabel, visible) {
-        if (visible) {
-            viewer.show(chainLabel + '_c');
-            viewer.show(chainLabel + '_l');
+    function setVisibility(label, hidden) {
+        if (hidden) {
+            viewer.hide(label + '_c');
+            viewer.hide(label + '_l');
         } else {
-            viewer.hide(chainLabel + '_c');
-            viewer.hide(chainLabel + '_l');
+            viewer.show(label + '_c');
+            viewer.show(label + '_l');
         }
         viewer.requestRedraw();
         return;
