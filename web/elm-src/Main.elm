@@ -59,8 +59,15 @@ type alias Model =
     , alanineScan : AlanineScanModel
     , constellation : ConstellationModel
     , notifications : List Notification
-    , notificationsOpen : Bool
+    , representation : Maybe Representation
+    , openPanel : Panel
     }
+
+
+type Panel
+    = Notifications
+    | ViewerOptions
+    | Closed
 
 
 emptyModel : Model
@@ -70,13 +77,15 @@ emptyModel =
         emptyAlaScanModel
         emptyConstellationModel
         []
-        False
+        Nothing
+        Closed
 
 
 type alias ExportableModel =
     { alanineScan : List ExportableJobDetails
     , constellation : List ExportableJobDetails
     , notifications : List Notification
+    , representation : Maybe ExportableRepresentation
     }
 
 
@@ -86,6 +95,7 @@ exportModel model =
         (List.map exportJobDetails model.alanineScan.jobs)
         (List.map exportJobDetails model.constellation.jobs)
         model.notifications
+        model.representation
 
 
 importModel : ExportableModel -> Model
@@ -101,7 +111,8 @@ importModel exported =
                 List.map importJobDetails exported.constellation
         }
         exported.notifications
-        False
+        exported.representation
+        Closed
 
 
 {-| Modes available in the app, corresponding to the 3 main tabs.
@@ -436,6 +447,46 @@ autoResultsDecoder =
 
 
 
+-- Representation
+
+
+type alias Representation =
+    { chainLabels : List ChainID
+    , hidden : List Bool
+    }
+
+
+type alias ExportableRepresentation =
+    Representation
+
+
+type MoleculeStyle
+    = BallsAndSticks
+    | Cartoon
+    | Lines
+    | Spheres
+
+
+stringToMoleculeStyle : String -> MoleculeStyle
+stringToMoleculeStyle styleString =
+    case styleString of
+        "BallsAndSticks" ->
+            BallsAndSticks
+
+        "Cartoon" ->
+            Cartoon
+
+        "Lines" ->
+            Lines
+
+        "Spheres" ->
+            Spheres
+
+        _ ->
+            Lines
+
+
+
 -- Job
 
 
@@ -558,8 +609,10 @@ type Msg
     = SetAppMode AppMode
     | UpdateScan ScanMsg
     | UpdateConstellation ConstellationMsg
-    | ToggleNotificationPanel
+    | UpdateRepresentation Representation
     | DismissNotification Int
+    | OpenPanel Panel
+    | ClosePanel
     | SaveState
 
 
@@ -751,9 +804,8 @@ update msg model =
                         }
                             ! [ Cmd.map UpdateConstellation conSubCmds ]
 
-        ToggleNotificationPanel ->
-            { model | notificationsOpen = not model.notificationsOpen }
-                ! []
+        UpdateRepresentation representation ->
+            { model | representation = Just representation } ! []
 
         DismissNotification idx ->
             { model
@@ -762,6 +814,19 @@ update msg model =
                         model.notifications
             }
                 ! []
+
+        OpenPanel panel ->
+            case model.openPanel of
+                Closed ->
+                    { model | openPanel = panel }
+                        ! []
+
+                _ ->
+                    { model | openPanel = Closed }
+                        ! []
+
+        ClosePanel ->
+            { model | openPanel = Closed } ! []
 
         SaveState ->
             model ! [ exportModel model |> saveState ]
@@ -778,7 +843,6 @@ type ScanMsg
     = GetInputPDB
     | ProcessPDBInput String
     | ProcessStructureInfo (List ChainID)
-    | SetChainVisibility ChainID Bool
     | SetReceptor ChainID
     | SetLigand ChainID
     | ClearReceptor ChainID
@@ -843,58 +907,31 @@ updateScan scanMsg scanModel =
                     ! []
                     # []
 
-            SetChainVisibility label visible ->
-                case scanSub.chainVisibility of
-                    Just chainVisibility ->
-                        { scanModel
-                            | alanineScanSub =
-                                { scanSub
-                                    | chainVisibility =
-                                        Dict.insert label visible chainVisibility
-                                            |> Just
-                                }
-                        }
-                            ! [ setChainVisibility ( label, visible ) ]
-                            # []
-
-                    Nothing ->
-                        scanModel ! [] # []
-
             SetReceptor chainID ->
-                case scanSub.chainVisibility of
-                    Just chainVis ->
-                        { scanModel
-                            | alanineScanSub =
-                                { scanSub
-                                    | receptor =
-                                        List.append
-                                            scanSub.receptor
-                                            [ chainID ]
-                                }
+                { scanModel
+                    | alanineScanSub =
+                        { scanSub
+                            | receptor =
+                                List.append
+                                    scanSub.receptor
+                                    [ chainID ]
                         }
-                            ! [ colourGeometry ( "red", chainID ) ]
-                            # []
-
-                    Nothing ->
-                        scanModel ! [] # []
+                }
+                    ! [ colourGeometry ( "red", chainID ) ]
+                    # []
 
             SetLigand chainID ->
-                case scanSub.chainVisibility of
-                    Just chainVis ->
-                        { scanModel
-                            | alanineScanSub =
-                                { scanSub
-                                    | ligand =
-                                        List.append
-                                            scanSub.ligand
-                                            [ chainID ]
-                                }
+                { scanModel
+                    | alanineScanSub =
+                        { scanSub
+                            | ligand =
+                                List.append
+                                    scanSub.ligand
+                                    [ chainID ]
                         }
-                            ! [ colourGeometry ( "blue", chainID ) ]
-                            # []
-
-                    Nothing ->
-                        scanModel ! [] # []
+                }
+                    ! [ colourGeometry ( "blue", chainID ) ]
+                    # []
 
             ClearReceptor chainID ->
                 case scanSub.pdbFile of
@@ -1250,7 +1287,7 @@ port showStructure : String -> Cmd msg
 port requestPDBFile : () -> Cmd msg
 
 
-port setChainVisibility : ( ChainID, Bool ) -> Cmd msg
+port applyRepresentation : ExportableRepresentation -> Cmd msg
 
 
 port colourGeometry : ( String, ChainID ) -> Cmd msg
@@ -1343,7 +1380,7 @@ getAutoResults jobID =
 port receivePDBFile : (String -> msg) -> Sub msg
 
 
-port receiveStructureInfo : (List ChainID -> msg) -> Sub msg
+port receiveRepresentation : (ExportableRepresentation -> msg) -> Sub msg
 
 
 port atomClick : (ResidueInfo -> msg) -> Sub msg
@@ -1355,7 +1392,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch <|
         [ receivePDBFile <| UpdateScan << ProcessPDBInput
-        , receiveStructureInfo <| UpdateScan << ProcessStructureInfo
+        , receiveRepresentation <| UpdateRepresentation
 
         -- , atomClick <| UpdateScan << ToggleResidueSelection
         ]
@@ -1387,19 +1424,27 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     div [ class "main-grid" ]
-        [ header
-            [ class "title-bar" ]
-            [ h1 [] [ text "BUDE Alanine Scan" ] ]
-        , notificationPanel model.notificationsOpen model.notifications
-        , div
-            [ class "notifications-button"
-            , onClick <| ToggleNotificationPanel
+        ([ div [ class "banner" ]
+            [ header [] [ h1 [] [ text "BUDE Alanine Scan" ] ]
+            , div [ class "controls" ]
+                [ div
+                    [ class "control-button"
+                    , onClick <| OpenPanel ViewerOptions
+                    ]
+                    [ text "⚛️" ]
+                , div
+                    [ class "control-button"
+                    , onClick <| OpenPanel Notifications
+                    ]
+                    [ List.length model.notifications
+                        |> toString
+                        |> (++) "🔔"
+                        |> text
+                    ]
+                ]
             ]
-            [ List.length model.notifications |> toString |> (++) "🔔" |> text ]
-        , div
-            [ id "viewer" ]
-            []
-        , div [ class "tabs" ]
+         , div [ id "viewer" ] []
+         , div [ class "tabs" ]
             [ div
                 [ class "tab scan-tab"
                 , onClick <| SetAppMode Scan
@@ -1417,41 +1462,52 @@ view model =
                 ]
                 [ text "Jobs" ]
             ]
-        , (case model.appMode of
-            Scan ->
-                case model.alanineScan.results of
-                    Just results ->
-                        scanResultsView UpdateScan results
+         , (case model.appMode of
+                Scan ->
+                    case model.alanineScan.results of
+                        Just results ->
+                            scanResultsView UpdateScan results
 
-                    Nothing ->
-                        scanSubmissionView
-                            UpdateScan
-                            model.alanineScan.alanineScanSub
+                        Nothing ->
+                            scanSubmissionView
+                                UpdateScan
+                                model.representation
+                                model.alanineScan.alanineScanSub
 
-            Constellation ->
-                case model.constellation.results of
-                    Just results ->
-                        constellationResultsView results
+                Constellation ->
+                    case model.constellation.results of
+                        Just results ->
+                            constellationResultsView results
 
-                    Nothing ->
-                        constellationSubmissionView
-                            UpdateConstellation
-                            model.constellation
-                            model.alanineScan.results
+                        Nothing ->
+                            constellationSubmissionView
+                                UpdateConstellation
+                                model.constellation
+                                model.alanineScan.results
 
-            Jobs ->
-                jobsView model
-          )
-        ]
+                Jobs ->
+                    jobsView model
+           )
+         ]
+            ++ case model.openPanel of
+                Notifications ->
+                    [ notificationPanel model.notifications ]
+
+                ViewerOptions ->
+                    [ viewerOptions model.representation ]
+
+                Closed ->
+                    []
+        )
 
 
 {-| Side panel that displays notifications. Can be toggled on and off.
 -}
-notificationPanel : Bool -> List Notification -> Html Msg
-notificationPanel open notifications =
-    div [ class "notification-panel", hidden <| not open ]
+notificationPanel : List Notification -> Html Msg
+notificationPanel notifications =
+    div [ class "notification-panel" ]
         [ h3 [] [ text "Notifications" ]
-        , button [ onClick ToggleNotificationPanel ] [ text "Close" ]
+        , button [ onClick ClosePanel ] [ text "Close" ]
         , div [] <| List.indexedMap notificationView notifications
         ]
 
@@ -1468,6 +1524,23 @@ notificationView idx notification =
         ]
 
 
+{-| Side panel that displays viewer options.
+-}
+viewerOptions : Maybe Representation -> Html Msg
+viewerOptions mRepresentation =
+    div [ class "notification-panel" ]
+        [ h3 [] [ text "Viewer Options" ]
+        , case mRepresentation of
+            Just representation ->
+                div [] [ text "VIEWER OPTIONS" ]
+
+            Nothing ->
+                div []
+                    [ text "Load a structure before changing representation." ]
+        , button [ onClick ClosePanel ] [ text "Close" ]
+        ]
+
+
 
 -- Scan
 
@@ -1475,8 +1548,12 @@ notificationView idx notification =
 {-| Main view for the scan tab when in submission mode. This is hidden in
 results mode.
 -}
-scanSubmissionView : (ScanMsg -> msg) -> AlanineScanSub -> Html msg
-scanSubmissionView updateMsg scanSub =
+scanSubmissionView :
+    (ScanMsg -> msg)
+    -> Maybe Representation
+    -> AlanineScanSub
+    -> Html msg
+scanSubmissionView updateMsg mRepresentation scanSub =
     div
         [ class "control-panel scan-panel" ]
         [ h2 [] [ text "Scan Submission" ]
@@ -1485,8 +1562,8 @@ scanSubmissionView updateMsg scanSub =
             , button [ onClick <| updateMsg GetInputPDB ] [ text "Upload" ]
             ]
         , div []
-            (case scanSub.chainVisibility of
-                Just chainVisibility ->
+            (case mRepresentation of
+                Just representation ->
                     [ div []
                         [ text "Job Name"
                         , br [] []
@@ -1495,17 +1572,16 @@ scanSubmissionView updateMsg scanSub =
                     , table []
                         ([ tr []
                             [ th [] [ text "Chain" ]
-                            , th [] [ text "Visibility" ]
                             , th [] [ text "Receptor" ]
                             , th [] [ text "Ligand" ]
                             ]
                          ]
-                            ++ (Dict.toList chainVisibility
-                                    |> List.map
-                                        (chainSelect updateMsg
-                                            scanSub.receptor
-                                            scanSub.ligand
-                                        )
+                            ++ (List.map
+                                    (chainSelect updateMsg
+                                        scanSub.receptor
+                                        scanSub.ligand
+                                    )
+                                    representation.chainLabels
                                )
                         )
                     , button
@@ -1573,19 +1649,11 @@ chainSelect :
     (ScanMsg -> msg)
     -> List ChainID
     -> List ChainID
-    -> ( ChainID, Bool )
+    -> ChainID
     -> Html msg
-chainSelect updateMsg receptorLabels ligandLabels ( label, visible ) =
+chainSelect updateMsg receptorLabels ligandLabels label =
     tr []
         [ td [] [ text label ]
-        , td []
-            [ input
-                [ onCheck <| updateMsg << (SetChainVisibility label)
-                , type_ "checkbox"
-                , checked visible
-                ]
-                []
-            ]
         , td []
             (if List.member label receptorLabels then
                 [ button

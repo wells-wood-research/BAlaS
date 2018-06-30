@@ -40,7 +40,8 @@
     // Protein Viewer
     var viewer;
     var currentStructure;
-    var cartoonGeometry;
+    var currentRepresentation;
+    var cartoonGeometry; // THIS SHOULD BE DELETED
 
     // This port initialises the PV viewer, it is trigger on init.
     app.ports.initialiseViewer.subscribe(
@@ -76,16 +77,16 @@
 
     // This port handles loading structures into PV
     app.ports.showStructure.subscribe(function (pdbString) {
-        const chainLabels = showStructure(pdbString);
-        app.ports.receiveStructureInfo.send(chainLabels);
+        const representation = showStructure(pdbString);
+        app.ports.receiveRepresentation.send(representation);
         }
     );
     
-    app.ports.setChainVisibility.subscribe(function (chainVisibility) {
-        const chainLabel = chainVisibility[0];
-        const visible = chainVisibility[1];
-        setChainVisibility(chainLabel, visible);
-    });
+    // app.ports.setChainVisibility.subscribe(function (chainVisibility) {
+    //     const chainLabel = chainVisibility[0];
+    //     const visible = chainVisibility[1];
+    //     setChainVisibility(chainLabel, visible);
+    // });
 
     app.ports.colourGeometry.subscribe(function (colourAndLabel) {
         const colour = colourAndLabel[0];
@@ -108,6 +109,10 @@
         currentStructure = pv.io.pdb(pdbString);
         viewer.fitTo(currentStructure);
         const chainLabels = currentStructure.chains().map(x => x._L);
+        const representation = {
+            chainLabels: chainLabels,
+            hidden: chainLabels.map(x => false),
+        };
         const chainsSelection = currentStructure
             .chains()
             .map(x => currentStructure.select({chain: x._L}));
@@ -133,7 +138,7 @@
                 app.ports.atomClick.send(residueInfo);
             }
         });
-        return chainLabels;
+        return representation;
     }
 
     function setChainVisibility(chainLabel, visible) {
