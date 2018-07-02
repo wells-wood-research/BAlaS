@@ -172,9 +172,9 @@ def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains):
         with open(lig_json_paths[0], 'r') as inf:
             lig_results = json.load(inf)
         processed_output = parser_friendly_output(rec_results, lig_results)
-        processed_output['status'] = JobStatus.COMPLETED.value
     except subprocess.CalledProcessError:
         processed_output = {'status': JobStatus.FAILED.value}
+    processed_output['status'] = JobStatus.COMPLETED.value
     processed_output['std_out'] = scan_process.stdout.decode()
     return processed_output
 
@@ -278,6 +278,7 @@ def run_bals_auto(job_id, scanName, pdb_string, receptor_chains, ligand_chains,
         results = {'status': JobStatus.FAILED.value}
     except AttributeError:
         results = {'status': JobStatus.FAILED.value}
+    results['status'] = JobStatus.COMPLETED.value
     results['std_out'] = scan_process.stdout.decode()
     return results
 

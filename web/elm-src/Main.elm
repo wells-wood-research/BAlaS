@@ -59,7 +59,6 @@ type alias Model =
     , alanineScan : AlanineScanModel
     , constellation : ConstellationModel
     , notifications : List Notification
-    , representation : Maybe Representation
     , openPanel : Panel
     }
 
@@ -77,7 +76,6 @@ emptyModel =
         emptyAlaScanModel
         emptyConstellationModel
         []
-        Nothing
         Closed
 
 
@@ -85,7 +83,6 @@ type alias ExportableModel =
     { alanineScan : List ExportableJobDetails
     , constellation : List ExportableJobDetails
     , notifications : List Notification
-    , representation : Maybe ExportableRepresentation
     }
 
 
@@ -95,7 +92,6 @@ exportModel model =
         (List.map exportJobDetails model.alanineScan.jobs)
         (List.map exportJobDetails model.constellation.jobs)
         model.notifications
-        model.representation
 
 
 importModel : ExportableModel -> Model
@@ -111,7 +107,6 @@ importModel exported =
                 List.map importJobDetails exported.constellation
         }
         exported.notifications
-        exported.representation
         Closed
 
 
@@ -162,6 +157,7 @@ type alias ResidueInfo =
 -}
 type alias AlanineScanModel =
     { alanineScanSub : AlanineScanSub
+    , structure : Maybe Structure
     , jobs : List JobDetails
     , results : Maybe AlanineScanResults
     }
@@ -169,14 +165,13 @@ type alias AlanineScanModel =
 
 emptyAlaScanModel : AlanineScanModel
 emptyAlaScanModel =
-    AlanineScanModel emptyScanSub [] Nothing
+    AlanineScanModel emptyScanSub Nothing [] Nothing
 
 
 {-| Form data required for a scan job submission.
 -}
 type alias AlanineScanSub =
     { name : String
-    , pdbFile : Maybe String
     , receptor : List ChainID
     , ligand : List ChainID
     }
@@ -186,7 +181,6 @@ emptyScanSub : AlanineScanSub
 emptyScanSub =
     AlanineScanSub
         ""
-        Nothing
         []
         []
 
@@ -194,7 +188,7 @@ emptyScanSub =
 {-| Validates an `AlanineScanSub` to determine if it can be safely submitted.
 -}
 validScanSub : AlanineScanSub -> Bool
-validScanSub { name, pdbFile, receptor, ligand } =
+validScanSub { name, receptor, ligand } =
     let
         isJust mA =
             case mA of
@@ -205,18 +199,17 @@ validScanSub { name, pdbFile, receptor, ligand } =
                     False
     in
         (name /= "")
-            && isJust pdbFile
             && (List.length receptor > 0)
             && (List.length ligand > 0)
 
 
 {-| JSON encoder for `AlanineScanSub`
 -}
-encodeAlanineScanSub : AlanineScanSub -> JEn.Value
-encodeAlanineScanSub scanSub =
+encodeAlanineScanSub : Structure -> AlanineScanSub -> JEn.Value
+encodeAlanineScanSub structure scanSub =
     JEn.object
         [ ( "name", scanSub.name |> JEn.string )
-        , ( "pdbFile", Maybe.withDefault "Invalid" scanSub.pdbFile |> JEn.string )
+        , ( "pdbFile", JEn.string structure.pdbFile )
         , ( "receptor", List.map JEn.string scanSub.receptor |> JEn.list )
         , ( "ligand", List.map JEn.string scanSub.ligand |> JEn.list )
         ]
@@ -357,7 +350,7 @@ validAutoSettings { name, ddGCutOff, constellationSize, cutOffDistance } =
             ]
 
 
-{-| True if a string is a valid representation of a floating point number.
+{-| True if a string is a valid structure of a floating point number.
 -}
 representsFloat : String -> Bool
 representsFloat inString =
@@ -369,7 +362,7 @@ representsFloat inString =
             False
 
 
-{-| True if a string is a valid representation of an integer.
+{-| True if a string is a valid structure of an integer.
 -}
 representsInt : String -> Bool
 representsInt inString =
@@ -445,17 +438,18 @@ autoResultsDecoder =
 
 
 
--- Representation
+-- Structure
 
 
-type alias Representation =
-    { chainLabels : List ChainID
+type alias Structure =
+    { pdbFile : String
+    , chainLabels : List ChainID
     , hidden : List Bool
     }
 
 
-type alias ExportableRepresentation =
-    Representation
+type alias ExportableStructure =
+    Structure
 
 
 type MoleculeStyle
@@ -558,7 +552,7 @@ stringToStatus statusString =
             Submitted
 
 
-{-| Converts the integer representation of the status into a `JobStatus`. The
+{-| Converts the integer structure of the status into a `JobStatus`. The
 options in this case statement must match the possible options for the
 `JobStatus` enum in database.py.
 -}
@@ -607,8 +601,6 @@ type Msg
     = SetAppMode AppMode
     | UpdateScan ScanMsg
     | UpdateConstellation ConstellationMsg
-    | UpdateRepresentation Representation
-    | ChangeVisibility String
     | DismissNotification Int
     | OpenPanel Panel
     | ClosePanel
@@ -803,40 +795,6 @@ update msg model =
                         }
                             ! [ Cmd.map UpdateConstellation conSubCmds ]
 
-        UpdateRepresentation representation ->
-            { model | representation = Just representation } ! []
-
-        ChangeVisibility label ->
-            case model.representation of
-                Just representation ->
-                    let
-                        hiddenDict =
-                            List.map2
-                                (,)
-                                representation.chainLabels
-                                representation.hidden
-                                |> Dict.fromList
-                                |> Dict.update label (Maybe.map not)
-                    in
-                        case Dict.get label hiddenDict of
-                            Just hidden ->
-                                { model
-                                    | representation =
-                                        Just
-                                            { representation
-                                                | hidden =
-                                                    Dict.values
-                                                        hiddenDict
-                                            }
-                                }
-                                    ! [ setVisibility ( label, hidden ) ]
-
-                            Nothing ->
-                                model ! []
-
-                Nothing ->
-                    model ! []
-
         DismissNotification idx ->
             { model
                 | notifications =
@@ -870,8 +828,9 @@ update msg model =
 be updated.
 -}
 type ScanMsg
-    = GetInputPDB
-    | ProcessPDBInput String
+    = GetStructure
+    | UpdateStructure Structure
+    | ChangeVisibility String
     | SetReceptor ChainID
     | SetLigand ChainID
     | ClearReceptor ChainID
@@ -883,13 +842,12 @@ type ScanMsg
     | ProcessScanStatus (Result Http.Error JobDetails)
     | GetScanResults String
     | ProcessScanResults (Result Http.Error AlanineScanResults)
-    | ColourByDDG
     | FocusOnResidue ResidueResult
     | ClearScanSubmission
 
 
 {-| Function for updating the state of the currently active `AlanineScanModel`.
-This includes code for manipulating the representation of the currently active
+This includes code for manipulating the structure of the currently active
 scan submission structure.
 -}
 updateScan :
@@ -902,25 +860,43 @@ updateScan scanMsg scanModel =
             scanModel.alanineScanSub
     in
         case scanMsg of
-            GetInputPDB ->
+            GetStructure ->
                 scanModel ! [ requestPDBFile () ] # []
 
-            ProcessPDBInput pdbString ->
-                case pdbString of
-                    "Failed to find file." ->
-                        scanModel ! [] # []
+            UpdateStructure structure ->
+                { scanModel | structure = Just structure } ! [] # []
 
-                    _ ->
-                        { scanModel
-                            | alanineScanSub =
-                                { emptyScanSub
-                                    | pdbFile = Just pdbString
-                                    , receptor = []
-                                    , ligand = []
-                                }
-                        }
-                            ! [ showStructure pdbString ]
-                            # []
+            ChangeVisibility label ->
+                case scanModel.structure of
+                    Just structure ->
+                        let
+                            hiddenDict =
+                                List.map2
+                                    (,)
+                                    structure.chainLabels
+                                    structure.hidden
+                                    |> Dict.fromList
+                                    |> Dict.update label (Maybe.map not)
+                        in
+                            case Dict.get label hiddenDict of
+                                Just hidden ->
+                                    { scanModel
+                                        | structure =
+                                            Just
+                                                { structure
+                                                    | hidden =
+                                                        Dict.values
+                                                            hiddenDict
+                                                }
+                                    }
+                                        ! [ setVisibility ( label, hidden ) ]
+                                        # []
+
+                                Nothing ->
+                                    scanModel ! [] # []
+
+                    Nothing ->
+                        scanModel ! [] # []
 
             SetReceptor chainID ->
                 { scanModel
@@ -949,40 +925,30 @@ updateScan scanMsg scanModel =
                     # []
 
             ClearReceptor chainID ->
-                case scanSub.pdbFile of
-                    Just pdb ->
-                        { scanModel
-                            | alanineScanSub =
-                                { scanSub
-                                    | receptor =
-                                        List.filter
-                                            (\r -> r /= chainID)
-                                            scanSub.receptor
-                                }
+                { scanModel
+                    | alanineScanSub =
+                        { scanSub
+                            | receptor =
+                                List.filter
+                                    (\r -> r /= chainID)
+                                    scanSub.receptor
                         }
-                            ! [ colourGeometry ( "white", chainID ) ]
-                            # []
-
-                    Nothing ->
-                        scanModel ! [] # []
+                }
+                    ! [ colourGeometry ( "white", chainID ) ]
+                    # []
 
             ClearLigand chainID ->
-                case scanSub.pdbFile of
-                    Just pdb ->
-                        { scanModel
-                            | alanineScanSub =
-                                { scanSub
-                                    | ligand =
-                                        List.filter
-                                            (\l -> l /= chainID)
-                                            scanSub.ligand
-                                }
+                { scanModel
+                    | alanineScanSub =
+                        { scanSub
+                            | ligand =
+                                List.filter
+                                    (\l -> l /= chainID)
+                                    scanSub.ligand
                         }
-                            ! [ colourGeometry ( "white", chainID ) ]
-                            # []
-
-                    Nothing ->
-                        scanModel ! [] # []
+                }
+                    ! [ colourGeometry ( "white", chainID ) ]
+                    # []
 
             SetScanName name ->
                 { scanModel
@@ -993,7 +959,17 @@ updateScan scanMsg scanModel =
                     # []
 
             SubmitScanJob ->
-                scanModel ! [ submitAlanineScan scanModel.alanineScanSub ] # []
+                case scanModel.structure of
+                    Just structure ->
+                        scanModel
+                            ! [ submitAlanineScan
+                                    structure
+                                    scanModel.alanineScanSub
+                              ]
+                            # []
+
+                    Nothing ->
+                        scanModel ! [] # []
 
             ScanJobSubmitted (Ok jobDetails) ->
                 { scanModel
@@ -1076,7 +1052,7 @@ updateScan scanMsg scanModel =
 
             ProcessScanResults (Ok results) ->
                 { scanModel | results = Just results }
-                    ! [ colourByDDG results ]
+                    ! [ displayScanResults results ]
                     # []
 
             ProcessScanResults (Err error) ->
@@ -1085,16 +1061,6 @@ updateScan scanMsg scanModel =
                         Debug.log "Failed to retrieve scan results" error
                 in
                     scanModel ! [] # []
-
-            ColourByDDG ->
-                case scanModel.results of
-                    Just results ->
-                        scanModel
-                            ! [ colourByDDG results ]
-                            # []
-
-                    Nothing ->
-                        scanModel ! [] # []
 
             FocusOnResidue residueResult ->
                 scanModel ! [ focusOnResidue residueResult ] # []
@@ -1296,13 +1262,7 @@ port saveState : ExportableModel -> Cmd msg
 port initialiseViewer : () -> Cmd msg
 
 
-port showStructure : String -> Cmd msg
-
-
 port requestPDBFile : () -> Cmd msg
-
-
-port applyRepresentation : ExportableRepresentation -> Cmd msg
 
 
 port setVisibility : ( String, Bool ) -> Cmd msg
@@ -1311,7 +1271,7 @@ port setVisibility : ( String, Bool ) -> Cmd msg
 port colourGeometry : ( String, ChainID ) -> Cmd msg
 
 
-port colourByDDG : AlanineScanResults -> Cmd msg
+port displayScanResults : AlanineScanResults -> Cmd msg
 
 
 port focusOnResidue : ResidueResult -> Cmd msg
@@ -1323,12 +1283,12 @@ port focusOnResidue : ResidueResult -> Cmd msg
 
 {-| Submits an alanine scan job to the server.
 -}
-submitAlanineScan : AlanineScanSub -> Cmd ScanMsg
-submitAlanineScan scanSub =
+submitAlanineScan : Structure -> AlanineScanSub -> Cmd ScanMsg
+submitAlanineScan structure scanSub =
     Http.send ScanJobSubmitted <|
         Http.post
             "/api/v0.1/alanine-scan-jobs"
-            (encodeAlanineScanSub scanSub
+            (encodeAlanineScanSub structure scanSub
                 |> Http.jsonBody
             )
             jobDetailsDecoder
@@ -1395,10 +1355,7 @@ getAutoResults jobID =
 -}
 
 
-port receivePDBFile : (String -> msg) -> Sub msg
-
-
-port receiveRepresentation : (ExportableRepresentation -> msg) -> Sub msg
+port receiveStructure : (ExportableStructure -> msg) -> Sub msg
 
 
 port atomClick : (ResidueInfo -> msg) -> Sub msg
@@ -1409,8 +1366,7 @@ port atomClick : (ResidueInfo -> msg) -> Sub msg
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch <|
-        [ receivePDBFile <| UpdateScan << ProcessPDBInput
-        , receiveRepresentation <| UpdateRepresentation
+        [ receiveStructure <| UpdateScan << UpdateStructure
 
         -- , atomClick <| UpdateScan << ToggleResidueSelection
         ]
@@ -1489,7 +1445,7 @@ view model =
                         Nothing ->
                             scanSubmissionView
                                 UpdateScan
-                                model.representation
+                                model.alanineScan.structure
                                 model.alanineScan.alanineScanSub
 
                 Constellation ->
@@ -1512,7 +1468,7 @@ view model =
                     [ notificationPanel model.notifications ]
 
                 ViewerOptions ->
-                    [ viewerOptions model.representation ]
+                    [ viewerOptions model.alanineScan.structure ]
 
                 Closed ->
                     []
@@ -1544,13 +1500,13 @@ notificationView idx notification =
 
 {-| Side panel that displays viewer options.
 -}
-viewerOptions : Maybe Representation -> Html Msg
-viewerOptions mRepresentation =
+viewerOptions : Maybe Structure -> Html Msg
+viewerOptions mStructure =
     div [ class "notification-panel" ]
         [ h3 [] [ text "Viewer Options" ]
         , button [ onClick ClosePanel ] [ text "Close" ]
-        , case mRepresentation of
-            Just representation ->
+        , case mStructure of
+            Just structure ->
                 div []
                     [ table []
                         ([ tr []
@@ -1561,8 +1517,8 @@ viewerOptions mRepresentation =
                             ]
                          ]
                             ++ (List.map2 (,)
-                                    representation.chainLabels
-                                    representation.hidden
+                                    structure.chainLabels
+                                    structure.hidden
                                     |> List.map viewerSelectionRow
                                )
                         )
@@ -1570,7 +1526,7 @@ viewerOptions mRepresentation =
 
             Nothing ->
                 div []
-                    [ text "Load a structure before changing representation." ]
+                    [ text "Load a structure before changing structure." ]
         ]
 
 
@@ -1580,7 +1536,7 @@ viewerSelectionRow ( chainID, hidden ) =
         [ td [] [ text chainID ]
         , td []
             [ input
-                [ onClick <| ChangeVisibility chainID
+                [ onClick <| UpdateScan <| ChangeVisibility chainID
                 , type_ "checkbox"
                 , checked hidden
                 ]
@@ -1600,20 +1556,20 @@ results mode.
 -}
 scanSubmissionView :
     (ScanMsg -> msg)
-    -> Maybe Representation
+    -> Maybe Structure
     -> AlanineScanSub
     -> Html msg
-scanSubmissionView updateMsg mRepresentation scanSub =
+scanSubmissionView updateMsg mStructure scanSub =
     div
         [ class "control-panel scan-panel" ]
         [ h2 [] [ text "Scan Submission" ]
         , div []
             [ input [ type_ "file", id "pdbFileToLoad" ] []
-            , button [ onClick <| updateMsg GetInputPDB ] [ text "Upload" ]
+            , button [ onClick <| updateMsg GetStructure ] [ text "Upload" ]
             ]
         , div []
-            (case mRepresentation of
-                Just representation ->
+            (case mStructure of
+                Just structure ->
                     [ div []
                         [ text "Job Name"
                         , br [] []
@@ -1631,7 +1587,7 @@ scanSubmissionView updateMsg mRepresentation scanSub =
                                         scanSub.receptor
                                         scanSub.ligand
                                     )
-                                    representation.chainLabels
+                                    structure.chainLabels
                                )
                         )
                     , button
@@ -1676,20 +1632,18 @@ scanResultsView updateMsg results =
             , h3 [] [ text "ΔG" ]
             , p [] [ toString results.dG |> text ]
             , h3 [] [ text "Residue Results (Non-Zero)" ]
-            , div [ class "scan-results-table" ]
-                [ table []
-                    ([ tr []
-                        [ th [] [ text "Chain" ]
-                        , th [] [ text "Residue" ]
-                        , th [] [ text "Amino Acid" ]
-                        , th [] [ text "ΔΔG" ]
-                        ]
-                     ]
-                        ++ (List.filter (\res -> res.ddG /= 0) results.ligandResults
-                                |> List.map resultsRow
-                           )
-                    )
-                ]
+            , table [ class "scan-results-table" ]
+                ([ tr []
+                    [ th [] [ text "Chain" ]
+                    , th [] [ text "Residue" ]
+                    , th [] [ text "Amino Acid" ]
+                    , th [] [ text "ΔΔG" ]
+                    ]
+                 ]
+                    ++ (List.filter (\res -> res.ddG /= 0) results.ligandResults
+                            |> List.map resultsRow
+                       )
+                )
             ]
 
 
@@ -1865,16 +1819,14 @@ constellationResultsView { hotConstellations } =
             [ class "control-panel constellation-panel" ]
             [ h2 [] [ text "Constellation Scan Results" ]
             , h3 [] [ text "🔥 Hot Constellations 🔥" ]
-            , div [ class "scan-results-table" ]
-                [ table []
-                    ([ tr []
-                        [ th [] [ text "Constellation" ]
-                        , th [] [ text "Mean ΔΔG" ]
-                        ]
-                     ]
-                        ++ List.map resultsRow hotConstellations
-                    )
-                ]
+            , table [ class "scan-results-table" ]
+                ([ tr []
+                    [ th [] [ text "Constellation" ]
+                    , th [] [ text "Mean ΔΔG" ]
+                    ]
+                 ]
+                    ++ List.map resultsRow hotConstellations
+                )
             ]
 
 

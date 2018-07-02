@@ -66,7 +66,8 @@
         var fileReader = new FileReader();
         fileReader.onload = function(fileLoadedEvent) {
             var textFromFileLoaded = fileLoadedEvent.target.result;
-            app.ports.receivePDBFile.send(textFromFileLoaded);
+            var structure = showStructure(textFromFileLoaded);
+            app.ports.receiveStructure.send(structure);
         };
         if (typeof fileToLoad != 'undefined') {
             fileReader.readAsText(fileToLoad, "UTF-8");
@@ -75,13 +76,6 @@
         }
     });
 
-    // This port handles loading structures into PV
-    app.ports.showStructure.subscribe(function (pdbString) {
-        const representation = showStructure(pdbString);
-        app.ports.receiveRepresentation.send(representation);
-        }
-    );
-    
     app.ports.setVisibility.subscribe(function (selection) {
         const [label, hidden] = selection;
         setVisibility(label, hidden);
@@ -94,8 +88,9 @@
         viewer.requestRedraw();
     });
 
-    app.ports.colourByDDG.subscribe(function (alaScanResults) {
-        colourByDDG(alaScanResults);
+    app.ports.displayScanResults.subscribe(function (alaScanResults) {
+        const structure = displayScanResults(alaScanResults);
+        app.ports.receiveStructure.send(structure);
     });
 
     app.ports.focusOnResidue.subscribe(function (residueResult) {
@@ -108,7 +103,8 @@
         currentStructure = pv.io.pdb(pdbString);
         viewer.fitTo(currentStructure);
         const chainLabels = currentStructure.chains().map(x => x._L);
-        const representation = {
+        const structure = {
+            pdbFile: pdbString,
             chainLabels: chainLabels,
             hidden: chainLabels.map(x => false),
         };
@@ -137,7 +133,7 @@
                 app.ports.atomClick.send(residueInfo);
             }
         });
-        return representation;
+        return structure;
     }
 
     function setVisibility(label, hidden) {
@@ -152,8 +148,8 @@
         return;
     }
 
-    function colourByDDG(alaScanResults) {
-        showStructure(alaScanResults.pdbFile);
+    function displayScanResults(alaScanResults) {
+        const structure = showStructure(alaScanResults.pdbFile);
         currentStructure.eachResidue(function(residue) {
                 residue.setProp('ddG', 0.0);
             });
@@ -190,7 +186,7 @@
                     'ddG', pv.color.gradient(['blue', 'red']))});
         viewer.lines('recRes', receptor);
         viewer.ballsAndSticks('ligDDG', ligand);
-        return;
+        return structure;
     }
 
     function focusOnResidue(residueResult) {
