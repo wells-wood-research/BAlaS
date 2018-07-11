@@ -452,32 +452,6 @@ type alias ExportableStructure =
     Structure
 
 
-type MoleculeStyle
-    = BallsAndSticks
-    | Cartoon
-    | Lines
-    | Spheres
-
-
-stringToMoleculeStyle : String -> MoleculeStyle
-stringToMoleculeStyle styleString =
-    case styleString of
-        "BallsAndSticks" ->
-            BallsAndSticks
-
-        "Cartoon" ->
-            Cartoon
-
-        "Lines" ->
-            Lines
-
-        "Spheres" ->
-            Spheres
-
-        _ ->
-            Lines
-
-
 
 -- Job
 
@@ -1401,12 +1375,12 @@ view model =
         ([ div [ class "banner" ]
             [ header [] [ h1 [] [ text "BUDE Alanine Scan" ] ]
             , div [ class "controls" ]
+                -- [ div
+                --     [ class "control-button"
+                --     , onClick <| OpenPanel ViewerOptions
+                --     ]
+                --     [ text "⚛️" ]
                 [ div
-                    [ class "control-button"
-                    , onClick <| OpenPanel ViewerOptions
-                    ]
-                    [ text "⚛️" ]
-                , div
                     [ class "control-button"
                     , onClick <| OpenPanel Notifications
                     ]
@@ -1512,8 +1486,6 @@ viewerOptions mStructure =
                         ([ tr []
                             [ th [] [ text "Selection" ]
                             , th [] [ text "Hidden" ]
-                            , th [] [ text "Style" ]
-                            , th [] [ text "Colour" ]
                             ]
                          ]
                             ++ (List.map2 (,)
