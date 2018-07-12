@@ -587,13 +587,19 @@ jobsView model =
     in
         div [ class "control-panel jobs-panel" ]
             [ h2 [] [ text "Jobs" ]
-            , jobTable (Update.UpdateScan << Update.GetScanResults)
+            , jobTable
+                (Update.UpdateScan << Update.GetScanResults)
+                (Update.UpdateScan << Update.DeleteScanJob)
                 "Alanine Scan Jobs"
                 (List.sortBy (\{ name } -> name) alaScanJobs)
-            , jobTable (Update.UpdateConstellation << Update.GetAutoResults)
+            , jobTable
+                (Update.UpdateConstellation << Update.GetAutoResults)
+                (Update.UpdateConstellation << Update.DeleteAutoJob)
                 "Auto Constellation Scan Jobs"
                 (List.sortBy (\{ name } -> name) autoJobs)
-            , jobTable (Update.UpdateConstellation << Update.GetManualResults)
+            , jobTable
+                (Update.UpdateConstellation << Update.GetManualResults)
+                (Update.UpdateConstellation << Update.DeleteManualJob)
                 "Manual Constellation Scan Jobs"
                 (List.sortBy (\{ name } -> name) manualJobs)
             ]
@@ -604,10 +610,11 @@ that it can be reused for all the job queues.
 -}
 jobTable :
     (String -> Update.Msg)
+    -> (String -> Update.Msg)
     -> String
     -> List Model.JobDetails
     -> Html Update.Msg
-jobTable getMsg tableTitle jobs =
+jobTable getMsg deleteMsg tableTitle jobs =
     let
         tableRow { jobID, name, status } =
             tr [ class "details" ]
@@ -626,6 +633,13 @@ jobTable getMsg tableTitle jobs =
                             |> disabled
                         ]
                         [ text "Get Results" ]
+                    ]
+                , td []
+                    [ button
+                        [ deleteMsg jobID
+                            |> onClick
+                        ]
+                        [ text "Delete" ]
                     ]
                 ]
     in

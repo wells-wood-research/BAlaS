@@ -291,6 +291,7 @@ type ScanMsg
     | ProcessScanStatus (Result Http.Error Model.JobDetails)
     | GetScanResults String
     | ProcessScanResults (Result Http.Error Model.AlanineScanResults)
+    | DeleteScanJob String
     | FocusOnResidue Model.ResidueResult
     | ClearScanSubmission
 
@@ -511,6 +512,19 @@ updateScan scanMsg scanModel =
                 in
                     scanModel ! [] # []
 
+            DeleteScanJob jobID ->
+                { scanModel
+                    | jobs =
+                        scanModel.jobs
+                            |> List.map (\job -> ( job.jobID, job ))
+                            |> Dict.fromList
+                            |> Dict.remove jobID
+                            |> Dict.toList
+                            |> List.map Tuple.second
+                }
+                    ! []
+                    # []
+
             FocusOnResidue residueResult ->
                 scanModel ! [ Ports.focusOnResidue residueResult ] # []
 
@@ -534,11 +548,13 @@ type ConstellationMsg
     | CheckAutoJobs Time.Time
     | ProcessAutoJobStatus (Result Http.Error Model.JobDetails)
     | GetAutoResults String
+    | DeleteAutoJob String
     | ProcessAutoResults (Result Http.Error Model.ConstellationResults)
     | ManualJobSubmitted (Result Http.Error Model.JobDetails)
     | CheckManualJobs Time.Time
     | ProcessManualJobStatus (Result Http.Error Model.JobDetails)
     | GetManualResults String
+    | DeleteManualJob String
     | ProcessManualResults (Result Http.Error Model.ConstellationResults)
 
 
@@ -693,6 +709,19 @@ updateConstellation msg model =
             GetAutoResults jobID ->
                 model ! [ getAutoResults jobID ] # []
 
+            DeleteAutoJob jobID ->
+                { model
+                    | autoJobs =
+                        model.autoJobs
+                            |> List.map (\job -> ( job.jobID, job ))
+                            |> Dict.fromList
+                            |> Dict.remove jobID
+                            |> Dict.toList
+                            |> List.map Tuple.second
+                }
+                    ! []
+                    # []
+
             ProcessAutoResults (Ok results) ->
                 { model | results = Just results }
                     ! []
@@ -785,6 +814,19 @@ updateConstellation msg model =
 
             GetManualResults jobID ->
                 model ! [ getManualResults jobID ] # []
+
+            DeleteManualJob jobID ->
+                { model
+                    | manualJobs =
+                        model.manualJobs
+                            |> List.map (\job -> ( job.jobID, job ))
+                            |> Dict.fromList
+                            |> Dict.remove jobID
+                            |> Dict.toList
+                            |> List.map Tuple.second
+                }
+                    ! []
+                    # []
 
             ProcessManualResults (Ok results) ->
                 { model | results = Just results }
