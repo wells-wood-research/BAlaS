@@ -56,6 +56,39 @@ table > tr:hover {
     background-color: #cccccc;
 }
 
+button {
+    background-color: #aaaaaa;
+    border-color: #000000;
+    border-style: solid;
+    border-width: 1px;
+    color: black;
+    margin: 3px;
+    padding: 3px;
+}
+
+button:hover {
+    background-color: #999999;
+}
+
+button:active {
+    background-color: #888888;
+}
+
+
+button:disabled {
+    background-color: #bbbbbb;
+    color: #999999;
+}
+
+input {
+    border-color: #000000;
+    border-style: solid;
+    border-width: 1px;
+    color: black;
+    margin: 3px;
+    padding: 3px;
+}
+
 .details {
     font-size: 10pt;
 }

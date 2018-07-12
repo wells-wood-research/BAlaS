@@ -278,7 +278,7 @@ be updated.
 -}
 type ScanMsg
     = GetStructure
-    | UpdateStructure Model.Structure
+    | UpdateStructure (Maybe Model.Structure)
     | ChangeVisibility String
     | SetReceptor Model.ChainID
     | SetLigand Model.ChainID
@@ -314,7 +314,7 @@ updateScan scanMsg scanModel =
                 scanModel ! [ Ports.requestPDBFile () ] # []
 
             UpdateStructure structure ->
-                { scanModel | structure = Just structure } ! [] # []
+                { scanModel | structure = structure } ! [] # []
 
             ChangeVisibility label ->
                 case scanModel.structure of

@@ -42,7 +42,7 @@ port focusOnResidue : Model.ResidueResult -> Cmd msg
 -}
 
 
-port receiveStructure : (Model.ExportableStructure -> msg) -> Sub msg
+port receiveStructure : (Maybe Model.Structure -> msg) -> Sub msg
 
 
 port atomClick : (Model.ResidueInfo -> msg) -> Sub msg

@@ -62,17 +62,17 @@
     // This port handles collecting information from selected files
     // and sending it through to the Elm app.
     app.ports.requestPDBFile.subscribe(function() {
-        var fileToLoad = document.getElementById("pdbFileToLoad").files[0];
-        var fileReader = new FileReader();
+        const fileToLoad = document.getElementById("pdbFileToLoad").files[0];
+        const fileReader = new FileReader();
         fileReader.onload = function(fileLoadedEvent) {
-            var textFromFileLoaded = fileLoadedEvent.target.result;
-            var structure = showStructure(textFromFileLoaded);
+            const textFromFileLoaded = fileLoadedEvent.target.result;
+            const structure = showStructure(textFromFileLoaded);
             app.ports.receiveStructure.send(structure);
         };
         if (typeof fileToLoad != 'undefined') {
             fileReader.readAsText(fileToLoad, "UTF-8");
         } else {
-            app.ports.receivePDBFile.send("Failed to find file.");
+            app.ports.receiveStructure.send(null);
         }
     });
 
