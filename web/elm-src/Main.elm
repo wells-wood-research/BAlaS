@@ -27,15 +27,13 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
-import Json.Decode as JDe
-import Json.Decode.Extra exposing ((|:))
-import Json.Encode as JEn
+import Model
 import Notifications exposing ((#), Notification)
 import Set
 import Time
 
 
-main : Program (Maybe ExportableModel) Model Msg
+main : Program (Maybe Model.ExportableModel) Model.Model Msg
 main =
     programWithFlags
         { init = init
@@ -45,580 +43,16 @@ main =
         }
 
 
-
-{- # MODEL
-   This section contains the types that describe the state of the application,
-   as well functions for creating, validating and encode/decoding them to/from
-   JSON.
--}
-
-
-{-| Describes the current state of the application
--}
-type alias Model =
-    { appMode : AppMode
-    , alanineScan : AlanineScanModel
-    , constellation : ConstellationModel
-    , notifications : List Notification
-    , openPanel : Panel
-    }
-
-
-type Panel
-    = Notifications
-    | ViewerOptions
-    | Closed
-
-
-emptyModel : Model
-emptyModel =
-    Model
-        Scan
-        emptyAlaScanModel
-        emptyConstellationModel
-        []
-        Closed
-
-
-type alias ExportableModel =
-    { alanineScan : List ExportableJobDetails
-    , autoJobs : List ExportableJobDetails
-    , manualJobs : List ExportableJobDetails
-    , notifications : List Notification
-    }
-
-
-exportModel : Model -> ExportableModel
-exportModel model =
-    ExportableModel
-        (List.map exportJobDetails model.alanineScan.jobs)
-        (List.map exportJobDetails model.constellation.autoJobs)
-        (List.map exportJobDetails model.constellation.manualJobs)
-        model.notifications
-
-
-importModel : ExportableModel -> Model
-importModel exported =
-    Model
-        Scan
-        { emptyAlaScanModel
-            | jobs =
-                List.map importJobDetails exported.alanineScan
-        }
-        { emptyConstellationModel
-            | autoJobs =
-                List.map importJobDetails exported.autoJobs
-            , manualJobs =
-                List.map importJobDetails exported.manualJobs
-        }
-        exported.notifications
-        Closed
-
-
-{-| Modes available in the app, corresponding to the 3 main tabs.
--}
-type AppMode
-    = Scan
-    | Constellation
-    | Jobs
-
-
 {-| Creates a model and Cmd Msgs for the initial state of the application.
 -}
-init : Maybe ExportableModel -> ( Model, Cmd msg )
+init : Maybe Model.ExportableModel -> ( Model.Model, Cmd msg )
 init mExported =
     case mExported of
         Just exported ->
-            importModel exported ! [ initialiseViewer () ]
+            Model.importModel exported ! [ initialiseViewer () ]
 
         Nothing ->
-            emptyModel ! [ initialiseViewer () ]
-
-
-
--- Utility types
-
-
-{-| Represents a chain label in a PDB file.
--}
-type alias ChainID =
-    String
-
-
-{-| A helpful record describing the details of a single residue.
--}
-type alias ResidueInfo =
-    { chainID : ChainID
-    , aminoAcid : String
-    , residueNumber : Int
-    }
-
-
-
--- Scan Mode
-
-
-{-| Submodel that represents the state for the scan tab.
--}
-type alias AlanineScanModel =
-    { alanineScanSub : AlanineScanSub
-    , structure : Maybe Structure
-    , jobs : List JobDetails
-    , results : Maybe AlanineScanResults
-    }
-
-
-emptyAlaScanModel : AlanineScanModel
-emptyAlaScanModel =
-    AlanineScanModel emptyScanSub Nothing [] Nothing
-
-
-{-| Form data required for a scan job submission.
--}
-type alias AlanineScanSub =
-    { name : String
-    , receptor : List ChainID
-    , ligand : List ChainID
-    }
-
-
-emptyScanSub : AlanineScanSub
-emptyScanSub =
-    AlanineScanSub
-        ""
-        []
-        []
-
-
-{-| Validates an `AlanineScanSub` to determine if it can be safely submitted.
--}
-validScanSub : AlanineScanSub -> Bool
-validScanSub { name, receptor, ligand } =
-    let
-        isJust mA =
-            case mA of
-                Just _ ->
-                    True
-
-                Nothing ->
-                    False
-    in
-        (name /= "")
-            && (List.length receptor > 0)
-            && (List.length ligand > 0)
-
-
-{-| JSON encoder for `AlanineScanSub`
--}
-encodeAlanineScanSub : Structure -> AlanineScanSub -> JEn.Value
-encodeAlanineScanSub structure scanSub =
-    JEn.object
-        [ ( "name", scanSub.name |> JEn.string )
-        , ( "pdbFile", JEn.string structure.pdbFile )
-        , ( "receptor", List.map JEn.string scanSub.receptor |> JEn.list )
-        , ( "ligand", List.map JEn.string scanSub.ligand |> JEn.list )
-        ]
-
-
-{-| Processed version of BALS results in the `scan` mode.
--}
-type alias AlanineScanResults =
-    { name : String
-    , pdbFile : String
-    , receptor : List ChainID
-    , ligand : List ChainID
-    , dG : Float
-    , receptorResults : List ResidueResult
-    , ligandResults : List ResidueResult
-    }
-
-
-{-| BALS results for a specific residue.
--}
-type alias ResidueResult =
-    { residueNumber : String
-    , aminoAcid : String
-    , chainID : ChainID
-    , ddG : Float
-    , residueSize : Int
-    , stdDevDDG : Float
-    }
-
-
-{-| Decodes JSON produced by the server into `AlanineScanResults`.
--}
-scanResultsDecoder : JDe.Decoder AlanineScanResults
-scanResultsDecoder =
-    JDe.succeed AlanineScanResults
-        |: (JDe.field "name" JDe.string)
-        |: (JDe.field "pdbFile" JDe.string)
-        |: (JDe.field "receptor" (JDe.list JDe.string))
-        |: (JDe.field "ligand" (JDe.list JDe.string))
-        |: (JDe.field "dG" JDe.float)
-        |: (JDe.field "receptorData" <|
-                JDe.list <|
-                    JDe.succeed ResidueResult
-                        |: (JDe.index 0 JDe.string)
-                        |: (JDe.index 1 JDe.string)
-                        |: (JDe.index 2 JDe.string)
-                        |: (JDe.index 3 JDe.float)
-                        |: (JDe.index 4 JDe.int)
-                        |: (JDe.index 5 JDe.float)
-           )
-        |: (JDe.field "ligandData" <|
-                JDe.list <|
-                    JDe.succeed ResidueResult
-                        |: (JDe.index 0 JDe.string)
-                        |: (JDe.index 1 JDe.string)
-                        |: (JDe.index 2 JDe.string)
-                        |: (JDe.index 3 JDe.float)
-                        |: (JDe.index 4 JDe.int)
-                        |: (JDe.index 5 JDe.float)
-           )
-
-
-
--- Constellation
-
-
-{-| Submodel that represents the state for the constellation tab.
--}
-type alias ConstellationModel =
-    { constellationSub : ConstellationMode
-    , autoJobs : List JobDetails
-    , manualJobs : List JobDetails
-    , results : Maybe ConstellationResults
-    }
-
-
-emptyConstellationModel : ConstellationModel
-emptyConstellationModel =
-    ConstellationModel
-        (Auto defaultAutoSettings)
-        []
-        []
-        Nothing
-
-
-{-| Union type of the different modes that can be active.
--}
-type ConstellationMode
-    = Auto AutoSettings
-    | Manual ManualSettings
-
-
-{-| Record containing settings required by BALS auto mode.
--}
-type alias AutoSettings =
-    { name : String
-    , ddGCutOff : String
-    , constellationSize : String
-    , cutOffDistance : String
-    }
-
-
-defaultAutoSettings : AutoSettings
-defaultAutoSettings =
-    AutoSettings
-        ""
-        "5.0"
-        "3"
-        "13.0"
-
-
-{-| Validates an `AutoSettings` to determine if it can be safely submitted.
--}
-validAutoSettings : AutoSettings -> Bool
-validAutoSettings { name, ddGCutOff, constellationSize, cutOffDistance } =
-    let
-        validName =
-            name /= ""
-
-        validDDGCutOff =
-            representsFloat ddGCutOff
-
-        validConSize =
-            representsInt constellationSize
-
-        validDistance =
-            representsFloat cutOffDistance
-
-        anyEmpty =
-            List.map
-                String.isEmpty
-                [ ddGCutOff, constellationSize, cutOffDistance ]
-                |> List.any identity
-    in
-        List.all identity
-            [ validName
-            , validDDGCutOff
-            , validConSize
-            , validDistance
-            , not anyEmpty
-            ]
-
-
-{-| Record containing settings required by BALS manual mode.
--}
-type alias ManualSettings =
-    { name : String
-    , residues : Set.Set String
-    }
-
-
-defaultManualSettings : ManualSettings
-defaultManualSettings =
-    ManualSettings
-        ""
-        Set.empty
-
-
-{-| Validates an `ManualSettings` to determine if it can be safely submitted.
--}
-validManualSettings : ManualSettings -> Bool
-validManualSettings { name, residues } =
-    let
-        validName =
-            name /= ""
-
-        validResidues =
-            Set.isEmpty residues |> not
-    in
-        List.all identity
-            [ validName
-            , validResidues
-            ]
-
-
-{-| True if a string is a valid structure of a floating point number.
--}
-representsFloat : String -> Bool
-representsFloat inString =
-    case String.toFloat inString of
-        Ok _ ->
-            True
-
-        Err _ ->
-            False
-
-
-{-| True if a string is a valid structure of an integer.
--}
-representsInt : String -> Bool
-representsInt inString =
-    case String.toInt inString of
-        Ok _ ->
-            True
-
-        Err _ ->
-            False
-
-
-{-| JSON encoder that creates an auto job from a previous `AlanineScanResults`
-job and the settings for the auto job selected by the user.
--}
-encodeAutoJob : AlanineScanResults -> AutoSettings -> JEn.Value
-encodeAutoJob scanResults settings =
-    JEn.object
-        [ ( "name", settings.name |> JEn.string )
-        , ( "ddGCutOff"
-          , Result.withDefault
-                5.0
-                (String.toFloat
-                    settings.ddGCutOff
-                )
-                |> JEn.float
-          )
-        , ( "constellationSize"
-          , Result.withDefault
-                3
-                (String.toInt
-                    settings.constellationSize
-                )
-                |> JEn.int
-          )
-        , ( "cutOffDistance"
-          , Result.withDefault
-                13.0
-                (String.toFloat
-                    settings.cutOffDistance
-                )
-                |> JEn.float
-          )
-        , ( "scanName", scanResults.name |> JEn.string )
-        , ( "pdbFile", scanResults.pdbFile |> JEn.string )
-        , ( "receptor", List.map JEn.string scanResults.receptor |> JEn.list )
-        , ( "ligand", List.map JEn.string scanResults.ligand |> JEn.list )
-        ]
-
-
-{-| JSON encoder that creates an manual job from a previous `AlanineScanResults`
-job and the settings for the manual job selected by the user.
--}
-encodeManualJob : AlanineScanResults -> ManualSettings -> JEn.Value
-encodeManualJob scanResults { name, residues } =
-    JEn.object
-        [ ( "name", JEn.string name )
-        , ( "residues"
-          , Set.toList residues
-                |> List.map JEn.string
-                |> JEn.list
-          )
-        , ( "scanName", scanResults.name |> JEn.string )
-        , ( "pdbFile", scanResults.pdbFile |> JEn.string )
-        , ( "receptor", List.map JEn.string scanResults.receptor |> JEn.list )
-        , ( "ligand", List.map JEn.string scanResults.ligand |> JEn.list )
-        ]
-
-
-{-| Record containing the processed results of a BALS auto job.
--}
-type alias ConstellationResults =
-    { name : String
-    , hotConstellations : List ( String, Float )
-    , scanResults : AlanineScanResults
-    }
-
-
-{-| Decodes JSON produced by the server into `ConstellationResults`.
--}
-autoResultsDecoder : JDe.Decoder ConstellationResults
-autoResultsDecoder =
-    JDe.succeed ConstellationResults
-        |: (JDe.field "name" JDe.string)
-        |: (JDe.field "hotConstellations" <|
-                JDe.list <|
-                    JDe.map2
-                        (,)
-                        (JDe.index 0 JDe.string)
-                        (JDe.index 1 JDe.float)
-           )
-        |: (JDe.field "scanResults" scanResultsDecoder)
-
-
-
--- Structure
-
-
-type alias Structure =
-    { pdbFile : String
-    , chainLabels : List ChainID
-    , hidden : List Bool
-    }
-
-
-type alias ExportableStructure =
-    Structure
-
-
-
--- Job
-
-
-type alias JobDetails =
-    { jobID : String
-    , name : String
-    , status : JobStatus
-    , stdOut : Maybe String
-    }
-
-
-type alias ExportableJobDetails =
-    { jobID : String
-    , name : String
-    , status : String
-    , stdOut : Maybe String
-    }
-
-
-exportJobDetails : JobDetails -> ExportableJobDetails
-exportJobDetails details =
-    { details | status = toString details.status }
-
-
-importJobDetails : ExportableJobDetails -> JobDetails
-importJobDetails exported =
-    { exported | status = stringToStatus exported.status }
-
-
-{-| Decodes JSON produced by the server into `JobDetails`.
--}
-jobDetailsDecoder : JDe.Decoder JobDetails
-jobDetailsDecoder =
-    JDe.succeed JobDetails
-        |: (JDe.field "_id" JDe.string)
-        |: (JDe.field "name" JDe.string)
-        |: (JDe.field "status" (JDe.int |> JDe.andThen intToJobStatus))
-        |: (JDe.maybe (JDe.field "std_out" JDe.string))
-
-
-{-| Represents the possible status that any job on the server could have. This
-must match the `JobStatus` enum in database.py.
--}
-type JobStatus
-    = Submitted
-    | Queued
-    | Running
-    | Completed
-    | Failed
-
-
-stringToStatus : String -> JobStatus
-stringToStatus statusString =
-    case statusString of
-        "Submitted" ->
-            Submitted
-
-        "Queued" ->
-            Queued
-
-        "Running" ->
-            Running
-
-        "Completed" ->
-            Completed
-
-        "Failed" ->
-            Failed
-
-        _ ->
-            Submitted
-
-
-{-| Converts the integer structure of the status into a `JobStatus`. The
-options in this case statement must match the possible options for the
-`JobStatus` enum in database.py.
--}
-intToJobStatus : Int -> JDe.Decoder JobStatus
-intToJobStatus statusNumber =
-    case statusNumber of
-        1 ->
-            JDe.succeed Submitted
-
-        2 ->
-            JDe.succeed Queued
-
-        3 ->
-            JDe.succeed Running
-
-        4 ->
-            JDe.succeed Completed
-
-        5 ->
-            JDe.succeed Failed
-
-        _ ->
-            JDe.fail "Unknown status."
-
-
-{-| Filters a list of `JobDetails` for jobs that are submitted, queued or
-running.
--}
-getActiveJobs : List JobDetails -> List JobDetails
-getActiveJobs jobs =
-    List.filter
-        (\{ status } -> (status /= Completed) && (status /= Failed))
-        jobs
+            Model.emptyModel ! [ initialiseViewer () ]
 
 
 
@@ -631,11 +65,11 @@ getActiveJobs jobs =
 updated.
 -}
 type Msg
-    = SetAppMode AppMode
+    = SetAppMode Model.AppMode
     | UpdateScan ScanMsg
     | UpdateConstellation ConstellationMsg
     | DismissNotification Int
-    | OpenPanel Panel
+    | OpenPanel Model.Panel
     | ClosePanel
     | SaveState
 
@@ -650,7 +84,7 @@ when a `ClearScanSubmission` is received, this is processed mainly through
 clears the current constellation results.
 
 -}
-update : Msg -> Model -> ( Model, Cmd Msg )
+update : Msg -> Model.Model -> ( Model.Model, Cmd Msg )
 update msg model =
     case msg of
         SetAppMode appMode ->
@@ -693,7 +127,7 @@ update msg model =
                                 { model
                                     | alanineScan =
                                         updatedScanModel
-                                    , appMode = Jobs
+                                    , appMode = Model.Jobs
                                     , notifications =
                                         List.filter
                                             (\n ->
@@ -721,7 +155,7 @@ update msg model =
                                     | results =
                                         Nothing
                                 }
-                            , appMode = Scan
+                            , appMode = Model.Scan
                             , notifications =
                                 List.filter
                                     (\n ->
@@ -797,22 +231,22 @@ update msg model =
 
         OpenPanel panel ->
             case model.openPanel of
-                Closed ->
+                Model.Closed ->
                     { model | openPanel = panel }
                         ! []
 
                 _ ->
-                    { model | openPanel = Closed }
+                    { model | openPanel = Model.Closed }
                         ! []
 
         ClosePanel ->
-            { model | openPanel = Closed } ! []
+            { model | openPanel = Model.Closed } ! []
 
         SaveState ->
-            model ! [ exportModel model |> saveState ]
+            model ! [ Model.exportModel model |> saveState ]
 
 
-sucessfulConSubmit : Model -> ConstellationMsg -> ( Model, Cmd Msg )
+sucessfulConSubmit : Model.Model -> ConstellationMsg -> ( Model.Model, Cmd Msg )
 sucessfulConSubmit model constellationMsg =
     let
         ( updatedConModel, conSubCmds, notifications ) =
@@ -820,7 +254,7 @@ sucessfulConSubmit model constellationMsg =
 
         ( updatedModel, updatedCmds ) =
             { model
-                | appMode = Jobs
+                | appMode = Model.Jobs
                 , constellation =
                     updatedConModel
                 , notifications =
@@ -843,10 +277,10 @@ sucessfulConSubmit model constellationMsg =
 
 
 sucessfulConResults :
-    Model
-    -> AlanineScanResults
+    Model.Model
+    -> Model.AlanineScanResults
     -> ConstellationMsg
-    -> ( Model, Cmd Msg )
+    -> ( Model.Model, Cmd Msg )
 sucessfulConResults model scanResults constellationMsg =
     let
         ( updatedConModel, conSubCmds, notifications ) =
@@ -860,7 +294,7 @@ sucessfulConResults model scanResults constellationMsg =
             update scanUpdateMsg model
     in
         { updatedModel
-            | appMode = Constellation
+            | appMode = Model.Constellation
             , constellation =
                 updatedConModel
             , notifications =
@@ -888,20 +322,20 @@ be updated.
 -}
 type ScanMsg
     = GetStructure
-    | UpdateStructure Structure
+    | UpdateStructure Model.Structure
     | ChangeVisibility String
-    | SetReceptor ChainID
-    | SetLigand ChainID
-    | ClearReceptor ChainID
-    | ClearLigand ChainID
+    | SetReceptor Model.ChainID
+    | SetLigand Model.ChainID
+    | ClearReceptor Model.ChainID
+    | ClearLigand Model.ChainID
     | SetScanName String
     | SubmitScanJob
-    | ScanJobSubmitted (Result Http.Error JobDetails)
+    | ScanJobSubmitted (Result Http.Error Model.JobDetails)
     | CheckScanJobs Time.Time
-    | ProcessScanStatus (Result Http.Error JobDetails)
+    | ProcessScanStatus (Result Http.Error Model.JobDetails)
     | GetScanResults String
-    | ProcessScanResults (Result Http.Error AlanineScanResults)
-    | FocusOnResidue ResidueResult
+    | ProcessScanResults (Result Http.Error Model.AlanineScanResults)
+    | FocusOnResidue Model.ResidueResult
     | ClearScanSubmission
 
 
@@ -911,8 +345,8 @@ scan submission structure.
 -}
 updateScan :
     ScanMsg
-    -> AlanineScanModel
-    -> ( AlanineScanModel, Cmd ScanMsg, List Notification )
+    -> Model.AlanineScanModel
+    -> ( Model.AlanineScanModel, Cmd ScanMsg, List Notification )
 updateScan scanMsg scanModel =
     let
         scanSub =
@@ -1032,7 +466,7 @@ updateScan scanMsg scanModel =
 
             ScanJobSubmitted (Ok jobDetails) ->
                 { scanModel
-                    | alanineScanSub = emptyScanSub
+                    | alanineScanSub = Model.emptyScanSub
                     , jobs = jobDetails :: scanModel.jobs
                 }
                     ! []
@@ -1068,7 +502,7 @@ updateScan scanMsg scanModel =
                 }
                     ! []
                     # case jobDetails.status of
-                        Completed ->
+                        Model.Completed ->
                             [ Notification
                                 ""
                                 "Alanine Scan Completed"
@@ -1081,7 +515,7 @@ updateScan scanMsg scanModel =
                                 )
                             ]
 
-                        Failed ->
+                        Model.Failed ->
                             [ Notification
                                 ""
                                 "Alanine Scan Failed"
@@ -1139,17 +573,17 @@ type ConstellationMsg
     = ChangeMode String
     | UpdateAutoSettings AutoSettingsMsg
     | UpdateManualSettings ManualSettingsMsg
-    | SubmitConstellationJob AlanineScanResults
-    | AutoJobSubmitted (Result Http.Error JobDetails)
+    | SubmitConstellationJob Model.AlanineScanResults
+    | AutoJobSubmitted (Result Http.Error Model.JobDetails)
     | CheckAutoJobs Time.Time
-    | ProcessAutoJobStatus (Result Http.Error JobDetails)
+    | ProcessAutoJobStatus (Result Http.Error Model.JobDetails)
     | GetAutoResults String
-    | ProcessAutoResults (Result Http.Error ConstellationResults)
-    | ManualJobSubmitted (Result Http.Error JobDetails)
+    | ProcessAutoResults (Result Http.Error Model.ConstellationResults)
+    | ManualJobSubmitted (Result Http.Error Model.JobDetails)
     | CheckManualJobs Time.Time
-    | ProcessManualJobStatus (Result Http.Error JobDetails)
+    | ProcessManualJobStatus (Result Http.Error Model.JobDetails)
     | GetManualResults String
-    | ProcessManualResults (Result Http.Error ConstellationResults)
+    | ProcessManualResults (Result Http.Error Model.ConstellationResults)
 
 
 {-| Function for updating the state of the currently active
@@ -1157,8 +591,8 @@ type ConstellationMsg
 -}
 updateConstellation :
     ConstellationMsg
-    -> ConstellationModel
-    -> ( ConstellationModel, Cmd ConstellationMsg, List Notification )
+    -> Model.ConstellationModel
+    -> ( Model.ConstellationModel, Cmd ConstellationMsg, List Notification )
 updateConstellation msg model =
     let
         conSub =
@@ -1169,14 +603,18 @@ updateConstellation msg model =
                 case modeString of
                     "Auto" ->
                         { model
-                            | constellationSub = Auto defaultAutoSettings
+                            | constellationSub =
+                                Model.Auto
+                                    Model.defaultAutoSettings
                         }
                             ! []
                             # []
 
                     "Manual" ->
                         { model
-                            | constellationSub = Manual defaultManualSettings
+                            | constellationSub =
+                                Model.Manual
+                                    Model.defaultManualSettings
                         }
                             ! []
                             # []
@@ -1186,11 +624,11 @@ updateConstellation msg model =
 
             UpdateAutoSettings settingsMsg ->
                 case model.constellationSub of
-                    Auto settings ->
+                    Model.Auto settings ->
                         { model
                             | constellationSub =
                                 updateAutoSettings settingsMsg settings
-                                    |> Auto
+                                    |> Model.Auto
                         }
                             ! []
                             # []
@@ -1200,11 +638,11 @@ updateConstellation msg model =
 
             UpdateManualSettings settingsMsg ->
                 case model.constellationSub of
-                    Manual settings ->
+                    Model.Manual settings ->
                         { model
                             | constellationSub =
                                 updateManualSettings settingsMsg settings
-                                    |> Manual
+                                    |> Model.Manual
                         }
                             ! []
                             # []
@@ -1214,15 +652,15 @@ updateConstellation msg model =
 
             SubmitConstellationJob alaScanResults ->
                 case model.constellationSub of
-                    Auto settings ->
+                    Model.Auto settings ->
                         model ! [ submitAutoJob alaScanResults settings ] # []
 
-                    Manual settings ->
+                    Model.Manual settings ->
                         model ! [ submitManualJob alaScanResults settings ] # []
 
             AutoJobSubmitted (Ok jobDetails) ->
                 { model
-                    | constellationSub = Auto defaultAutoSettings
+                    | constellationSub = Model.Auto Model.defaultAutoSettings
                     , autoJobs = jobDetails :: model.autoJobs
                 }
                     ! []
@@ -1258,7 +696,7 @@ updateConstellation msg model =
                 }
                     ! []
                     # case jobDetails.status of
-                        Completed ->
+                        Model.Completed ->
                             [ Notification
                                 ""
                                 "Auto Constellation Scan Completed"
@@ -1271,7 +709,7 @@ updateConstellation msg model =
                                 )
                             ]
 
-                        Failed ->
+                        Model.Failed ->
                             [ Notification
                                 ""
                                 "Auto Constellation Scan Failed"
@@ -1313,7 +751,7 @@ updateConstellation msg model =
 
             ManualJobSubmitted (Ok jobDetails) ->
                 { model
-                    | constellationSub = Manual defaultManualSettings
+                    | constellationSub = Model.Manual Model.defaultManualSettings
                     , manualJobs = jobDetails :: model.manualJobs
                 }
                     ! []
@@ -1351,7 +789,7 @@ updateConstellation msg model =
                 }
                     ! []
                     # case jobDetails.status of
-                        Completed ->
+                        Model.Completed ->
                             [ Notification
                                 ""
                                 "Manual Constellation Scan Completed"
@@ -1364,7 +802,7 @@ updateConstellation msg model =
                                 )
                             ]
 
-                        Failed ->
+                        Model.Failed ->
                             [ Notification
                                 ""
                                 "Manual Constellation Scan Failed"
@@ -1414,7 +852,7 @@ type AutoSettingsMsg
 
 {-| Small helper update that handles user input for creating AutoSettings`
 -}
-updateAutoSettings : AutoSettingsMsg -> AutoSettings -> AutoSettings
+updateAutoSettings : AutoSettingsMsg -> Model.AutoSettings -> Model.AutoSettings
 updateAutoSettings msg settings =
     case msg of
         UpdateAutoName name ->
@@ -1432,12 +870,12 @@ updateAutoSettings msg settings =
 
 type ManualSettingsMsg
     = UpdateManualName String
-    | SelectResidue ResidueResult
+    | SelectResidue Model.ResidueResult
 
 
 {-| Small helper update that handles user input for creating AutoSettings`
 -}
-updateManualSettings : ManualSettingsMsg -> ManualSettings -> ManualSettings
+updateManualSettings : ManualSettingsMsg -> Model.ManualSettings -> Model.ManualSettings
 updateManualSettings msg settings =
     case msg of
         UpdateManualName name ->
@@ -1473,7 +911,7 @@ updateManualSettings msg settings =
 -}
 
 
-port saveState : ExportableModel -> Cmd msg
+port saveState : Model.ExportableModel -> Cmd msg
 
 
 port initialiseViewer : () -> Cmd msg
@@ -1485,13 +923,13 @@ port requestPDBFile : () -> Cmd msg
 port setVisibility : ( String, Bool ) -> Cmd msg
 
 
-port colourGeometry : ( String, ChainID ) -> Cmd msg
+port colourGeometry : ( String, Model.ChainID ) -> Cmd msg
 
 
-port displayScanResults : AlanineScanResults -> Cmd msg
+port displayScanResults : Model.AlanineScanResults -> Cmd msg
 
 
-port focusOnResidue : ResidueResult -> Cmd msg
+port focusOnResidue : Model.ResidueResult -> Cmd msg
 
 
 
@@ -1500,25 +938,25 @@ port focusOnResidue : ResidueResult -> Cmd msg
 
 {-| Submits an alanine scan job to the server.
 -}
-submitAlanineScan : Structure -> AlanineScanSub -> Cmd ScanMsg
+submitAlanineScan : Model.Structure -> Model.AlanineScanSub -> Cmd ScanMsg
 submitAlanineScan structure scanSub =
     Http.send ScanJobSubmitted <|
         Http.post
             "/api/v0.1/alanine-scan-jobs"
-            (encodeAlanineScanSub structure scanSub
+            (Model.encodeAlanineScanSub structure scanSub
                 |> Http.jsonBody
             )
-            jobDetailsDecoder
+            Model.jobDetailsDecoder
 
 
 {-| Checks the status of an alanine scan job on the server.
 -}
-checkScanJobStatus : JobDetails -> Cmd ScanMsg
+checkScanJobStatus : Model.JobDetails -> Cmd ScanMsg
 checkScanJobStatus { jobID } =
     Http.send ProcessScanStatus <|
         Http.get
             ("/api/v0.1/alanine-scan-job/" ++ jobID ++ "?get-status")
-            jobDetailsDecoder
+            Model.jobDetailsDecoder
 
 
 {-| Gets the results of an alanine scan job from the server.
@@ -1528,45 +966,51 @@ getScanResults jobID =
     Http.send ProcessScanResults <|
         Http.get
             ("/api/v0.1/alanine-scan-job/" ++ jobID ++ "?get-results")
-            scanResultsDecoder
+            Model.scanResultsDecoder
 
 
 {-| Submits an auto job to the server. Receives a string back containing
 the job id if sucessful.
 -}
-submitAutoJob : AlanineScanResults -> AutoSettings -> Cmd ConstellationMsg
+submitAutoJob :
+    Model.AlanineScanResults
+    -> Model.AutoSettings
+    -> Cmd ConstellationMsg
 submitAutoJob scanResults settings =
     Http.send AutoJobSubmitted <|
         Http.post
             "/api/v0.1/auto-jobs"
-            (encodeAutoJob scanResults settings
+            (Model.encodeAutoJob scanResults settings
                 |> Http.jsonBody
             )
-            jobDetailsDecoder
+            Model.jobDetailsDecoder
 
 
 {-| Submits a manual job to the server. Receives a string back containing
 the job id if sucessful.
 -}
-submitManualJob : AlanineScanResults -> ManualSettings -> Cmd ConstellationMsg
+submitManualJob :
+    Model.AlanineScanResults
+    -> Model.ManualSettings
+    -> Cmd ConstellationMsg
 submitManualJob scanResults settings =
     Http.send ManualJobSubmitted <|
         Http.post
             "/api/v0.1/manual-jobs"
-            (encodeManualJob scanResults settings
+            (Model.encodeManualJob scanResults settings
                 |> Http.jsonBody
             )
-            jobDetailsDecoder
+            Model.jobDetailsDecoder
 
 
 {-| Checks the status of an auto constellation job on the server.
 -}
-checkAutoJobStatus : JobDetails -> Cmd ConstellationMsg
+checkAutoJobStatus : Model.JobDetails -> Cmd ConstellationMsg
 checkAutoJobStatus { jobID } =
     Http.send ProcessAutoJobStatus <|
         Http.get
             ("/api/v0.1/auto-job/" ++ jobID ++ "?get-status")
-            jobDetailsDecoder
+            Model.jobDetailsDecoder
 
 
 {-| Gets the results of an auto constellation job from the server.
@@ -1576,17 +1020,17 @@ getAutoResults jobID =
     Http.send ProcessAutoResults <|
         Http.get
             ("/api/v0.1/auto-job/" ++ jobID ++ "?get-results")
-            autoResultsDecoder
+            Model.autoResultsDecoder
 
 
 {-| Checks the status of a manual constellation job on the server.
 -}
-checkManualJobStatus : JobDetails -> Cmd ConstellationMsg
+checkManualJobStatus : Model.JobDetails -> Cmd ConstellationMsg
 checkManualJobStatus { jobID } =
     Http.send ProcessManualJobStatus <|
         Http.get
             ("/api/v0.1/manual-job/" ++ jobID ++ "?get-status")
-            jobDetailsDecoder
+            Model.jobDetailsDecoder
 
 
 {-| Gets the results of an auto constellation job from the server.
@@ -1596,7 +1040,7 @@ getManualResults jobID =
     Http.send ProcessManualResults <|
         Http.get
             ("/api/v0.1/manual-job/" ++ jobID ++ "?get-results")
-            autoResultsDecoder
+            Model.autoResultsDecoder
 
 
 
@@ -1606,36 +1050,48 @@ getManualResults jobID =
 -}
 
 
-port receiveStructure : (ExportableStructure -> msg) -> Sub msg
+port receiveStructure : (Model.ExportableStructure -> msg) -> Sub msg
 
 
-port atomClick : (ResidueInfo -> msg) -> Sub msg
+port atomClick : (Model.ResidueInfo -> msg) -> Sub msg
 
 
 {-| Describes the active subscriptions based on the current state of the model.
 -}
-subscriptions : Model -> Sub Msg
+subscriptions : Model.Model -> Sub Msg
 subscriptions model =
     Sub.batch <|
         [ receiveStructure <| UpdateScan << UpdateStructure
 
         -- , atomClick <| UpdateScan << ToggleResidueSelection
         ]
-            ++ (if List.length (getActiveJobs model.alanineScan.jobs) > 0 then
+            ++ (if
+                    List.length
+                        (Model.getActiveJobs model.alanineScan.jobs)
+                        > 0
+                then
                     [ Time.every (5 * Time.second)
                         (UpdateScan << CheckScanJobs)
                     ]
                 else
                     []
                )
-            ++ (if List.length (getActiveJobs model.constellation.autoJobs) > 0 then
+            ++ (if
+                    List.length
+                        (Model.getActiveJobs model.constellation.autoJobs)
+                        > 0
+                then
                     [ Time.every (5 * Time.second)
                         (UpdateConstellation << CheckAutoJobs)
                     ]
                 else
                     []
                )
-            ++ (if List.length (getActiveJobs model.constellation.manualJobs) > 0 then
+            ++ (if
+                    List.length
+                        (Model.getActiveJobs model.constellation.manualJobs)
+                        > 0
+                then
                     [ Time.every (5 * Time.second)
                         (UpdateConstellation << CheckManualJobs)
                     ]
@@ -1653,7 +1109,7 @@ subscriptions model =
 
 {-| The main view function that is called every time the model is updated.
 -}
-view : Model -> Html Msg
+view : Model.Model -> Html Msg
 view model =
     div [ class "main-grid" ]
         ([ div [ class "banner" ]
@@ -1666,7 +1122,7 @@ view model =
                 --     [ text "⚛️" ]
                 [ div
                     [ class "control-button"
-                    , onClick <| OpenPanel Notifications
+                    , onClick <| OpenPanel Model.Notifications
                     ]
                     [ List.length model.notifications
                         |> toString
@@ -1679,23 +1135,23 @@ view model =
          , div [ class "tabs" ]
             [ div
                 [ class "tab scan-tab"
-                , onClick <| SetAppMode Scan
+                , onClick <| SetAppMode Model.Scan
                 ]
                 [ text "Scan" ]
             , div
                 [ class "tab constellation-tab"
                 , onClick <|
-                    SetAppMode Constellation
+                    SetAppMode Model.Constellation
                 ]
                 [ text "Constellation" ]
             , div
                 [ class "tab jobs-tab"
-                , onClick <| SetAppMode Jobs
+                , onClick <| SetAppMode Model.Jobs
                 ]
                 [ text "Jobs" ]
             ]
          , (case model.appMode of
-                Scan ->
+                Model.Scan ->
                     case model.alanineScan.results of
                         Just results ->
                             scanResultsView UpdateScan results
@@ -1706,7 +1162,7 @@ view model =
                                 model.alanineScan.structure
                                 model.alanineScan.alanineScanSub
 
-                Constellation ->
+                Model.Constellation ->
                     case model.constellation.results of
                         Just results ->
                             constellationResultsView results
@@ -1717,18 +1173,18 @@ view model =
                                 model.constellation
                                 model.alanineScan.results
 
-                Jobs ->
+                Model.Jobs ->
                     jobsView model
            )
          ]
             ++ case model.openPanel of
-                Notifications ->
+                Model.Notifications ->
                     [ notificationPanel model.notifications ]
 
-                ViewerOptions ->
+                Model.ViewerOptions ->
                     [ viewerOptions model.alanineScan.structure ]
 
-                Closed ->
+                Model.Closed ->
                     []
         )
 
@@ -1758,7 +1214,7 @@ notificationView idx notification =
 
 {-| Side panel that displays viewer options.
 -}
-viewerOptions : Maybe Structure -> Html Msg
+viewerOptions : Maybe Model.Structure -> Html Msg
 viewerOptions mStructure =
     div [ class "notification-panel" ]
         [ h3 [] [ text "Viewer Options" ]
@@ -1786,7 +1242,7 @@ viewerOptions mStructure =
         ]
 
 
-viewerSelectionRow : ( ChainID, Bool ) -> Html Msg
+viewerSelectionRow : ( Model.ChainID, Bool ) -> Html Msg
 viewerSelectionRow ( chainID, hidden ) =
     tr []
         [ td [] [ text chainID ]
@@ -1812,8 +1268,8 @@ results mode.
 -}
 scanSubmissionView :
     (ScanMsg -> msg)
-    -> Maybe Structure
-    -> AlanineScanSub
+    -> Maybe Model.Structure
+    -> Model.AlanineScanSub
     -> Html msg
 scanSubmissionView updateMsg mStructure scanSub =
     div
@@ -1848,7 +1304,7 @@ scanSubmissionView updateMsg mStructure scanSub =
                         )
                     , button
                         [ onClick <| updateMsg SubmitScanJob
-                        , validScanSub scanSub |> not |> disabled
+                        , Model.validScanSub scanSub |> not |> disabled
                         ]
                         [ text "Start Scan" ]
                     ]
@@ -1862,7 +1318,7 @@ scanSubmissionView updateMsg mStructure scanSub =
 {-| Main view for the scan tab when in results mode. This is hidden in
 submission mode.
 -}
-scanResultsView : (ScanMsg -> msg) -> AlanineScanResults -> Html msg
+scanResultsView : (ScanMsg -> msg) -> Model.AlanineScanResults -> Html msg
 scanResultsView updateMsg results =
     div
         [ class "control-panel scan-panel" ]
@@ -1881,7 +1337,7 @@ scanResultsView updateMsg results =
 
 scanResultsTable :
     (ScanMsg -> msg)
-    -> List ResidueResult
+    -> List Model.ResidueResult
     -> Html msg
 scanResultsTable updateMsg ligandResults =
     let
@@ -1916,9 +1372,9 @@ scanResultsTable updateMsg ligandResults =
 -}
 chainSelect :
     (ScanMsg -> msg)
-    -> List ChainID
-    -> List ChainID
-    -> ChainID
+    -> List Model.ChainID
+    -> List Model.ChainID
+    -> Model.ChainID
     -> Html msg
 chainSelect updateMsg receptorLabels ligandLabels label =
     tr []
@@ -1975,8 +1431,8 @@ in results mode.
 -}
 constellationSubmissionView :
     (ConstellationMsg -> msg)
-    -> ConstellationModel
-    -> Maybe AlanineScanResults
+    -> Model.ConstellationModel
+    -> Maybe Model.AlanineScanResults
     -> Html msg
 constellationSubmissionView updateMsg model mScanResults =
     div [ class "control-panel constellation-panel" ]
@@ -2001,17 +1457,17 @@ constellationSubmissionView updateMsg model mScanResults =
 -}
 activeConstellationSub :
     (ConstellationMsg -> msg)
-    -> ConstellationModel
-    -> AlanineScanResults
+    -> Model.ConstellationModel
+    -> Model.AlanineScanResults
     -> Html msg
 activeConstellationSub updateMsg model scanRes =
     let
         modeString =
             case model.constellationSub of
-                Auto _ ->
+                Model.Auto _ ->
                     "Auto"
 
-                Manual _ ->
+                Model.Manual _ ->
                     "Manual"
     in
         div []
@@ -2020,10 +1476,10 @@ activeConstellationSub updateMsg model scanRes =
                 List.map (simpleOption modeString)
                     [ "Auto", "Manual" ]
             , case model.constellationSub of
-                Auto settings ->
+                Model.Auto settings ->
                     autoSettingsView updateMsg scanRes settings
 
-                Manual settings ->
+                Model.Manual settings ->
                     manualSettingsView updateMsg scanRes settings
             ]
 
@@ -2032,8 +1488,8 @@ activeConstellationSub updateMsg model scanRes =
 -}
 autoSettingsView :
     (ConstellationMsg -> msg)
-    -> AlanineScanResults
-    -> AutoSettings
+    -> Model.AlanineScanResults
+    -> Model.AutoSettings
     -> Html msg
 autoSettingsView updateMsg scanRes settings =
     let
@@ -2073,7 +1529,7 @@ autoSettingsView updateMsg scanRes settings =
             , br [] []
             , button
                 [ onClick <| updateMsg <| SubmitConstellationJob scanRes
-                , disabled <| not <| validAutoSettings settings
+                , disabled <| not <| Model.validAutoSettings settings
                 ]
                 [ text "Submit" ]
             ]
@@ -2083,8 +1539,8 @@ autoSettingsView updateMsg scanRes settings =
 -}
 manualSettingsView :
     (ConstellationMsg -> msg)
-    -> AlanineScanResults
-    -> ManualSettings
+    -> Model.AlanineScanResults
+    -> Model.ManualSettings
     -> Html msg
 manualSettingsView updateMsg scanResults settings =
     let
@@ -2109,7 +1565,7 @@ manualSettingsView updateMsg scanResults settings =
             , br [] []
             , button
                 [ onClick <| updateMsg <| SubmitConstellationJob scanResults
-                , disabled <| not <| validManualSettings settings
+                , disabled <| not <| Model.validManualSettings settings
                 ]
                 [ text "Submit" ]
             ]
@@ -2118,7 +1574,7 @@ manualSettingsView updateMsg scanResults settings =
 manualSelectTable :
     (ConstellationMsg -> msg)
     -> Set.Set String
-    -> List ResidueResult
+    -> List Model.ResidueResult
     -> Html msg
 manualSelectTable updateMsg selected ligandResults =
     let
@@ -2165,7 +1621,7 @@ manualSelectTable updateMsg selected ligandResults =
 {-| Main view for the constellation tab when in results mode. This is hidden
 in submission mode.
 -}
-constellationResultsView : ConstellationResults -> Html msg
+constellationResultsView : Model.ConstellationResults -> Html msg
 constellationResultsView { hotConstellations } =
     let
         resultsRow ( constellation, meanDDG ) =
@@ -2195,7 +1651,7 @@ constellationResultsView { hotConstellations } =
 
 {-| Main view for the Jobs tabs.
 -}
-jobsView : Model -> Html Msg
+jobsView : Model.Model -> Html Msg
 jobsView model =
     let
         alaScanJobs =
@@ -2224,7 +1680,7 @@ jobsView model =
 {-| Creates a table of job details. Takes a `Msg` constructor as an argument so
 that it can be reused for all the job queues.
 -}
-jobTable : (String -> Msg) -> String -> List JobDetails -> Html Msg
+jobTable : (String -> Msg) -> String -> List Model.JobDetails -> Html Msg
 jobTable getMsg tableTitle jobs =
     let
         tableRow { jobID, name, status } =
@@ -2236,7 +1692,7 @@ jobTable getMsg tableTitle jobs =
                     [ button
                         [ getMsg jobID
                             |> onClick
-                        , (if (status == Completed) then
+                        , (if (status == Model.Completed) then
                             False
                            else
                             True
