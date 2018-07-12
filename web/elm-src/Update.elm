@@ -963,6 +963,13 @@ getManualResults jobID =
             Model.autoResultsDecoder
 
 
+
+-- HELPER FUNCTIONS
+
+
+{-| Removes an item for a list at a particular position if list is long enough,
+otherwise leaves the list unchanged.
+-}
 removeListItem : Int -> List a -> List a
 removeListItem idx editList =
     List.indexedMap (,) editList
