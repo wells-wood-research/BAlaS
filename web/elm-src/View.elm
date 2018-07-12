@@ -104,6 +104,7 @@ notificationPanel : List Notification -> Html Update.Msg
 notificationPanel notifications =
     div [ class "notification-panel" ]
         [ h3 [] [ text "Notifications" ]
+        , button [ onClick <| Update.ClearNotifications ] [ text "Dismiss All" ]
         , button [ onClick Update.ClosePanel ] [ text "Close" ]
         , div [] <| List.indexedMap notificationView notifications
         ]

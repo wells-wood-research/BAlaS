@@ -21,6 +21,7 @@ type Msg
     | UpdateScan ScanMsg
     | UpdateConstellation ConstellationMsg
     | DismissNotification Int
+    | ClearNotifications
     | OpenPanel Model.Panel
     | ClosePanel
     | SaveState
@@ -180,6 +181,9 @@ update msg model =
                         model.notifications
             }
                 ! []
+
+        ClearNotifications ->
+            { model | notifications = [] } ! []
 
         OpenPanel panel ->
             case model.openPanel of
