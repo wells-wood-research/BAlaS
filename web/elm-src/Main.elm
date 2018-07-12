@@ -82,7 +82,8 @@ emptyModel =
 
 type alias ExportableModel =
     { alanineScan : List ExportableJobDetails
-    , constellation : List ExportableJobDetails
+    , autoJobs : List ExportableJobDetails
+    , manualJobs : List ExportableJobDetails
     , notifications : List Notification
     }
 
@@ -91,7 +92,8 @@ exportModel : Model -> ExportableModel
 exportModel model =
     ExportableModel
         (List.map exportJobDetails model.alanineScan.jobs)
-        (List.map exportJobDetails model.constellation.jobs)
+        (List.map exportJobDetails model.constellation.autoJobs)
+        (List.map exportJobDetails model.constellation.manualJobs)
         model.notifications
 
 
@@ -104,8 +106,10 @@ importModel exported =
                 List.map importJobDetails exported.alanineScan
         }
         { emptyConstellationModel
-            | jobs =
-                List.map importJobDetails exported.constellation
+            | autoJobs =
+                List.map importJobDetails exported.autoJobs
+            , manualJobs =
+                List.map importJobDetails exported.manualJobs
         }
         exported.notifications
         Closed
@@ -281,7 +285,8 @@ scanResultsDecoder =
 -}
 type alias ConstellationModel =
     { constellationSub : ConstellationMode
-    , jobs : List JobDetails
+    , autoJobs : List JobDetails
+    , manualJobs : List JobDetails
     , results : Maybe ConstellationResults
     }
 
@@ -290,6 +295,7 @@ emptyConstellationModel : ConstellationModel
 emptyConstellationModel =
     ConstellationModel
         (Auto defaultAutoSettings)
+        []
         []
         Nothing
 
@@ -747,65 +753,24 @@ update msg model =
                             ! [ Cmd.map UpdateScan scanSubCmds ]
 
         UpdateConstellation constellationMsg ->
-            let
-                ( updatedConModel, conSubCmds, notifications ) =
-                    updateConstellation constellationMsg model.constellation
-            in
-                case constellationMsg of
-                    ConstellationJobSubmitted (Ok _) ->
-                        let
-                            ( updatedModel, updatedCmds ) =
-                                { model
-                                    | appMode = Jobs
-                                    , constellation =
-                                        updatedConModel
-                                    , notifications =
-                                        List.filter
-                                            (\n ->
-                                                List.member n
-                                                    model.notifications
-                                                    |> not
-                                            )
-                                            notifications
-                                            |> List.append
-                                                model.notifications
-                                }
-                                    |> update SaveState
-                        in
-                            updatedModel
-                                ! [ Cmd.map UpdateConstellation conSubCmds
-                                  , updatedCmds
-                                  ]
+            case constellationMsg of
+                AutoJobSubmitted (Ok _) ->
+                    sucessfulConSubmit model constellationMsg
 
-                    ProcessAutoResults (Ok { scanResults }) ->
-                        let
-                            scanUpdateMsg =
-                                ProcessScanResults (Ok scanResults)
-                                    |> UpdateScan
+                ProcessAutoResults (Ok { scanResults }) ->
+                    sucessfulConResults model scanResults constellationMsg
 
-                            ( updatedModel, scanCmds ) =
-                                update scanUpdateMsg model
-                        in
-                            { updatedModel
-                                | appMode = Constellation
-                                , constellation =
-                                    updatedConModel
-                                , notifications =
-                                    List.filter
-                                        (\n ->
-                                            List.member n
-                                                model.notifications
-                                                |> not
-                                        )
-                                        notifications
-                                        |> List.append
-                                            model.notifications
-                            }
-                                ! [ Cmd.map UpdateConstellation conSubCmds
-                                  , scanCmds
-                                  ]
+                ManualJobSubmitted (Ok _) ->
+                    sucessfulConSubmit model constellationMsg
 
-                    _ ->
+                ProcessManualResults (Ok { scanResults }) ->
+                    sucessfulConResults model scanResults constellationMsg
+
+                _ ->
+                    let
+                        ( updatedConModel, conSubCmds, notifications ) =
+                            updateConstellation constellationMsg model.constellation
+                    in
                         { model
                             | constellation =
                                 updatedConModel
@@ -845,6 +810,73 @@ update msg model =
 
         SaveState ->
             model ! [ exportModel model |> saveState ]
+
+
+sucessfulConSubmit : Model -> ConstellationMsg -> ( Model, Cmd Msg )
+sucessfulConSubmit model constellationMsg =
+    let
+        ( updatedConModel, conSubCmds, notifications ) =
+            updateConstellation constellationMsg model.constellation
+
+        ( updatedModel, updatedCmds ) =
+            { model
+                | appMode = Jobs
+                , constellation =
+                    updatedConModel
+                , notifications =
+                    List.filter
+                        (\n ->
+                            List.member n
+                                model.notifications
+                                |> not
+                        )
+                        notifications
+                        |> List.append
+                            model.notifications
+            }
+                |> update SaveState
+    in
+        updatedModel
+            ! [ Cmd.map UpdateConstellation conSubCmds
+              , updatedCmds
+              ]
+
+
+sucessfulConResults :
+    Model
+    -> AlanineScanResults
+    -> ConstellationMsg
+    -> ( Model, Cmd Msg )
+sucessfulConResults model scanResults constellationMsg =
+    let
+        ( updatedConModel, conSubCmds, notifications ) =
+            updateConstellation constellationMsg model.constellation
+
+        scanUpdateMsg =
+            ProcessScanResults (Ok scanResults)
+                |> UpdateScan
+
+        ( updatedModel, scanCmds ) =
+            update scanUpdateMsg model
+    in
+        { updatedModel
+            | appMode = Constellation
+            , constellation =
+                updatedConModel
+            , notifications =
+                List.filter
+                    (\n ->
+                        List.member n
+                            model.notifications
+                            |> not
+                    )
+                    notifications
+                    |> List.append
+                        model.notifications
+        }
+            ! [ Cmd.map UpdateConstellation conSubCmds
+              , scanCmds
+              ]
 
 
 
@@ -1093,7 +1125,7 @@ updateScan scanMsg scanModel =
                 scanModel ! [ focusOnResidue residueResult ] # []
 
             ClearScanSubmission ->
-                { scanModel | results = Nothing } ! [] # []
+                { scanModel | results = Nothing, structure = Nothing } ! [] # []
 
 
 
@@ -1108,11 +1140,16 @@ type ConstellationMsg
     | UpdateAutoSettings AutoSettingsMsg
     | UpdateManualSettings ManualSettingsMsg
     | SubmitConstellationJob AlanineScanResults
-    | ConstellationJobSubmitted (Result Http.Error JobDetails)
+    | AutoJobSubmitted (Result Http.Error JobDetails)
     | CheckAutoJobs Time.Time
     | ProcessAutoJobStatus (Result Http.Error JobDetails)
     | GetAutoResults String
     | ProcessAutoResults (Result Http.Error ConstellationResults)
+    | ManualJobSubmitted (Result Http.Error JobDetails)
+    | CheckManualJobs Time.Time
+    | ProcessManualJobStatus (Result Http.Error JobDetails)
+    | GetManualResults String
+    | ProcessManualResults (Result Http.Error ConstellationResults)
 
 
 {-| Function for updating the state of the currently active
@@ -1183,15 +1220,15 @@ updateConstellation msg model =
                     Manual settings ->
                         model ! [ submitManualJob alaScanResults settings ] # []
 
-            ConstellationJobSubmitted (Ok jobDetails) ->
+            AutoJobSubmitted (Ok jobDetails) ->
                 { model
                     | constellationSub = Auto defaultAutoSettings
-                    , jobs = jobDetails :: model.jobs
+                    , autoJobs = jobDetails :: model.autoJobs
                 }
                     ! []
                     # []
 
-            ConstellationJobSubmitted (Err error) ->
+            AutoJobSubmitted (Err error) ->
                 let
                     err =
                         Debug.log "Constellation job submission error" error
@@ -1206,13 +1243,13 @@ updateConstellation msg model =
             CheckAutoJobs _ ->
                 model
                     ! List.map checkAutoJobStatus
-                        model.jobs
+                        model.autoJobs
                     # []
 
             ProcessAutoJobStatus (Ok jobDetails) ->
                 { model
-                    | jobs =
-                        model.jobs
+                    | autoJobs =
+                        model.autoJobs
                             |> List.map (\job -> ( job.jobID, job ))
                             |> Dict.fromList
                             |> Dict.insert jobDetails.jobID jobDetails
@@ -1268,6 +1305,99 @@ updateConstellation msg model =
                     # []
 
             ProcessAutoResults (Err error) ->
+                let
+                    err =
+                        Debug.log "Failed to retrieve scan results" error
+                in
+                    model ! [] # []
+
+            ManualJobSubmitted (Ok jobDetails) ->
+                { model
+                    | constellationSub = Manual defaultManualSettings
+                    , manualJobs = jobDetails :: model.manualJobs
+                }
+                    ! []
+                    # []
+
+            ManualJobSubmitted (Err error) ->
+                let
+                    err =
+                        Debug.log
+                            "Manual Constellation job submission error"
+                            error
+                in
+                    model
+                        ! []
+                        # [ Notifications.errorToNotification
+                                "Failed to submit manual constellation scan job"
+                                error
+                          ]
+
+            CheckManualJobs _ ->
+                model
+                    ! List.map checkManualJobStatus
+                        model.manualJobs
+                    # []
+
+            ProcessManualJobStatus (Ok jobDetails) ->
+                { model
+                    | manualJobs =
+                        model.manualJobs
+                            |> List.map (\job -> ( job.jobID, job ))
+                            |> Dict.fromList
+                            |> Dict.insert jobDetails.jobID jobDetails
+                            |> Dict.toList
+                            |> List.map Tuple.second
+                }
+                    ! []
+                    # case jobDetails.status of
+                        Completed ->
+                            [ Notification
+                                ""
+                                "Manual Constellation Scan Completed"
+                                ("Manual constellation scan job "
+                                    ++ jobDetails.name
+                                    ++ " ("
+                                    ++ jobDetails.jobID
+                                    ++ " complete. Retrieve the results from"
+                                    ++ " the 'Jobs' tab."
+                                )
+                            ]
+
+                        Failed ->
+                            [ Notification
+                                ""
+                                "Manual Constellation Scan Failed"
+                                ("Alanine constellation scan job "
+                                    ++ jobDetails.name
+                                    ++ " ("
+                                    ++ jobDetails.jobID
+                                    ++ ") failed:\n"
+                                    ++ Maybe.withDefault
+                                        "Unknown error."
+                                        jobDetails.stdOut
+                                )
+                            ]
+
+                        _ ->
+                            []
+
+            ProcessManualJobStatus (Err error) ->
+                let
+                    err =
+                        Debug.log "Manual job status check error" error
+                in
+                    model ! [] # []
+
+            GetManualResults jobID ->
+                model ! [ getManualResults jobID ] # []
+
+            ProcessManualResults (Ok results) ->
+                { model | results = Just results }
+                    ! []
+                    # []
+
+            ProcessManualResults (Err error) ->
                 let
                     err =
                         Debug.log "Failed to retrieve scan results" error
@@ -1406,7 +1536,7 @@ the job id if sucessful.
 -}
 submitAutoJob : AlanineScanResults -> AutoSettings -> Cmd ConstellationMsg
 submitAutoJob scanResults settings =
-    Http.send ConstellationJobSubmitted <|
+    Http.send AutoJobSubmitted <|
         Http.post
             "/api/v0.1/auto-jobs"
             (encodeAutoJob scanResults settings
@@ -1420,7 +1550,7 @@ the job id if sucessful.
 -}
 submitManualJob : AlanineScanResults -> ManualSettings -> Cmd ConstellationMsg
 submitManualJob scanResults settings =
-    Http.send ConstellationJobSubmitted <|
+    Http.send ManualJobSubmitted <|
         Http.post
             "/api/v0.1/manual-jobs"
             (encodeManualJob scanResults settings
@@ -1446,6 +1576,26 @@ getAutoResults jobID =
     Http.send ProcessAutoResults <|
         Http.get
             ("/api/v0.1/auto-job/" ++ jobID ++ "?get-results")
+            autoResultsDecoder
+
+
+{-| Checks the status of a manual constellation job on the server.
+-}
+checkManualJobStatus : JobDetails -> Cmd ConstellationMsg
+checkManualJobStatus { jobID } =
+    Http.send ProcessManualJobStatus <|
+        Http.get
+            ("/api/v0.1/manual-job/" ++ jobID ++ "?get-status")
+            jobDetailsDecoder
+
+
+{-| Gets the results of an auto constellation job from the server.
+-}
+getManualResults : String -> Cmd ConstellationMsg
+getManualResults jobID =
+    Http.send ProcessManualResults <|
+        Http.get
+            ("/api/v0.1/manual-job/" ++ jobID ++ "?get-results")
             autoResultsDecoder
 
 
@@ -1478,9 +1628,16 @@ subscriptions model =
                 else
                     []
                )
-            ++ (if List.length (getActiveJobs model.constellation.jobs) > 0 then
+            ++ (if List.length (getActiveJobs model.constellation.autoJobs) > 0 then
                     [ Time.every (5 * Time.second)
                         (UpdateConstellation << CheckAutoJobs)
+                    ]
+                else
+                    []
+               )
+            ++ (if List.length (getActiveJobs model.constellation.manualJobs) > 0 then
+                    [ Time.every (5 * Time.second)
+                        (UpdateConstellation << CheckManualJobs)
                     ]
                 else
                     []
@@ -2044,8 +2201,11 @@ jobsView model =
         alaScanJobs =
             model.alanineScan.jobs
 
-        constellationJobs =
-            model.constellation.jobs
+        autoJobs =
+            model.constellation.autoJobs
+
+        manualJobs =
+            model.constellation.manualJobs
     in
         div [ class "control-panel jobs-panel" ]
             [ h2 [] [ text "Jobs" ]
@@ -2053,8 +2213,11 @@ jobsView model =
                 "Alanine Scan Jobs"
                 (List.sortBy (\{ name } -> name) alaScanJobs)
             , jobTable (UpdateConstellation << GetAutoResults)
-                "Constellation Scan Jobs"
-                (List.sortBy (\{ name } -> name) constellationJobs)
+                "Auto Constellation Scan Jobs"
+                (List.sortBy (\{ name } -> name) autoJobs)
+            , jobTable (UpdateConstellation << GetManualResults)
+                "Manual Constellation Scan Jobs"
+                (List.sortBy (\{ name } -> name) manualJobs)
             ]
 
 
@@ -2092,6 +2255,7 @@ jobTable getMsg tableTitle jobs =
                         [ th [] [ text "Name" ]
                         , th [] [ text "Job ID" ]
                         , th [] [ text "Status" ]
+                        , th [] []
                         ]
                      ]
                         ++ List.map tableRow jobs

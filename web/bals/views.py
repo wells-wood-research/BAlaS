@@ -152,7 +152,78 @@ class AutoConstellationJob(Resource):
         return "No arguments supplied.", 400
 
 
-API.add_resource(AlanineScanJobs, '/api/v0.1/alanine-scan-jobs')
-API.add_resource(AlanineScanJob, '/api/v0.1/alanine-scan-job/<string:job_id>')
-API.add_resource(AutoConstellationJobs, '/api/v0.1/auto-jobs')
-API.add_resource(AutoConstellationJob, '/api/v0.1/auto-job/<string:job_id>')
+class ManualConstellationJobs(Resource):
+    """RESTful API endpoint for posting manual jobs and getting aggregate data."""
+
+    def post(self):
+        """Creates a new manual job on the server.
+
+        Returns
+        -------
+        job_details : Dict
+            Dict containing the ID of the job, time submitted and the
+            current job status.
+        """
+        manual_submission = request.json
+        if app.debug:
+            print("Submitting manual constellation scan job...", file=sys.stderr)
+        job_id = database.submit_manual_job(manual_submission)
+        job_details = database.export_job_details(
+            database.get_manual_job(job_id))
+        if app.debug:
+            print(
+                f"Manual constellation job submitted: {job_id}", file=sys.stderr)
+        return job_details, 201
+
+
+class ManualConstellationJob(Resource):
+    """RESTful API endpoint for information on specific manual jobs."""
+
+    def get(self, job_id):
+        """Returns the status or results of an manual job.
+
+        Notes
+        -----
+        A query string in the URI is used to determine if the status or results
+        should be returned.
+        """
+        job = database.get_manual_job(job_id)
+        if job is None:
+            flask.abort(404)
+        if "get-status" in request.args:
+            if app.debug:
+                print(f"Getting manual constellation job status{job_id}...",
+                      file=sys.stderr)
+            job_details = database.export_job_details(job)
+            if job_details is None:
+                flask.abort(404)
+            if app.debug:
+                print(f"Got job details for job {job_id}.", file=sys.stderr)
+            return job_details, 200
+        elif "get-results" in request.args:
+            if app.debug:
+                print(f"Getting manual constellation job results {job_id}...",
+                      file=sys.stderr)
+            exportable_job = database.export_job(job)
+            if exportable_job is None:
+                flask.abort(404)
+            elif exportable_job['status'] != database.JobStatus.COMPLETED.value:
+                flask.abort(404)
+            if app.debug:
+                print(f"Got job results for job {job_id}.", file=sys.stderr)
+            return exportable_job, 200
+        return "No arguments supplied.", 400
+
+
+API.add_resource(AlanineScanJobs,
+                 '/api/v0.1/alanine-scan-jobs')
+API.add_resource(AlanineScanJob,
+                 '/api/v0.1/alanine-scan-job/<string:job_id>')
+API.add_resource(AutoConstellationJobs,
+                 '/api/v0.1/auto-jobs')
+API.add_resource(AutoConstellationJob,
+                 '/api/v0.1/auto-job/<string:job_id>')
+API.add_resource(ManualConstellationJobs,
+                 '/api/v0.1/manual-jobs')
+API.add_resource(ManualConstellationJob,
+                 '/api/v0.1/manual-job/<string:job_id>')

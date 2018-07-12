@@ -15,7 +15,7 @@ import tempfile
 import isambard
 
 import database
-from database import JobStatus, ALANINE_SCAN_JOBS, AUTO_JOBS
+from database import JobStatus, ALANINE_SCAN_JOBS, AUTO_JOBS, MANUAL_JOBS
 
 
 @contextlib.contextmanager
@@ -45,20 +45,27 @@ def main():
     """Establishes the manager and worker subprocesses."""
     scan_processes = int(os.getenv(key='SCAN_PROCS', default='1'))
     auto_processes = int(os.getenv(key='AUTO_PROCS', default='1'))
+    manual_processes = int(os.getenv(key='MANUAL_PROCS', default='1'))
     with mp.Manager() as manager:
         scan_queue, scan_assigned, scan_workers = make_queue_components(
             get_and_run_scan_job, scan_processes, manager)
         auto_queue, auto_assigned, auto_workers = make_queue_components(
             get_and_run_auto_job, auto_processes, manager)
+        manual_queue, manual_assigned, manual_workers = make_queue_components(
+            get_and_run_manual_job, manual_processes, manager)
         while True:
             check_for_lost_jobs(scan_assigned, ALANINE_SCAN_JOBS)
             check_for_lost_jobs(auto_assigned, AUTO_JOBS)
+            check_for_lost_jobs(manual_assigned, MANUAL_JOBS)
             check_for_dead_jobs(get_and_run_scan_job,
                                 scan_assigned, scan_queue, scan_workers)
             check_for_dead_jobs(get_and_run_auto_job,
                                 auto_assigned, auto_queue, auto_workers)
+            check_for_dead_jobs(get_and_run_manual_job,
+                                manual_assigned, manual_queue, manual_workers)
             populate_queue(scan_queue, ALANINE_SCAN_JOBS)
             populate_queue(auto_queue, AUTO_JOBS)
+            populate_queue(manual_queue, MANUAL_JOBS)
             time.sleep(2)
     return
 
@@ -257,6 +264,87 @@ def run_bals_auto(job_id, scanName, pdb_string, receptor_chains, ligand_chains,
         scan_process.check_returncode()
         rec_json_paths = glob.glob('replot/*Rec_auto*.json')
         lig_json_paths = glob.glob('replot/*Lig_auto*.json')
+        assert len(rec_json_paths) == 1
+        assert len(lig_json_paths) == 1
+        with open(rec_json_paths[0], 'r') as inf:
+            rec_results = json.load(inf)
+        with open(lig_json_paths[0], 'r') as inf:
+            lig_results = json.load(inf)
+        scan_results = parser_friendly_output(rec_results, lig_results)
+        scan_results['name'] = scanName
+        scan_results['pdbFile'] = pdb_string
+        scan_results['receptor'] = receptor_chains
+        scan_results['ligand'] = ligand_chains
+        results = {
+            'scanResults': scan_results,
+            # Currently the multistate hot constellations only returns the mean
+            'hotConstellations': [(k, v[0]) for k, v in
+                                  lig_results['mutants'].items()]
+        }
+    except subprocess.CalledProcessError:
+        results = {'status': JobStatus.FAILED.value}
+    except AttributeError:
+        results = {'status': JobStatus.FAILED.value}
+    results['status'] = JobStatus.COMPLETED.value
+    results['std_out'] = scan_process.stdout.decode()
+    return results
+
+
+def get_and_run_manual_job(manual_job_queue, assigned_jobs, proc_i):
+    """Collects and runs manual constellation jobs from the queue.
+
+    Parameters
+    ----------
+    manual_job_queue : multiprocessing.Queue
+        Manual job queue.
+    assigned_jobs : list
+        A list of jobs ids currently being processed by the
+        workers.
+    proc_i : int
+        The index of the processor in the worker list and the
+        assigned_jobs list.
+    """
+    # The module is reloaded to establish a new connection
+    # to the database for the process fork
+    importlib.reload(database)
+    while True:
+        job_id = manual_job_queue.get()
+        print(f"Got manual job {job_id}!", file=sys.stderr)
+        manual_job = MANUAL_JOBS.find_one(job_id)
+        update_job_status(job_id, JobStatus.RUNNING, MANUAL_JOBS)
+        assigned_jobs[proc_i] = job_id
+        print("Running manual job {}!".format(job_id), file=sys.stderr)
+        with tempdir() as dirpath:
+            results = run_bals_manual(
+                job_id, manual_job['scanName'], manual_job['pdbFile'],
+                manual_job['receptor'], manual_job['ligand'],
+                manual_job['residues'])
+            MANUAL_JOBS.update_one(
+                {'_id': job_id},
+                {'$set': results})
+        print("Finished manual job {}!".format(job_id), file=sys.stderr)
+        assigned_jobs[proc_i] = None
+    return
+
+
+def run_bals_manual(job_id, scanName, pdb_string, receptor_chains, ligand_chains,
+                    residues):
+    """Runs a BALS job in `manual` mode."""
+    pdb_filename = f'{job_id}.pdb'
+    with open(pdb_filename, 'w') as outf:
+        outf.write(pdb_string)
+    scan_cmd = [
+        '/root/bin/ALAscanApp.py', 'manual',
+        '-p', pdb_filename,
+        '-r'] + receptor_chains + [
+        '-l'] + ligand_chains + [
+        '-c', ','.join(residues), '-t']  # Suppresses the plots from being displayed.
+    scan_process = subprocess.run(
+        scan_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    try:
+        scan_process.check_returncode()
+        rec_json_paths = glob.glob('replot/*Rec_manual*.json')
+        lig_json_paths = glob.glob('replot/*Lig_manual*.json')
         assert len(rec_json_paths) == 1
         assert len(lig_json_paths) == 1
         with open(rec_json_paths[0], 'r') as inf:
