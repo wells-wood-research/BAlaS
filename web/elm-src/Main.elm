@@ -56,6 +56,13 @@ subscriptions model =
 
         -- , atomClick <| UpdateScan << ToggleResidueSelection
         ]
+            ++ (case model.alanineScan.structure of
+                    Just _ ->
+                        [ Ports.hoveredName Update.SetHoveredName ]
+
+                    Nothing ->
+                        []
+               )
             ++ (if
                     List.length
                         (Model.getActiveJobs model.alanineScan.jobs)

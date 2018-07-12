@@ -45,4 +45,7 @@ port focusOnResidue : Model.ResidueResult -> Cmd msg
 port receiveStructure : (Maybe Model.Structure -> msg) -> Sub msg
 
 
+port hoveredName : (Maybe String -> msg) -> Sub msg
+
+
 port atomClick : (Model.ResidueInfo -> msg) -> Sub msg

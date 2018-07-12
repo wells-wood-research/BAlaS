@@ -40,7 +40,10 @@ view model =
                     ]
                 ]
             ]
-         , div [ id "viewer" ] []
+         , div [ id "viewer" ]
+            [ div [ class "hover-label" ]
+                [ Maybe.withDefault "" model.hoveredName |> text ]
+            ]
          , div [ class "tabs" ]
             [ div
                 [ class "tab scan-tab"

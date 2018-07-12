@@ -117,6 +117,13 @@ p {
     position: relative;
 }
 
+.hover-label {
+    background-color: white;
+    padding: 2px;
+    position: absolute;
+    z-index:100;
+}
+
 .banner {
     align-items: center;
     background-color: var(--c2);

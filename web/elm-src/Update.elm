@@ -20,6 +20,7 @@ type Msg
     = SetAppMode Model.AppMode
     | UpdateScan ScanMsg
     | UpdateConstellation ConstellationMsg
+    | SetHoveredName (Maybe String)
     | DismissNotification Int
     | ClearNotifications
     | OpenPanel Model.Panel
@@ -173,6 +174,9 @@ update msg model =
                                         model.notifications
                         }
                             ! [ Cmd.map UpdateConstellation conSubCmds ]
+
+        SetHoveredName mName ->
+            { model | hoveredName = mName } ! []
 
         DismissNotification idx ->
             { model

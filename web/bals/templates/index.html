@@ -39,6 +39,7 @@
 
     // Protein Viewer
     var viewer;
+    var prevPicked = null;
     var currentStructure;
     var currentRepresentation;
     var cartoonGeometry; // THIS SHOULD BE DELETED
@@ -52,12 +53,47 @@
                 antialias: true,
                 quality : 'medium'
             };
-            viewer = pv.Viewer(document.getElementById('viewer'), options);
+            const viewerPanel = document.getElementById('viewer');
+            viewer = pv.Viewer(viewerPanel, options);
             window.onresize = function(event) {
                 viewer.fitParent();
             }
+            viewerPanel.addEventListener('mousemove', function(event) {
+                var rect = viewer.boundingClientRect();
+                var picked = viewer.pick({ x : event.clientX - rect.left,
+                                           y : event.clientY - rect.top });
+                if (prevPicked !== null && picked !== null &&
+                    picked.target() === prevPicked.atom) {
+                  return;
+                }
+                if (prevPicked !== null) {
+                  // reset color of previously picked atom.
+                  setColorForAtom(prevPicked.node, prevPicked.atom, prevPicked.color);
+                }
+                if (picked !== null) {
+                  var atom = picked.target();
+                  app.ports.hoveredName.send(atom.qualifiedName());
+                  // get RGBA color and store in the color array, so we know what it was
+                  // before changing it to the highlight color.
+                  var color = [0,0,0,0];
+                  picked.node().getColorForAtom(atom, color);
+                  prevPicked = { atom : atom, color : color, node : picked.node() };
+
+                  setColorForAtom(picked.node(), atom, 'red');
+                } else {
+                  app.ports.hoveredName.send(null);
+                  prevPicked = null;
+                }
+                viewer.requestRedraw();
+            });
         }
     );
+
+    function setColorForAtom(go, atom, color) {
+        var view = go.structure().createEmptyView();
+        view.addAtom(atom);
+        go.colorBy(pv.color.uniform(color), view);
+    }
     
     // This port handles collecting information from selected files
     // and sending it through to the Elm app.

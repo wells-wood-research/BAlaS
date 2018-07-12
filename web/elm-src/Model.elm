@@ -19,6 +19,7 @@ type alias Model =
     { appMode : AppMode
     , alanineScan : AlanineScanModel
     , constellation : ConstellationModel
+    , hoveredName : Maybe String
     , notifications : List Notification
     , openPanel : Panel
     }
@@ -36,6 +37,7 @@ emptyModel =
         Scan
         emptyAlaScanModel
         emptyConstellationModel
+        Nothing
         []
         Closed
 
@@ -71,6 +73,7 @@ importModel exported =
             , manualJobs =
                 List.map importJobDetails exported.manualJobs
         }
+        Nothing
         exported.notifications
         Closed
 
