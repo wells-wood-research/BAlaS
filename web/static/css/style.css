@@ -52,7 +52,7 @@ tr:nth-child(even) {
     background-color: #dddddd;
 }
 
-.scan-results-table > table > tr:hover {
+table > tr:hover {
     background-color: #cccccc;
 }
 
@@ -191,6 +191,10 @@ p {
 .scan-results-table {
     table-layout: fixed;
     width: 100%;
+}
+
+.selected-residue {
+    background-color: red !important;
 }
 
 .jobs-table {

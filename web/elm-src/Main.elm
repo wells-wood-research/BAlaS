@@ -31,6 +31,7 @@ import Json.Decode as JDe
 import Json.Decode.Extra exposing ((|:))
 import Json.Encode as JEn
 import Notifications exposing ((#), Notification)
+import Set
 import Time
 
 
@@ -297,6 +298,7 @@ emptyConstellationModel =
 -}
 type ConstellationMode
     = Auto AutoSettings
+    | Manual ManualSettings
 
 
 {-| Record containing settings required by BALS auto mode.
@@ -347,6 +349,38 @@ validAutoSettings { name, ddGCutOff, constellationSize, cutOffDistance } =
             , validConSize
             , validDistance
             , not anyEmpty
+            ]
+
+
+{-| Record containing settings required by BALS manual mode.
+-}
+type alias ManualSettings =
+    { name : String
+    , residues : Set.Set String
+    }
+
+
+defaultManualSettings : ManualSettings
+defaultManualSettings =
+    ManualSettings
+        ""
+        Set.empty
+
+
+{-| Validates an `ManualSettings` to determine if it can be safely submitted.
+-}
+validManualSettings : ManualSettings -> Bool
+validManualSettings { name, residues } =
+    let
+        validName =
+            name /= ""
+
+        validResidues =
+            Set.isEmpty residues |> not
+    in
+        List.all identity
+            [ validName
+            , validResidues
             ]
 
 
@@ -404,6 +438,25 @@ encodeAutoJob scanResults settings =
                     settings.cutOffDistance
                 )
                 |> JEn.float
+          )
+        , ( "scanName", scanResults.name |> JEn.string )
+        , ( "pdbFile", scanResults.pdbFile |> JEn.string )
+        , ( "receptor", List.map JEn.string scanResults.receptor |> JEn.list )
+        , ( "ligand", List.map JEn.string scanResults.ligand |> JEn.list )
+        ]
+
+
+{-| JSON encoder that creates an manual job from a previous `AlanineScanResults`
+job and the settings for the manual job selected by the user.
+-}
+encodeManualJob : AlanineScanResults -> ManualSettings -> JEn.Value
+encodeManualJob scanResults { name, residues } =
+    JEn.object
+        [ ( "name", JEn.string name )
+        , ( "residues"
+          , Set.toList residues
+                |> List.map JEn.string
+                |> JEn.list
           )
         , ( "scanName", scanResults.name |> JEn.string )
         , ( "pdbFile", scanResults.pdbFile |> JEn.string )
@@ -699,7 +752,7 @@ update msg model =
                     updateConstellation constellationMsg model.constellation
             in
                 case constellationMsg of
-                    AutoJobSubmitted (Ok _) ->
+                    ConstellationJobSubmitted (Ok _) ->
                         let
                             ( updatedModel, updatedCmds ) =
                                 { model
@@ -1053,8 +1106,9 @@ updateScan scanMsg scanModel =
 type ConstellationMsg
     = ChangeMode String
     | UpdateAutoSettings AutoSettingsMsg
+    | UpdateManualSettings ManualSettingsMsg
     | SubmitConstellationJob AlanineScanResults
-    | AutoJobSubmitted (Result Http.Error JobDetails)
+    | ConstellationJobSubmitted (Result Http.Error JobDetails)
     | CheckAutoJobs Time.Time
     | ProcessAutoJobStatus (Result Http.Error JobDetails)
     | GetAutoResults String
@@ -1083,6 +1137,13 @@ updateConstellation msg model =
                             ! []
                             # []
 
+                    "Manual" ->
+                        { model
+                            | constellationSub = Manual defaultManualSettings
+                        }
+                            ! []
+                            # []
+
                     _ ->
                         model ! [] # []
 
@@ -1097,12 +1158,32 @@ updateConstellation msg model =
                             ! []
                             # []
 
+                    _ ->
+                        model ! [] # []
+
+            UpdateManualSettings settingsMsg ->
+                case model.constellationSub of
+                    Manual settings ->
+                        { model
+                            | constellationSub =
+                                updateManualSettings settingsMsg settings
+                                    |> Manual
+                        }
+                            ! []
+                            # []
+
+                    _ ->
+                        model ! [] # []
+
             SubmitConstellationJob alaScanResults ->
                 case model.constellationSub of
                     Auto settings ->
                         model ! [ submitAutoJob alaScanResults settings ] # []
 
-            AutoJobSubmitted (Ok jobDetails) ->
+                    Manual settings ->
+                        model ! [ submitManualJob alaScanResults settings ] # []
+
+            ConstellationJobSubmitted (Ok jobDetails) ->
                 { model
                     | constellationSub = Auto defaultAutoSettings
                     , jobs = jobDetails :: model.jobs
@@ -1110,15 +1191,15 @@ updateConstellation msg model =
                     ! []
                     # []
 
-            AutoJobSubmitted (Err error) ->
+            ConstellationJobSubmitted (Err error) ->
                 let
                     err =
-                        Debug.log "Auto job submission error" error
+                        Debug.log "Constellation job submission error" error
                 in
                     model
                         ! []
                         # [ Notifications.errorToNotification
-                                "Failed to Constellation Scan Auto Job"
+                                "Failed to Constellation Scan Job"
                                 error
                           ]
 
@@ -1195,7 +1276,7 @@ updateConstellation msg model =
 
 
 type AutoSettingsMsg
-    = UpdateName String
+    = UpdateAutoName String
     | UpdateDDGCutOff String
     | UpdateSize String
     | UpdateDistanceCutOff String
@@ -1206,7 +1287,7 @@ type AutoSettingsMsg
 updateAutoSettings : AutoSettingsMsg -> AutoSettings -> AutoSettings
 updateAutoSettings msg settings =
     case msg of
-        UpdateName name ->
+        UpdateAutoName name ->
             { settings | name = name }
 
         UpdateDDGCutOff ddGValue ->
@@ -1217,6 +1298,38 @@ updateAutoSettings msg settings =
 
         UpdateDistanceCutOff distance ->
             { settings | cutOffDistance = distance }
+
+
+type ManualSettingsMsg
+    = UpdateManualName String
+    | SelectResidue ResidueResult
+
+
+{-| Small helper update that handles user input for creating AutoSettings`
+-}
+updateManualSettings : ManualSettingsMsg -> ManualSettings -> ManualSettings
+updateManualSettings msg settings =
+    case msg of
+        UpdateManualName name ->
+            { settings | name = name }
+
+        SelectResidue residueResult ->
+            let
+                residueID =
+                    residueResult.chainID ++ residueResult.residueNumber
+            in
+                case Set.member residueID settings.residues of
+                    True ->
+                        { settings
+                            | residues =
+                                Set.remove residueID settings.residues
+                        }
+
+                    False ->
+                        { settings
+                            | residues =
+                                Set.insert residueID settings.residues
+                        }
 
 
 
@@ -1288,15 +1401,29 @@ getScanResults jobID =
             scanResultsDecoder
 
 
-{-| Submits an alanine scan job to the server. Receives a string back containing
+{-| Submits an auto job to the server. Receives a string back containing
 the job id if sucessful.
 -}
 submitAutoJob : AlanineScanResults -> AutoSettings -> Cmd ConstellationMsg
 submitAutoJob scanResults settings =
-    Http.send AutoJobSubmitted <|
+    Http.send ConstellationJobSubmitted <|
         Http.post
             "/api/v0.1/auto-jobs"
             (encodeAutoJob scanResults settings
+                |> Http.jsonBody
+            )
+            jobDetailsDecoder
+
+
+{-| Submits a manual job to the server. Receives a string back containing
+the job id if sucessful.
+-}
+submitManualJob : AlanineScanResults -> ManualSettings -> Cmd ConstellationMsg
+submitManualJob scanResults settings =
+    Http.send ConstellationJobSubmitted <|
+        Http.post
+            "/api/v0.1/manual-jobs"
+            (encodeManualJob scanResults settings
                 |> Http.jsonBody
             )
             jobDetailsDecoder
@@ -1580,43 +1707,52 @@ submission mode.
 -}
 scanResultsView : (ScanMsg -> msg) -> AlanineScanResults -> Html msg
 scanResultsView updateMsg results =
+    div
+        [ class "control-panel scan-panel" ]
+        [ h2 [] [ text "Alanine Scan Results" ]
+        , button
+            [ onClick <| updateMsg ClearScanSubmission ]
+            [ text "New Submission" ]
+        , h3 [] [ text "Job Name" ]
+        , p [] [ text results.name ]
+        , h3 [] [ text "ΔG" ]
+        , p [] [ toString results.dG |> text ]
+        , h3 [] [ text "Residue Results (Non-Zero)" ]
+        , scanResultsTable updateMsg results.ligandResults
+        ]
+
+
+scanResultsTable :
+    (ScanMsg -> msg)
+    -> List ResidueResult
+    -> Html msg
+scanResultsTable updateMsg ligandResults =
     let
         resultsRow resResult =
             let
                 { chainID, residueNumber, aminoAcid, ddG } =
                     resResult
             in
-                tr [ onClick <| updateMsg <| FocusOnResidue resResult ]
+                tr
+                    [ onClick <| updateMsg <| FocusOnResidue resResult ]
                     [ td [] [ text chainID ]
                     , td [] [ text residueNumber ]
                     , td [] [ text aminoAcid ]
                     , td [] [ toString ddG |> text ]
                     ]
     in
-        div
-            [ class "control-panel scan-panel" ]
-            [ h2 [] [ text "Alanine Scan Results" ]
-            , button
-                [ onClick <| updateMsg ClearScanSubmission ]
-                [ text "New Submission" ]
-            , h3 [] [ text "Job Name" ]
-            , p [] [ text results.name ]
-            , h3 [] [ text "ΔG" ]
-            , p [] [ toString results.dG |> text ]
-            , h3 [] [ text "Residue Results (Non-Zero)" ]
-            , table [ class "scan-results-table" ]
-                ([ tr []
-                    [ th [] [ text "Chain" ]
-                    , th [] [ text "Residue" ]
-                    , th [] [ text "Amino Acid" ]
-                    , th [] [ text "ΔΔG" ]
-                    ]
-                 ]
-                    ++ (List.filter (\res -> res.ddG /= 0) results.ligandResults
-                            |> List.map resultsRow
-                       )
-                )
-            ]
+        table [ class "scan-results-table" ]
+            ([ tr []
+                [ th [] [ text "Chain" ]
+                , th [] [ text "Residue" ]
+                , th [] [ text "Amino Acid" ]
+                , th [] [ text "ΔΔG" ]
+                ]
+             ]
+                ++ (List.filter (\res -> res.ddG /= 0) ligandResults
+                        |> List.map resultsRow
+                   )
+            )
 
 
 {-| View for selecting the receptor and ligand chains.
@@ -1712,15 +1848,27 @@ activeConstellationSub :
     -> AlanineScanResults
     -> Html msg
 activeConstellationSub updateMsg model scanRes =
-    div []
-        [ text "Select Mode"
-        , br [] []
-        , select [ onInput <| updateMsg << ChangeMode ] <|
-            List.map simpleOption [ "Auto" ]
-        , case model.constellationSub of
-            Auto settings ->
-                autoSettingsView updateMsg scanRes settings
-        ]
+    let
+        modeString =
+            case model.constellationSub of
+                Auto _ ->
+                    "Auto"
+
+                Manual _ ->
+                    "Manual"
+    in
+        div []
+            [ h3 [] [ text "Select Mode" ]
+            , select [ onInput <| updateMsg << ChangeMode ] <|
+                List.map (simpleOption modeString)
+                    [ "Auto", "Manual" ]
+            , case model.constellationSub of
+                Auto settings ->
+                    autoSettingsView updateMsg scanRes settings
+
+                Manual settings ->
+                    manualSettingsView updateMsg scanRes settings
+            ]
 
 
 {-| View for submission of auto settings input.
@@ -1736,42 +1884,124 @@ autoSettingsView updateMsg scanRes settings =
             settings
     in
         div []
-            ([ text "Job Name"
-             , input
-                [ onInput <| updateMsg << UpdateAutoSettings << UpdateName
+            [ h3 [] [ text "Job Name" ]
+            , input
+                [ onInput <| updateMsg << UpdateAutoSettings << UpdateAutoName
                 ]
                 []
-             , text "ΔΔG Cut Off Value"
-             , input
+            , h3 [] [ text "ΔΔG Cut Off Value" ]
+            , input
                 [ onInput <| updateMsg << UpdateAutoSettings << UpdateDDGCutOff
                 , pattern "[+-]?([0-9]*[.])?[0-9]+"
                 , value ddGCutOff
                 , placeholder "ΔΔG"
                 ]
                 []
-             , text "Constellation Size"
-             , input
+            , h3 [] [ text "Constellation Size" ]
+            , input
                 [ onInput <| updateMsg << UpdateAutoSettings << UpdateSize
                 , pattern "[0-9]*"
                 , value constellationSize
                 , placeholder "Size"
                 ]
                 []
-             , text "Cut Off Distance"
-             , input
+            , h3 [] [ text "Cut Off Distance" ]
+            , input
                 [ onInput <| updateMsg << UpdateAutoSettings << UpdateDistanceCutOff
                 , pattern "[+-]?([0-9]*[.])?[0-9]+"
                 , value cutOffDistance
                 , placeholder "Distance"
                 ]
                 []
-             , button
+            , br [] []
+            , button
                 [ onClick <| updateMsg <| SubmitConstellationJob scanRes
                 , disabled <| not <| validAutoSettings settings
                 ]
                 [ text "Submit" ]
+            ]
+
+
+{-| View for submission of manual settings input.
+-}
+manualSettingsView :
+    (ConstellationMsg -> msg)
+    -> AlanineScanResults
+    -> ManualSettings
+    -> Html msg
+manualSettingsView updateMsg scanResults settings =
+    let
+        { residues } =
+            settings
+    in
+        div []
+            [ h3 [] [ text "Job Name" ]
+            , input
+                [ onInput <|
+                    updateMsg
+                        << UpdateManualSettings
+                        << UpdateManualName
+                ]
+                []
+            , h3 [] [ text "Select Residues" ]
+            , text "Click to select."
+            , manualSelectTable
+                updateMsg
+                residues
+                scanResults.ligandResults
+            , br [] []
+            , button
+                [ onClick <| updateMsg <| SubmitConstellationJob scanResults
+                , disabled <| not <| validManualSettings settings
+                ]
+                [ text "Submit" ]
+            ]
+
+
+manualSelectTable :
+    (ConstellationMsg -> msg)
+    -> Set.Set String
+    -> List ResidueResult
+    -> Html msg
+manualSelectTable updateMsg selected ligandResults =
+    let
+        resultsRow resResult =
+            let
+                { chainID, residueNumber, aminoAcid, ddG } =
+                    resResult
+
+                residueID =
+                    chainID ++ residueNumber
+            in
+                tr
+                    [ case Set.member residueID selected of
+                        True ->
+                            class "selected-residue"
+
+                        False ->
+                            class "unselected-residue"
+                    , onClick <|
+                        updateMsg <|
+                            UpdateManualSettings <|
+                                SelectResidue resResult
+                    ]
+                    [ td [] [ text chainID ]
+                    , td [] [ text residueNumber ]
+                    , td [] [ text aminoAcid ]
+                    , td [] [ toString ddG |> text ]
+                    ]
+    in
+        table [ class "scan-results-table" ]
+            ([ tr []
+                [ th [] [ text "Chain" ]
+                , th [] [ text "Residue" ]
+                , th [] [ text "Amino Acid" ]
+                , th [] [ text "ΔΔG" ]
+                ]
              ]
-                |> List.intersperse (br [] [])
+                ++ (List.filter (\res -> res.ddG /= 0) ligandResults
+                        |> List.map resultsRow
+                   )
             )
 
 
@@ -1885,6 +2115,11 @@ removeListItem idx editList =
         |> List.map Tuple.second
 
 
-simpleOption : String -> Html msg
-simpleOption labelValue =
-    option [ value labelValue ] [ text labelValue ]
+simpleOption : String -> String -> Html msg
+simpleOption selectedLabel labelValue =
+    case selectedLabel == labelValue of
+        True ->
+            option [ value labelValue, selected True ] [ text labelValue ]
+
+        False ->
+            option [ value labelValue ] [ text labelValue ]
