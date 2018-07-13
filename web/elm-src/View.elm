@@ -8,6 +8,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Model
 import Notifications exposing ((#), Notification)
+import Regex
 import Set
 import Update
 
@@ -66,7 +67,7 @@ view model =
                 Model.Scan ->
                     case model.alanineScan.results of
                         Just results ->
-                            scanResultsView Update.UpdateScan results
+                            scanResultsView results
 
                         Nothing ->
                             scanSubmissionView
@@ -229,28 +230,27 @@ scanSubmissionView updateMsg mStructure scanSub =
 {-| Main view for the scan tab when in results mode. This is hidden in
 submission mode.
 -}
-scanResultsView : (Update.ScanMsg -> msg) -> Model.AlanineScanResults -> Html msg
-scanResultsView updateMsg results =
+scanResultsView : Model.AlanineScanResults -> Html Update.Msg
+scanResultsView results =
     div
         [ class "control-panel scan-panel" ]
         [ h2 [] [ text "Alanine Scan Results" ]
         , button
-            [ onClick <| updateMsg Update.ClearScanSubmission ]
+            [ onClick <| Update.UpdateScan Update.ClearScanSubmission ]
             [ text "New Submission" ]
         , h3 [] [ text "Job Name" ]
         , p [] [ text results.name ]
         , h3 [] [ text "ΔG" ]
         , p [] [ toString results.dG |> text ]
         , h3 [] [ text "Residue Results (Non-Zero)" ]
-        , scanResultsTable updateMsg results.ligandResults
+        , scanResultsTable results.ligandResults
         ]
 
 
 scanResultsTable :
-    (Update.ScanMsg -> msg)
-    -> List Model.ResidueResult
-    -> Html msg
-scanResultsTable updateMsg ligandResults =
+    List Model.ResidueResult
+    -> Html Update.Msg
+scanResultsTable ligandResults =
     let
         resultsRow resResult =
             let
@@ -258,7 +258,7 @@ scanResultsTable updateMsg ligandResults =
                     resResult
             in
                 tr
-                    [ onClick <| updateMsg <| Update.FocusOnResidue resResult
+                    [ onClick <| Update.UpdateScan <| Update.FocusOnResidue resResult
                     , Model.ResidueColour
                         "ligand_ballsAndSticks"
                         [ ( chainID
@@ -266,8 +266,7 @@ scanResultsTable updateMsg ligandResults =
                           )
                         ]
                         "red"
-                        |> Update.ColourResidue
-                        |> updateMsg
+                        |> Update.ColourResidues
                         |> onMouseOver
                     , Model.ResidueColour
                         "ligand_ballsAndSticks"
@@ -276,8 +275,7 @@ scanResultsTable updateMsg ligandResults =
                           )
                         ]
                         "cpk"
-                        |> Update.ColourResidue
-                        |> updateMsg
+                        |> Update.ColourResidues
                         |> onMouseOut
                     ]
                     [ td [] [ text chainID ]
@@ -565,28 +563,57 @@ manualSelectTable updateMsg selected ligandResults =
 {-| Main view for the constellation tab when in results mode. This is hidden
 in submission mode.
 -}
-constellationResultsView : Model.ConstellationResults -> Html msg
+constellationResultsView : Model.ConstellationResults -> Html Update.Msg
 constellationResultsView { hotConstellations } =
-    let
-        resultsRow ( constellation, meanDDG ) =
-            tr []
-                [ td [] [ text constellation ]
-                , td [] [ text <| toString meanDDG ]
+    div
+        [ class "control-panel constellation-panel" ]
+        [ h2 [] [ text "Constellation Scan Results" ]
+        , h3 [] [ text "🔥 Hot Constellations 🔥" ]
+        , table [ class "scan-results-table" ]
+            ([ tr []
+                [ th [] [ text "Constellation" ]
+                , th [] [ text "Mean ΔΔG" ]
                 ]
+             ]
+                ++ List.map resultsRow hotConstellations
+            )
+        ]
+
+
+resultsRow : ( String, Float ) -> Html Update.Msg
+resultsRow ( constellation, meanDDG ) =
+    let
+        constResidues =
+            Regex.find Regex.All (Regex.regex "([A-Za-z])(\\d+)") constellation
+                |> List.filterMap submatchToMaybe
     in
-        div
-            [ class "control-panel constellation-panel" ]
-            [ h2 [] [ text "Constellation Scan Results" ]
-            , h3 [] [ text "🔥 Hot Constellations 🔥" ]
-            , table [ class "scan-results-table" ]
-                ([ tr []
-                    [ th [] [ text "Constellation" ]
-                    , th [] [ text "Mean ΔΔG" ]
-                    ]
-                 ]
-                    ++ List.map resultsRow hotConstellations
-                )
+        tr
+            [ Model.ResidueColour
+                "ligand_ballsAndSticks"
+                constResidues
+                "red"
+                |> Update.ColourResidues
+                |> onMouseOver
+            , Model.ResidueColour
+                "ligand_ballsAndSticks"
+                constResidues
+                "cpk"
+                |> Update.ColourResidues
+                |> onMouseOut
             ]
+            [ td [] [ text constellation ]
+            , td [] [ text <| toString meanDDG ]
+            ]
+
+
+submatchToMaybe : Regex.Match -> Maybe ( String, String )
+submatchToMaybe match =
+    case match.submatches of
+        [ Just chain, Just resNumber ] ->
+            Just ( chain, resNumber )
+
+        _ ->
+            Nothing
 
 
 

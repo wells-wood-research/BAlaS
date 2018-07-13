@@ -139,14 +139,14 @@
         viewer.requestRedraw();
     });
 
-    app.ports.colourResidue.subscribe(function (residueColour) {
-        colourResidue(
+    app.ports.colourResidues.subscribe(function (residueColour) {
+        colourResidues(
             residueColour.geometryLabel,
             residueColour.residues,
             residueColour.colour);
     });
 
-    function colourResidue(geometryLabel, residues, colour) {
+    function colourResidues(geometryLabel, residues, colour) {
         residues.map(function (residue) {
             const [chain, residueNumber] = residue
             geometry[geometryLabel].colorBy(

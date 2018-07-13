@@ -29,7 +29,7 @@ port setVisibility : ( String, Bool ) -> Cmd msg
 port colourGeometry : ( String, Model.ChainID ) -> Cmd msg
 
 
-port colourResidue : Model.ResidueColour -> Cmd msg
+port colourResidues : Model.ResidueColour -> Cmd msg
 
 
 port displayScanResults : Model.AlanineScanResults -> Cmd msg

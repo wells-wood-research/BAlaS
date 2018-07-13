@@ -25,6 +25,7 @@ type Msg
     | ClearNotifications
     | OpenPanel Model.Panel
     | ClosePanel
+    | ColourResidues Model.ResidueColour
     | SaveState
 
 
@@ -202,6 +203,9 @@ update msg model =
         ClosePanel ->
             { model | openPanel = Model.Closed } ! []
 
+        ColourResidues residueColour ->
+            model ! [ Ports.colourResidues residueColour ]
+
         SaveState ->
             model ! [ Model.exportModel model |> Ports.saveState ]
 
@@ -297,7 +301,6 @@ type ScanMsg
     | ProcessScanResults (Result Http.Error Model.AlanineScanResults)
     | DeleteScanJob String
     | FocusOnResidue Model.ResidueResult
-    | ColourResidue Model.ResidueColour
     | ClearScanSubmission
 
 
@@ -528,9 +531,6 @@ updateScan scanMsg scanModel =
 
             FocusOnResidue residueResult ->
                 scanModel ! [ Ports.focusOnResidue residueResult ] # []
-
-            ColourResidue residueColour ->
-                scanModel ! [ Ports.colourResidue residueColour ] # []
 
             ClearScanSubmission ->
                 { scanModel | results = Nothing, structure = Nothing } ! [] # []
@@ -907,7 +907,7 @@ updateManualSettings msg settings =
                                       )
                                     ]
                                     "cpk"
-                                    |> Ports.colourResidue
+                                    |> Ports.colourResidues
                               ]
 
                     False ->
@@ -922,7 +922,7 @@ updateManualSettings msg settings =
                                       )
                                     ]
                                     "red"
-                                    |> Ports.colourResidue
+                                    |> Ports.colourResidues
                               ]
 
 
