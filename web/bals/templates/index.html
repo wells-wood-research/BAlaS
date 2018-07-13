@@ -42,7 +42,7 @@
     var prevPicked = null;
     var currentStructure;
     var currentRepresentation;
-    var cartoonGeometry; // THIS SHOULD BE DELETED
+    var geometry;
 
     // This port initialises the PV viewer, it is trigger on init.
     app.ports.initialiseViewer.subscribe(
@@ -118,9 +118,8 @@
     });
 
     app.ports.colourGeometry.subscribe(function (colourAndLabel) {
-        const colour = colourAndLabel[0];
-        const label = colourAndLabel[1];
-        cartoonGeometry[label].colorBy(pv.color.uniform(colour));
+        const [colour, label] = colourAndLabel;
+        geometry[label].colorBy(pv.color.uniform(colour));
         viewer.requestRedraw();
     });
 
@@ -136,9 +135,9 @@
     // Functions for handling structures.
     function showStructure (pdbString) {
         viewer.clear();
-        currentStructure = pv.io.pdb(pdbString);
+        currentStructure = pv.io.pdb(pdbString).select('protein');
         viewer.fitTo(currentStructure);
-        const chainLabels = currentStructure.chains().map(x => x._L);
+        const chainLabels = currentStructure.chains().map(x => x.name());
         const structure = {
             pdbFile: pdbString,
             chainLabels: chainLabels,
@@ -146,16 +145,16 @@
         };
         const chainsSelection = currentStructure
             .chains()
-            .map(x => currentStructure.select({chain: x._L}));
-        cartoonGeometry = Object();
+            .map(x => currentStructure.select({chain: x.name()}));
+        geometry = Object();
         for (i = 0; i < chainsSelection.length; i++) { 
             const chain = currentStructure.chains()[i];
             const carGeom = viewer.cartoon(
-                chain._L + '_c',
+                chain.name() + '_cartoon',
                 chainsSelection[i]);
-            cartoonGeometry[chain._L] = carGeom;
+            geometry[chain.name()] = carGeom;
             viewer.lines(
-                chain._L + '_l',
+                chain.name() + '_lines',
                 chainsSelection[i]);
         }
         viewer.addListener('click', function(picked) {
@@ -174,11 +173,11 @@
 
     function setVisibility(label, hidden) {
         if (hidden) {
-            viewer.hide(label + '_c');
-            viewer.hide(label + '_l');
+            viewer.hide(label + '_cartoon');
+            viewer.hide(label + '_lines');
         } else {
-            viewer.show(label + '_c');
-            viewer.show(label + '_l');
+            viewer.show(label + '_cartoon');
+            viewer.show(label + '_lines');
         }
         viewer.requestRedraw();
         return;
@@ -215,13 +214,14 @@
             return nonZeroResLabels
                        .includes(res.chain().name() + res.num().toString());
         });
-        viewer.cartoon('receptor', receptor,
-            { color: pv.color.uniform('#ffffff') });
-        viewer.cartoon('ligand', ligand,
-                { color: pv.color.byResidueProp(
-                    'ddG', pv.color.gradient(['blue', 'red']))});
-        viewer.lines('recRes', receptor);
-        viewer.ballsAndSticks('ligDDG', ligand);
+        geometry['receptor_cartoon'] = viewer.cartoon(
+            'receptor', receptor, { color: pv.color.uniform('#ffffff') });
+        geometry['ligand_cartoon'] = viewer.cartoon(
+            'ligand', ligand, { color: pv.color.byResidueProp(
+                'ddG', pv.color.gradient(['blue', 'red']))});
+        geometry['receptor_lines'] = viewer.lines('recRes', receptor);
+        geometry['ligand_ballsAndSticks'] = viewer.ballsAndSticks(
+            'ligDDG', ligand);
         return structure;
     }
 
