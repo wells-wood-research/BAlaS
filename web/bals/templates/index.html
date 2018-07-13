@@ -142,16 +142,18 @@
     app.ports.colourResidue.subscribe(function (residueColour) {
         colourResidue(
             residueColour.geometryLabel,
-            residueColour.chain,
-            residueColour.residueNumber,
+            residueColour.residues,
             residueColour.colour);
     });
 
-    function colourResidue(geometryLabel, chain, residueNumber, colour) {
-        geometry[geometryLabel].colorBy(
-            colour === 'cpk' ? pv.color.byElement() : pv.color.uniform(colour),
-            currentStructure.select(
-                {cname: chain, rnum: parseInt(residueNumber)}));
+    function colourResidue(geometryLabel, residues, colour) {
+        residues.map(function (residue) {
+            const [chain, residueNumber] = residue
+            geometry[geometryLabel].colorBy(
+                colour === 'cpk' ? pv.color.byElement() : pv.color.uniform(colour),
+                currentStructure.select(
+                    {cname: chain, rnum: parseInt(residueNumber)}));
+        });
         viewer.requestRedraw();
     }
 

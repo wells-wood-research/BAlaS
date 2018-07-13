@@ -464,8 +464,7 @@ type alias ExportableStructure =
 
 type alias ResidueColour =
     { geometryLabel : String
-    , chain : String
-    , residueNumber : String
+    , residues : List ( ChainID, String )
     , colour : String
     }
 

@@ -261,16 +261,20 @@ scanResultsTable updateMsg ligandResults =
                     [ onClick <| updateMsg <| Update.FocusOnResidue resResult
                     , Model.ResidueColour
                         "ligand_ballsAndSticks"
-                        chainID
-                        residueNumber
+                        [ ( chainID
+                          , residueNumber
+                          )
+                        ]
                         "red"
                         |> Update.ColourResidue
                         |> updateMsg
                         |> onMouseOver
                     , Model.ResidueColour
                         "ligand_ballsAndSticks"
-                        chainID
-                        residueNumber
+                        [ ( chainID
+                          , residueNumber
+                          )
+                        ]
                         "cpk"
                         |> Update.ColourResidue
                         |> updateMsg

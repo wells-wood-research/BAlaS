@@ -615,13 +615,16 @@ updateConstellation msg model =
             UpdateManualSettings settingsMsg ->
                 case model.constellationSub of
                     Model.Manual settings ->
-                        { model
-                            | constellationSub =
+                        let
+                            ( updatedSettings, manualCmds ) =
                                 updateManualSettings settingsMsg settings
-                                    |> Model.Manual
-                        }
-                            ! []
-                            # []
+                        in
+                            { model
+                                | constellationSub =
+                                    Model.Manual updatedSettings
+                            }
+                                ! [ Cmd.map UpdateManualSettings manualCmds ]
+                                # []
 
                     _ ->
                         model ! [] # []
@@ -877,11 +880,14 @@ type ManualSettingsMsg
 
 {-| Small helper update that handles user input for creating AutoSettings`
 -}
-updateManualSettings : ManualSettingsMsg -> Model.ManualSettings -> Model.ManualSettings
+updateManualSettings :
+    ManualSettingsMsg
+    -> Model.ManualSettings
+    -> ( Model.ManualSettings, Cmd ManualSettingsMsg )
 updateManualSettings msg settings =
     case msg of
         UpdateManualName name ->
-            { settings | name = name }
+            { settings | name = name } ! []
 
         SelectResidue residueResult ->
             let
@@ -894,12 +900,30 @@ updateManualSettings msg settings =
                             | residues =
                                 Set.remove residueID settings.residues
                         }
+                            ! [ Model.ResidueColour
+                                    "ligand_ballsAndSticks"
+                                    [ ( residueResult.chainID
+                                      , residueResult.residueNumber
+                                      )
+                                    ]
+                                    "cpk"
+                                    |> Ports.colourResidue
+                              ]
 
                     False ->
                         { settings
                             | residues =
                                 Set.insert residueID settings.residues
                         }
+                            ! [ Model.ResidueColour
+                                    "ligand_ballsAndSticks"
+                                    [ ( residueResult.chainID
+                                      , residueResult.residueNumber
+                                      )
+                                    ]
+                                    "red"
+                                    |> Ports.colourResidue
+                              ]
 
 
 
