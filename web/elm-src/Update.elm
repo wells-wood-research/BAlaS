@@ -362,7 +362,7 @@ updateScan scanMsg scanModel =
                                     [ chainID ]
                         }
                 }
-                    ! [ Ports.colourGeometry ( "red", chainID ) ]
+                    ! [ Ports.colourGeometry ( "red", chainID ++ "_cartoon" ) ]
                     # []
 
             SetLigand chainID ->
@@ -375,7 +375,7 @@ updateScan scanMsg scanModel =
                                     [ chainID ]
                         }
                 }
-                    ! [ Ports.colourGeometry ( "blue", chainID ) ]
+                    ! [ Ports.colourGeometry ( "blue", chainID ++ "_cartoon" ) ]
                     # []
 
             ClearReceptor chainID ->
@@ -388,7 +388,7 @@ updateScan scanMsg scanModel =
                                     scanSub.receptor
                         }
                 }
-                    ! [ Ports.colourGeometry ( "white", chainID ) ]
+                    ! [ Ports.colourGeometry ( "white", chainID ++ "_cartoon" ) ]
                     # []
 
             ClearLigand chainID ->
@@ -401,7 +401,7 @@ updateScan scanMsg scanModel =
                                     scanSub.ligand
                         }
                 }
-                    ! [ Ports.colourGeometry ( "white", chainID ) ]
+                    ! [ Ports.colourGeometry ( "white", chainID ++ "_cartoon" ) ]
                     # []
 
             SetScanName name ->

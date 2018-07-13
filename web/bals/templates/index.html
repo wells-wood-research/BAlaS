@@ -102,7 +102,12 @@
         const fileReader = new FileReader();
         fileReader.onload = function(fileLoadedEvent) {
             const textFromFileLoaded = fileLoadedEvent.target.result;
-            const structure = showStructure(textFromFileLoaded);
+            const chainLabels = showStructure(textFromFileLoaded);
+            const structure = {
+                pdbFile: textFromFileLoaded,
+                chainLabels: chainLabels,
+                hidden: chainLabels.map(x => false),
+            };
             app.ports.receiveStructure.send(structure);
         };
         if (typeof fileToLoad != 'undefined') {
@@ -124,7 +129,12 @@
     });
 
     app.ports.displayScanResults.subscribe(function (alaScanResults) {
-        const structure = displayScanResults(alaScanResults);
+        const chainLabels = displayScanResults(alaScanResults);
+        const structure = {
+            pdbFile: alaScanResults.pdbFile,
+            chainLabels: chainLabels,
+            hidden: chainLabels.map(x => false),
+        };
         app.ports.receiveStructure.send(structure);
     });
 
@@ -138,23 +148,20 @@
         currentStructure = pv.io.pdb(pdbString).select('protein');
         viewer.fitTo(currentStructure);
         const chainLabels = currentStructure.chains().map(x => x.name());
-        const structure = {
-            pdbFile: pdbString,
-            chainLabels: chainLabels,
-            hidden: chainLabels.map(x => false),
-        };
         const chainsSelection = currentStructure
             .chains()
             .map(x => currentStructure.select({chain: x.name()}));
         geometry = Object();
         for (i = 0; i < chainsSelection.length; i++) { 
             const chain = currentStructure.chains()[i];
-            const carGeom = viewer.cartoon(
-                chain.name() + '_cartoon',
-                chainsSelection[i]);
-            geometry[chain.name()] = carGeom;
-            viewer.lines(
-                chain.name() + '_lines',
+            const cartoonLabel = chain.name() + '_cartoon';
+            geometry[cartoonLabel] = viewer.cartoon(
+                cartoonLabel,
+                chainsSelection[i],
+                { color: pv.color.uniform('white') });
+            const lineLabel = chain.name() + '_lines';
+            geometry[lineLabel] = viewer.lines(
+                lineLabel,
                 chainsSelection[i]);
         }
         viewer.addListener('click', function(picked) {
@@ -168,7 +175,7 @@
                 app.ports.atomClick.send(residueInfo);
             }
         });
-        return structure;
+        return chainLabels;
     }
 
     function setVisibility(label, hidden) {
@@ -184,7 +191,7 @@
     }
 
     function displayScanResults(alaScanResults) {
-        const structure = showStructure(alaScanResults.pdbFile);
+        const chainLabels = showStructure(alaScanResults.pdbFile);
         currentStructure.eachResidue(function(residue) {
                 residue.setProp('ddG', 0.0);
             });
@@ -222,7 +229,7 @@
         geometry['receptor_lines'] = viewer.lines('recRes', receptor);
         geometry['ligand_ballsAndSticks'] = viewer.ballsAndSticks(
             'ligDDG', ligand);
-        return structure;
+        return chainLabels;
     }
 
     function focusOnResidue(residueResult) {
