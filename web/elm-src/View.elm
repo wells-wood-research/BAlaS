@@ -24,12 +24,12 @@ view model =
         ([ div [ class "banner" ]
             [ header [] [ h1 [] [ text "BUDE Alanine Scan" ] ]
             , div [ class "controls" ]
-                -- [ div
-                --     [ class "control-button"
-                --     , onClick <| OpenPanel ViewerOptions
-                --     ]
-                --     [ text "⚛️" ]
                 [ div
+                    [ class "control-button"
+                    , onClick <| Update.OpenPanel Model.ViewerOptions
+                    ]
+                    [ text "⚛️" ]
+                , div
                     [ class "control-button"
                     , onClick <| Update.OpenPanel Model.Notifications
                     ]
@@ -141,9 +141,7 @@ viewerOptions mStructure =
                             , th [] [ text "Hidden" ]
                             ]
                          ]
-                            ++ (List.map2 (,)
-                                    structure.chainLabels
-                                    structure.hidden
+                            ++ (structure.geometryLabels
                                     |> List.map viewerSelectionRow
                                )
                         )
@@ -155,20 +153,20 @@ viewerOptions mStructure =
         ]
 
 
-viewerSelectionRow : ( Model.ChainID, Bool ) -> Html Update.Msg
-viewerSelectionRow ( chainID, hidden ) =
+viewerSelectionRow : ( String, Bool ) -> Html Update.Msg
+viewerSelectionRow ( geometryLabel, hidden ) =
     tr []
-        [ td [] [ text chainID ]
+        [ td [] [ text geometryLabel ]
         , td []
             [ input
-                [ onClick <| Update.UpdateScan <| Update.ChangeVisibility chainID
+                [ onClick <|
+                    Update.UpdateScan <|
+                        Update.ChangeVisibility geometryLabel
                 , type_ "checkbox"
                 , checked hidden
                 ]
                 []
             ]
-        , td [] []
-        , td [] []
         ]
 
 

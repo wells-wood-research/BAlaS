@@ -454,7 +454,7 @@ autoResultsDecoder =
 type alias Structure =
     { pdbFile : String
     , chainLabels : List ChainID
-    , hidden : List Bool
+    , geometryLabels : List ( String, Bool )
     }
 
 

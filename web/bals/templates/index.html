@@ -103,10 +103,11 @@
         fileReader.onload = function(fileLoadedEvent) {
             const textFromFileLoaded = fileLoadedEvent.target.result;
             const chainLabels = showStructure(textFromFileLoaded);
+            const geometryLabels = Object.keys(geometry).sort();
             const structure = {
                 pdbFile: textFromFileLoaded,
                 chainLabels: chainLabels,
-                hidden: chainLabels.map(x => false),
+                geometryLabels: geometryLabels.map(x => [x, false]),
             };
             app.ports.receiveStructure.send(structure);
         };
@@ -130,10 +131,11 @@
 
     app.ports.displayScanResults.subscribe(function (alaScanResults) {
         const chainLabels = displayScanResults(alaScanResults);
+        const geometryLabels = Object.keys(geometry).sort();
         const structure = {
             pdbFile: alaScanResults.pdbFile,
             chainLabels: chainLabels,
-            hidden: chainLabels.map(x => false),
+            geometryLabels: geometryLabels.map(x => [x, false]),
         };
         app.ports.receiveStructure.send(structure);
     });
@@ -179,12 +181,11 @@
     }
 
     function setVisibility(label, hidden) {
+        console.log(label, hidden);
         if (hidden) {
-            viewer.hide(label + '_cartoon');
-            viewer.hide(label + '_lines');
+            viewer.hide(label);
         } else {
-            viewer.show(label + '_cartoon');
-            viewer.show(label + '_lines');
+            viewer.show(label);
         }
         viewer.requestRedraw();
         return;
@@ -207,6 +208,7 @@
                     }
                 });
             } 
+        geometry = Object();
         viewer.clear();
         const receptor = currentStructure.select(
             {cnames : alaScanResults.receptor,
@@ -221,14 +223,18 @@
             return nonZeroResLabels
                        .includes(res.chain().name() + res.num().toString());
         });
-        geometry['receptor_cartoon'] = viewer.cartoon(
-            'receptor', receptor, { color: pv.color.uniform('#ffffff') });
-        geometry['ligand_cartoon'] = viewer.cartoon(
-            'ligand', ligand, { color: pv.color.byResidueProp(
+        const recCartoonLabel = 'receptor_cartoon'
+        geometry[recCartoonLabel] = viewer.cartoon(
+            recCartoonLabel, receptor, { color: pv.color.uniform('#ffffff') });
+        const ligCartoonLabel = 'ligand_cartoon'
+        geometry[ligCartoonLabel] = viewer.cartoon(
+            ligCartoonLabel, ligand, { color: pv.color.byResidueProp(
                 'ddG', pv.color.gradient(['blue', 'red']))});
-        geometry['receptor_lines'] = viewer.lines('recRes', receptor);
-        geometry['ligand_ballsAndSticks'] = viewer.ballsAndSticks(
-            'ligDDG', ligand);
+        const recLinesLabel = 'receptor_lines'
+        geometry[recLinesLabel] = viewer.lines(recLinesLabel, receptor);
+        const ligBallsAndSticksLabel = 'ligand_ballsAndSticks'
+        geometry[ligBallsAndSticksLabel] = viewer.ballsAndSticks(
+            ligBallsAndSticksLabel, ligand);
         return chainLabels;
     }
 

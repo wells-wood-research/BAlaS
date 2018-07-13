@@ -325,10 +325,7 @@ updateScan scanMsg scanModel =
                     Just structure ->
                         let
                             hiddenDict =
-                                List.map2
-                                    (,)
-                                    structure.chainLabels
-                                    structure.hidden
+                                structure.geometryLabels
                                     |> Dict.fromList
                                     |> Dict.update label (Maybe.map not)
                         in
@@ -338,9 +335,8 @@ updateScan scanMsg scanModel =
                                         | structure =
                                             Just
                                                 { structure
-                                                    | hidden =
-                                                        Dict.values
-                                                            hiddenDict
+                                                    | geometryLabels =
+                                                        Dict.toList hiddenDict
                                                 }
                                     }
                                         ! [ Ports.setVisibility ( label, hidden ) ]
