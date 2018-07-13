@@ -258,7 +258,24 @@ scanResultsTable updateMsg ligandResults =
                     resResult
             in
                 tr
-                    [ onClick <| updateMsg <| Update.FocusOnResidue resResult ]
+                    [ onClick <| updateMsg <| Update.FocusOnResidue resResult
+                    , Model.ResidueColour
+                        "ligand_ballsAndSticks"
+                        chainID
+                        residueNumber
+                        "red"
+                        |> Update.ColourResidue
+                        |> updateMsg
+                        |> onMouseOver
+                    , Model.ResidueColour
+                        "ligand_ballsAndSticks"
+                        chainID
+                        residueNumber
+                        "cpk"
+                        |> Update.ColourResidue
+                        |> updateMsg
+                        |> onMouseOut
+                    ]
                     [ td [] [ text chainID ]
                     , td [] [ text residueNumber ]
                     , td [] [ text aminoAcid ]

@@ -123,11 +123,37 @@
         setVisibility(label, hidden);
     });
 
+    function setVisibility(label, hidden) {
+        if (hidden) {
+            viewer.hide(label);
+        } else {
+            viewer.show(label);
+        }
+        viewer.requestRedraw();
+        return;
+    }
+
     app.ports.colourGeometry.subscribe(function (colourAndLabel) {
         const [colour, label] = colourAndLabel;
         geometry[label].colorBy(pv.color.uniform(colour));
         viewer.requestRedraw();
     });
+
+    app.ports.colourResidue.subscribe(function (residueColour) {
+        colourResidue(
+            residueColour.geometryLabel,
+            residueColour.chain,
+            residueColour.residueNumber,
+            residueColour.colour);
+    });
+
+    function colourResidue(geometryLabel, chain, residueNumber, colour) {
+        geometry[geometryLabel].colorBy(
+            colour === 'cpk' ? pv.color.byElement() : pv.color.uniform(colour),
+            currentStructure.select(
+                {cname: chain, rnum: parseInt(residueNumber)}));
+        viewer.requestRedraw();
+    }
 
     app.ports.displayScanResults.subscribe(function (alaScanResults) {
         const chainLabels = displayScanResults(alaScanResults);
@@ -178,17 +204,6 @@
             }
         });
         return chainLabels;
-    }
-
-    function setVisibility(label, hidden) {
-        console.log(label, hidden);
-        if (hidden) {
-            viewer.hide(label);
-        } else {
-            viewer.show(label);
-        }
-        viewer.requestRedraw();
-        return;
     }
 
     function displayScanResults(alaScanResults) {

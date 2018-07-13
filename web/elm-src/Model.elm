@@ -462,6 +462,14 @@ type alias ExportableStructure =
     Structure
 
 
+type alias ResidueColour =
+    { geometryLabel : String
+    , chain : String
+    , residueNumber : String
+    , colour : String
+    }
+
+
 
 -- Job
 

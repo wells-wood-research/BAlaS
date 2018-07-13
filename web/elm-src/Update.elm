@@ -297,6 +297,7 @@ type ScanMsg
     | ProcessScanResults (Result Http.Error Model.AlanineScanResults)
     | DeleteScanJob String
     | FocusOnResidue Model.ResidueResult
+    | ColourResidue Model.ResidueColour
     | ClearScanSubmission
 
 
@@ -527,6 +528,9 @@ updateScan scanMsg scanModel =
 
             FocusOnResidue residueResult ->
                 scanModel ! [ Ports.focusOnResidue residueResult ] # []
+
+            ColourResidue residueColour ->
+                scanModel ! [ Ports.colourResidue residueColour ] # []
 
             ClearScanSubmission ->
                 { scanModel | results = Nothing, structure = Nothing } ! [] # []
