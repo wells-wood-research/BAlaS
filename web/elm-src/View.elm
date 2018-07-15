@@ -243,6 +243,8 @@ scanResultsView results =
         , h3 [] [ text "ΔG" ]
         , p [] [ toString results.dG |> text ]
         , h3 [] [ text "Residue Results (Non-Zero)" ]
+        , text
+            "Standard deviation only available for multiple models (NMR, MD etc)."
         , scanResultsTable results.ligandResults
         ]
 
@@ -254,7 +256,7 @@ scanResultsTable ligandResults =
     let
         resultsRow resResult =
             let
-                { chainID, residueNumber, aminoAcid, ddG } =
+                { chainID, residueNumber, aminoAcid, ddG, stdDevDDG } =
                     resResult
             in
                 tr
@@ -282,6 +284,7 @@ scanResultsTable ligandResults =
                     , td [] [ text residueNumber ]
                     , td [] [ text aminoAcid ]
                     , td [] [ toString ddG |> text ]
+                    , td [] [ toString stdDevDDG |> text ]
                     ]
     in
         table [ class "scan-results-table" ]
@@ -290,6 +293,7 @@ scanResultsTable ligandResults =
                 , th [] [ text "Residue" ]
                 , th [] [ text "Amino Acid" ]
                 , th [] [ text "ΔΔG" ]
+                , th [] [ text "Std Dev" ]
                 ]
              ]
                 ++ (List.filter (\res -> res.ddG /= 0) ligandResults
