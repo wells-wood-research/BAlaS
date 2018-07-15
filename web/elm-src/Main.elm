@@ -96,3 +96,14 @@ subscriptions model =
                 else
                     []
                )
+            ++ (if
+                    List.length
+                        (Model.getActiveJobs model.constellation.residuesJobs)
+                        > 0
+                then
+                    [ Time.every (5 * Time.second)
+                        (Update.UpdateConstellation << Update.CheckResiduesJobs)
+                    ]
+                else
+                    []
+               )

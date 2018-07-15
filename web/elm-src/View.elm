@@ -399,18 +399,24 @@ activeConstellationSub updateMsg model scanRes =
 
                 Model.Manual _ ->
                     "Manual"
+
+                Model.Residues _ ->
+                    "Residues"
     in
         div []
             [ h3 [] [ text "Select Mode" ]
             , select [ onInput <| updateMsg << Update.ChangeMode ] <|
                 List.map (simpleOption modeString)
-                    [ "Auto", "Manual" ]
+                    [ "Auto", "Manual", "Residues" ]
             , case model.constellationSub of
                 Model.Auto settings ->
                     autoSettingsView updateMsg scanRes settings
 
                 Model.Manual settings ->
                     manualSettingsView updateMsg scanRes settings
+
+                Model.Residues settings ->
+                    residuesSettingsView updateMsg scanRes settings
             ]
 
 
@@ -500,8 +506,11 @@ manualSettingsView updateMsg scanResults settings =
                 []
             , h3 [] [ text "Select Residues" ]
             , text "Click to select."
-            , manualSelectTable
-                updateMsg
+            , residueSelectTable
+                (updateMsg
+                    << Update.UpdateManualSettings
+                    << Update.SelectManualResidue
+                )
                 residues
                 scanResults.ligandResults
             , br [] []
@@ -513,12 +522,12 @@ manualSettingsView updateMsg scanResults settings =
             ]
 
 
-manualSelectTable :
-    (Update.ConstellationMsg -> msg)
+residueSelectTable :
+    (Model.ResidueResult -> msg)
     -> Set.Set String
     -> List Model.ResidueResult
     -> Html msg
-manualSelectTable updateMsg selected ligandResults =
+residueSelectTable updateMsg selected ligandResults =
     let
         resultsRow resResult =
             let
@@ -536,9 +545,7 @@ manualSelectTable updateMsg selected ligandResults =
                         False ->
                             class "unselected-residue"
                     , onClick <|
-                        updateMsg <|
-                            Update.UpdateManualSettings <|
-                                Update.SelectResidue resResult
+                        updateMsg resResult
                     ]
                     [ td [] [ text chainID ]
                     , td [] [ text residueNumber ]
@@ -558,6 +565,55 @@ manualSelectTable updateMsg selected ligandResults =
                         |> List.map resultsRow
                    )
             )
+
+
+{-| View for submission of residues settings input.
+-}
+residuesSettingsView :
+    (Update.ConstellationMsg -> msg)
+    -> Model.AlanineScanResults
+    -> Model.ResiduesSettings
+    -> Html msg
+residuesSettingsView updateMsg scanResults settings =
+    let
+        { residues } =
+            settings
+    in
+        div []
+            [ h3 [] [ text "Job Name" ]
+            , input
+                [ onInput <|
+                    updateMsg
+                        << Update.UpdateResiduesSettings
+                        << Update.UpdateResiduesName
+                ]
+                []
+            , h3 [] [ text "Constellation Size" ]
+            , select
+                [ onInput <|
+                    updateMsg
+                        << Update.UpdateResiduesSettings
+                        << Update.UpdateConstellationSize
+                ]
+              <|
+                List.map (simpleOption <| toString settings.constellationSize)
+                    [ "2", "3", "4", "5" ]
+            , h3 [] [ text "Select Residues" ]
+            , text "Click to select."
+            , residueSelectTable
+                (updateMsg
+                    << Update.UpdateResiduesSettings
+                    << Update.SelectResiduesResidue
+                )
+                residues
+                scanResults.ligandResults
+            , br [] []
+            , button
+                [ onClick <| updateMsg <| Update.SubmitConstellationJob scanResults
+                , disabled <| not <| Model.validResiduesSettings settings
+                ]
+                [ text "Submit" ]
+            ]
 
 
 {-| Main view for the constellation tab when in results mode. This is hidden
@@ -633,6 +689,9 @@ jobsView model =
 
         manualJobs =
             model.constellation.manualJobs
+
+        residuesJobs =
+            model.constellation.residuesJobs
     in
         div [ class "control-panel jobs-panel" ]
             [ h2 [] [ text "Jobs" ]
@@ -651,6 +710,11 @@ jobsView model =
                 (Update.UpdateConstellation << Update.DeleteManualJob)
                 "Manual Constellation Scan Jobs"
                 (List.sortBy (\{ name } -> name) manualJobs)
+            , jobTable
+                (Update.UpdateConstellation << Update.GetResiduesResults)
+                (Update.UpdateConstellation << Update.DeleteResiduesJob)
+                "Residues Constellation Scan Jobs"
+                (List.sortBy (\{ name } -> name) residuesJobs)
             ]
 
 

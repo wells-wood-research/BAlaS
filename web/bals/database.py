@@ -10,6 +10,7 @@ CLIENT = pymongo.MongoClient('db', 27017)
 ALANINE_SCAN_JOBS = CLIENT.bals.alanine_scan_jobs
 AUTO_JOBS = CLIENT.bals.auto_contellation_jobs
 MANUAL_JOBS = CLIENT.bals.manual_contellation_jobs
+RESIDUES_JOBS = CLIENT.bals.residues_contellation_jobs
 
 
 def submit_scan_job(scan_submission):
@@ -52,6 +53,20 @@ def get_manual_job(job_id):
     """Gets an manual constellation scan job from the database."""
     manual_job = MANUAL_JOBS.find_one({'_id': ObjectId(job_id)})
     return manual_job
+
+
+def submit_residues_job(residues_submission):
+    """Submits an residues constellation scan job to the queue."""
+    residues_submission['status'] = JobStatus.SUBMITTED.value
+    residues_submission['timeSubmitted'] = datetime.datetime.now()
+    job_id = RESIDUES_JOBS.insert_one(residues_submission).inserted_id
+    return job_id
+
+
+def get_residues_job(job_id):
+    """Gets an residues constellation scan job from the database."""
+    residues_job = RESIDUES_JOBS.find_one({'_id': ObjectId(job_id)})
+    return residues_job
 
 
 def export_job(job):

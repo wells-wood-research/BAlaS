@@ -46,6 +46,7 @@ type alias ExportableModel =
     { alanineScan : List ExportableJobDetails
     , autoJobs : List ExportableJobDetails
     , manualJobs : List ExportableJobDetails
+    , residuesJobs : List ExportableJobDetails
     , notifications : List Notification
     }
 
@@ -56,6 +57,7 @@ exportModel model =
         (List.map exportJobDetails model.alanineScan.jobs)
         (List.map exportJobDetails model.constellation.autoJobs)
         (List.map exportJobDetails model.constellation.manualJobs)
+        (List.map exportJobDetails model.constellation.residuesJobs)
         model.notifications
 
 
@@ -72,6 +74,8 @@ importModel exported =
                 List.map importJobDetails exported.autoJobs
             , manualJobs =
                 List.map importJobDetails exported.manualJobs
+            , residuesJobs =
+                List.map importJobDetails exported.residuesJobs
         }
         Nothing
         exported.notifications
@@ -238,6 +242,7 @@ type alias ConstellationModel =
     { constellationSub : ConstellationMode
     , autoJobs : List JobDetails
     , manualJobs : List JobDetails
+    , residuesJobs : List JobDetails
     , results : Maybe ConstellationResults
     }
 
@@ -248,6 +253,7 @@ emptyConstellationModel =
         (Auto defaultAutoSettings)
         []
         []
+        []
         Nothing
 
 
@@ -256,6 +262,7 @@ emptyConstellationModel =
 type ConstellationMode
     = Auto AutoSettings
     | Manual ManualSettings
+    | Residues ResiduesSettings
 
 
 {-| Record containing settings required by BALS auto mode.
@@ -309,62 +316,6 @@ validAutoSettings { name, ddGCutOff, constellationSize, cutOffDistance } =
             ]
 
 
-{-| Record containing settings required by BALS manual mode.
--}
-type alias ManualSettings =
-    { name : String
-    , residues : Set.Set String
-    }
-
-
-defaultManualSettings : ManualSettings
-defaultManualSettings =
-    ManualSettings
-        ""
-        Set.empty
-
-
-{-| Validates an `ManualSettings` to determine if it can be safely submitted.
--}
-validManualSettings : ManualSettings -> Bool
-validManualSettings { name, residues } =
-    let
-        validName =
-            name /= ""
-
-        validResidues =
-            Set.isEmpty residues |> not
-    in
-        List.all identity
-            [ validName
-            , validResidues
-            ]
-
-
-{-| True if a string is a valid structure of a floating point number.
--}
-representsFloat : String -> Bool
-representsFloat inString =
-    case String.toFloat inString of
-        Ok _ ->
-            True
-
-        Err _ ->
-            False
-
-
-{-| True if a string is a valid structure of an integer.
--}
-representsInt : String -> Bool
-representsInt inString =
-    case String.toInt inString of
-        Ok _ ->
-            True
-
-        Err _ ->
-            False
-
-
 {-| JSON encoder that creates an auto job from a previous `AlanineScanResults`
 job and the settings for the auto job selected by the user.
 -}
@@ -403,6 +354,38 @@ encodeAutoJob scanResults settings =
         ]
 
 
+{-| Record containing settings required by BALS manual mode.
+-}
+type alias ManualSettings =
+    { name : String
+    , residues : Set.Set String
+    }
+
+
+defaultManualSettings : ManualSettings
+defaultManualSettings =
+    ManualSettings
+        ""
+        Set.empty
+
+
+{-| Validates an `ManualSettings` to determine if it can be safely submitted.
+-}
+validManualSettings : ManualSettings -> Bool
+validManualSettings { name, residues } =
+    let
+        validName =
+            name /= ""
+
+        validResidues =
+            Set.isEmpty residues |> not
+    in
+        List.all identity
+            [ validName
+            , validResidues
+            ]
+
+
 {-| JSON encoder that creates an manual job from a previous `AlanineScanResults`
 job and the settings for the manual job selected by the user.
 -}
@@ -420,6 +403,89 @@ encodeManualJob scanResults { name, residues } =
         , ( "receptor", List.map JEn.string scanResults.receptor |> JEn.list )
         , ( "ligand", List.map JEn.string scanResults.ligand |> JEn.list )
         ]
+
+
+{-| Record containing settings required by BALS residues mode.
+-}
+type alias ResiduesSettings =
+    { name : String
+    , constellationSize : Int
+    , residues : Set.Set String
+    }
+
+
+defaultResiduesSettings : ResiduesSettings
+defaultResiduesSettings =
+    ResiduesSettings
+        ""
+        3
+        Set.empty
+
+
+{-| Validates an `ResiduesSettings` to determine if it can be safely submitted.
+-}
+validResiduesSettings : ResiduesSettings -> Bool
+validResiduesSettings { name, constellationSize, residues } =
+    let
+        validName =
+            name /= ""
+
+        validConstSize =
+            constellationSize > 1
+
+        validResidues =
+            (Set.isEmpty residues |> not)
+                && ((Set.size residues) >= constellationSize)
+    in
+        List.all identity
+            [ validName
+            , validConstSize
+            , validResidues
+            ]
+
+
+{-| JSON encoder that creates an residues job from a previous `AlanineScanResults`
+job and the settings for the residues job selected by the user.
+-}
+encodeResiduesJob : AlanineScanResults -> ResiduesSettings -> JEn.Value
+encodeResiduesJob scanResults { name, constellationSize, residues } =
+    JEn.object
+        [ ( "name", JEn.string name )
+        , ( "constellationSize", JEn.int constellationSize )
+        , ( "residues"
+          , Set.toList residues
+                |> List.map JEn.string
+                |> JEn.list
+          )
+        , ( "scanName", scanResults.name |> JEn.string )
+        , ( "pdbFile", scanResults.pdbFile |> JEn.string )
+        , ( "receptor", List.map JEn.string scanResults.receptor |> JEn.list )
+        , ( "ligand", List.map JEn.string scanResults.ligand |> JEn.list )
+        ]
+
+
+{-| True if a string is a valid structure of a floating point number.
+-}
+representsFloat : String -> Bool
+representsFloat inString =
+    case String.toFloat inString of
+        Ok _ ->
+            True
+
+        Err _ ->
+            False
+
+
+{-| True if a string is a valid structure of an integer.
+-}
+representsInt : String -> Bool
+representsInt inString =
+    case String.toInt inString of
+        Ok _ ->
+            True
+
+        Err _ ->
+            False
 
 
 {-| Record containing the processed results of a BALS auto job.

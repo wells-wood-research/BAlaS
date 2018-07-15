@@ -155,6 +155,12 @@ update msg model =
                 ProcessManualResults (Ok { scanResults }) ->
                     sucessfulConResults model scanResults constellationMsg
 
+                ResiduesJobSubmitted (Ok _) ->
+                    sucessfulConSubmit model constellationMsg
+
+                ProcessResiduesResults (Ok { scanResults }) ->
+                    sucessfulConResults model scanResults constellationMsg
+
                 _ ->
                     let
                         ( updatedConModel, conSubCmds, notifications ) =
@@ -547,6 +553,7 @@ type ConstellationMsg
     = ChangeMode String
     | UpdateAutoSettings AutoSettingsMsg
     | UpdateManualSettings ManualSettingsMsg
+    | UpdateResiduesSettings ResiduesSettingsMsg
     | SubmitConstellationJob Model.AlanineScanResults
     | AutoJobSubmitted (Result Http.Error Model.JobDetails)
     | CheckAutoJobs Time.Time
@@ -560,6 +567,12 @@ type ConstellationMsg
     | GetManualResults String
     | DeleteManualJob String
     | ProcessManualResults (Result Http.Error Model.ConstellationResults)
+    | ResiduesJobSubmitted (Result Http.Error Model.JobDetails)
+    | CheckResiduesJobs Time.Time
+    | ProcessResiduesJobStatus (Result Http.Error Model.JobDetails)
+    | GetResiduesResults String
+    | DeleteResiduesJob String
+    | ProcessResiduesResults (Result Http.Error Model.ConstellationResults)
 
 
 {-| Function for updating the state of the currently active
@@ -591,6 +604,15 @@ updateConstellation msg model =
                             | constellationSub =
                                 Model.Manual
                                     Model.defaultManualSettings
+                        }
+                            ! []
+                            # []
+
+                    "Residues" ->
+                        { model
+                            | constellationSub =
+                                Model.Residues
+                                    Model.defaultResiduesSettings
                         }
                             ! []
                             # []
@@ -629,6 +651,23 @@ updateConstellation msg model =
                     _ ->
                         model ! [] # []
 
+            UpdateResiduesSettings settingsMsg ->
+                case model.constellationSub of
+                    Model.Residues settings ->
+                        let
+                            ( updatedSettings, residuesCmds ) =
+                                updateResiduesSettings settingsMsg settings
+                        in
+                            { model
+                                | constellationSub =
+                                    Model.Residues updatedSettings
+                            }
+                                ! [ Cmd.map UpdateResiduesSettings residuesCmds ]
+                                # []
+
+                    _ ->
+                        model ! [] # []
+
             SubmitConstellationJob alaScanResults ->
                 case model.constellationSub of
                     Model.Auto settings ->
@@ -636,6 +675,9 @@ updateConstellation msg model =
 
                     Model.Manual settings ->
                         model ! [ submitManualJob alaScanResults settings ] # []
+
+                    Model.Residues settings ->
+                        model ! [ submitResiduesJob alaScanResults settings ] # []
 
             AutoJobSubmitted (Ok jobDetails) ->
                 { model
@@ -847,6 +889,112 @@ updateConstellation msg model =
                 in
                     model ! [] # []
 
+            ResiduesJobSubmitted (Ok jobDetails) ->
+                { model
+                    | constellationSub = Model.Residues Model.defaultResiduesSettings
+                    , residuesJobs = jobDetails :: model.residuesJobs
+                }
+                    ! []
+                    # []
+
+            ResiduesJobSubmitted (Err error) ->
+                let
+                    err =
+                        Debug.log
+                            "Residues Constellation job submission error"
+                            error
+                in
+                    model
+                        ! []
+                        # [ Notifications.errorToNotification
+                                "Failed to submit residues constellation scan job"
+                                error
+                          ]
+
+            CheckResiduesJobs _ ->
+                model
+                    ! List.map checkResiduesJobStatus
+                        model.residuesJobs
+                    # []
+
+            ProcessResiduesJobStatus (Ok jobDetails) ->
+                { model
+                    | residuesJobs =
+                        model.residuesJobs
+                            |> List.map (\job -> ( job.jobID, job ))
+                            |> Dict.fromList
+                            |> Dict.insert jobDetails.jobID jobDetails
+                            |> Dict.toList
+                            |> List.map Tuple.second
+                }
+                    ! []
+                    # case jobDetails.status of
+                        Model.Completed ->
+                            [ Notification
+                                ""
+                                "Residues Constellation Scan Completed"
+                                ("Residues constellation scan job "
+                                    ++ jobDetails.name
+                                    ++ " ("
+                                    ++ jobDetails.jobID
+                                    ++ " complete. Retrieve the results from"
+                                    ++ " the 'Jobs' tab."
+                                )
+                            ]
+
+                        Model.Failed ->
+                            [ Notification
+                                ""
+                                "Residues Constellation Scan Failed"
+                                ("Alanine constellation scan job "
+                                    ++ jobDetails.name
+                                    ++ " ("
+                                    ++ jobDetails.jobID
+                                    ++ ") failed:\n"
+                                    ++ Maybe.withDefault
+                                        "Unknown error."
+                                        jobDetails.stdOut
+                                )
+                            ]
+
+                        _ ->
+                            []
+
+            ProcessResiduesJobStatus (Err error) ->
+                let
+                    err =
+                        Debug.log "Residues job status check error" error
+                in
+                    model ! [] # []
+
+            GetResiduesResults jobID ->
+                model ! [ getResiduesResults jobID ] # []
+
+            DeleteResiduesJob jobID ->
+                { model
+                    | residuesJobs =
+                        model.residuesJobs
+                            |> List.map (\job -> ( job.jobID, job ))
+                            |> Dict.fromList
+                            |> Dict.remove jobID
+                            |> Dict.toList
+                            |> List.map Tuple.second
+                }
+                    ! []
+                    # []
+
+            ProcessResiduesResults (Ok results) ->
+                { model | results = Just results }
+                    ! []
+                    # []
+
+            ProcessResiduesResults (Err error) ->
+                let
+                    err =
+                        Debug.log "Failed to retrieve scan results" error
+                in
+                    model ! [] # []
+
 
 type AutoSettingsMsg
     = UpdateAutoName String
@@ -875,10 +1023,10 @@ updateAutoSettings msg settings =
 
 type ManualSettingsMsg
     = UpdateManualName String
-    | SelectResidue Model.ResidueResult
+    | SelectManualResidue Model.ResidueResult
 
 
-{-| Small helper update that handles user input for creating AutoSettings`
+{-| Small helper update that handles user input for creating ManualSettings`
 -}
 updateManualSettings :
     ManualSettingsMsg
@@ -889,7 +1037,69 @@ updateManualSettings msg settings =
         UpdateManualName name ->
             { settings | name = name } ! []
 
-        SelectResidue residueResult ->
+        SelectManualResidue residueResult ->
+            let
+                residueID =
+                    residueResult.chainID ++ residueResult.residueNumber
+            in
+                case Set.member residueID settings.residues of
+                    True ->
+                        { settings
+                            | residues =
+                                Set.remove residueID settings.residues
+                        }
+                            ! [ Model.ResidueColour
+                                    "ligand_ballsAndSticks"
+                                    [ ( residueResult.chainID
+                                      , residueResult.residueNumber
+                                      )
+                                    ]
+                                    "cpk"
+                                    |> Ports.colourResidues
+                              ]
+
+                    False ->
+                        { settings
+                            | residues =
+                                Set.insert residueID settings.residues
+                        }
+                            ! [ Model.ResidueColour
+                                    "ligand_ballsAndSticks"
+                                    [ ( residueResult.chainID
+                                      , residueResult.residueNumber
+                                      )
+                                    ]
+                                    "red"
+                                    |> Ports.colourResidues
+                              ]
+
+
+type ResiduesSettingsMsg
+    = UpdateResiduesName String
+    | UpdateConstellationSize String
+    | SelectResiduesResidue Model.ResidueResult
+
+
+{-| Small helper update that handles user input for creating AutoSettings`
+-}
+updateResiduesSettings :
+    ResiduesSettingsMsg
+    -> Model.ResiduesSettings
+    -> ( Model.ResiduesSettings, Cmd ResiduesSettingsMsg )
+updateResiduesSettings msg settings =
+    case msg of
+        UpdateResiduesName name ->
+            { settings | name = name } ! []
+
+        UpdateConstellationSize size ->
+            { settings
+                | constellationSize =
+                    String.toInt size
+                        |> Result.withDefault 3
+            }
+                ! []
+
+        SelectResiduesResidue residueResult ->
             let
                 residueID =
                     residueResult.chainID ++ residueResult.residueNumber
@@ -964,7 +1174,7 @@ getScanResults jobID =
 
 
 {-| Submits an auto job to the server. Receives a string back containing
-the job id if sucessful.
+the job id if successful.
 -}
 submitAutoJob :
     Model.AlanineScanResults
@@ -981,7 +1191,7 @@ submitAutoJob scanResults settings =
 
 
 {-| Submits a manual job to the server. Receives a string back containing
-the job id if sucessful.
+the job id if successful.
 -}
 submitManualJob :
     Model.AlanineScanResults
@@ -992,6 +1202,23 @@ submitManualJob scanResults settings =
         Http.post
             "/api/v0.1/manual-jobs"
             (Model.encodeManualJob scanResults settings
+                |> Http.jsonBody
+            )
+            Model.jobDetailsDecoder
+
+
+{-| Submits a residues job to the server. Receives a string back containing
+the job id if successful.
+-}
+submitResiduesJob :
+    Model.AlanineScanResults
+    -> Model.ResiduesSettings
+    -> Cmd ConstellationMsg
+submitResiduesJob scanResults settings =
+    Http.send ResiduesJobSubmitted <|
+        Http.post
+            "/api/v0.1/residues-jobs"
+            (Model.encodeResiduesJob scanResults settings
                 |> Http.jsonBody
             )
             Model.jobDetailsDecoder
@@ -1027,13 +1254,33 @@ checkManualJobStatus { jobID } =
             Model.jobDetailsDecoder
 
 
-{-| Gets the results of an auto constellation job from the server.
+{-| Gets the results of an manual constellation job from the server.
 -}
 getManualResults : String -> Cmd ConstellationMsg
 getManualResults jobID =
     Http.send ProcessManualResults <|
         Http.get
             ("/api/v0.1/manual-job/" ++ jobID ++ "?get-results")
+            Model.autoResultsDecoder
+
+
+{-| Checks the status of a residues constellation job on the server.
+-}
+checkResiduesJobStatus : Model.JobDetails -> Cmd ConstellationMsg
+checkResiduesJobStatus { jobID } =
+    Http.send ProcessResiduesJobStatus <|
+        Http.get
+            ("/api/v0.1/residues-job/" ++ jobID ++ "?get-status")
+            Model.jobDetailsDecoder
+
+
+{-| Gets the results of an residues constellation job from the server.
+-}
+getResiduesResults : String -> Cmd ConstellationMsg
+getResiduesResults jobID =
+    Http.send ProcessResiduesResults <|
+        Http.get
+            ("/api/v0.1/residues-job/" ++ jobID ++ "?get-results")
             Model.autoResultsDecoder
 
 
