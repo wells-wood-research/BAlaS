@@ -1,4 +1,16 @@
-port module Ports exposing (atomClick, colourGeometry, colourResidues, displayScanResults, focusOnResidue, hoveredName, initialiseViewer, receiveStructure, requestPDBFile, saveState, setVisibility)
+port module Ports exposing
+    ( atomClick
+    , colourGeometry
+    , colourResidues
+    , displayScanResults
+    , focusOnResidue
+    , hoveredName
+    , initialiseViewer
+    , receiveStructure
+    , requestPDBFile
+    , saveState
+    , setVisibility
+    )
 
 {- # COMMANDS AND SUBSCRIPTIONS
    This section contains all code for communicating with the outside world, whether

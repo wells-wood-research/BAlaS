@@ -7,7 +7,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Model
-import Notifications exposing ((#), Notification)
+import Notifications exposing (Notification)
 import Regex
 import Set
 import Update
@@ -36,7 +36,7 @@ view model =
                     , onClick <| Update.OpenPanel Model.Notifications
                     ]
                     [ List.length model.notifications
-                        |> toString
+                        |> String.fromInt
                         |> (++) "🔔"
                         |> text
                     ]
@@ -241,7 +241,7 @@ scanResultsView results =
         , h3 [] [ text "Job Name" ]
         , p [] [ text results.name ]
         , h3 [] [ text "ΔG" ]
-        , p [] [ toString results.dG |> text ]
+        , p [] [ String.fromFloat results.dG |> text ]
         , h3 [] [ text "Residue Results (Non-Zero)" ]
         , text
             "Standard deviation only available for multiple models (NMR, MD etc)."
@@ -254,7 +254,7 @@ scanResultsTable :
     -> Html Update.Msg
 scanResultsTable ligandResults =
     let
-        resultsRow resResult =
+        scanResultsRow resResult =
             let
                 { chainID, residueNumber, aminoAcid, ddG, stdDevDDG } =
                     resResult
@@ -283,8 +283,8 @@ scanResultsTable ligandResults =
                 [ td [] [ text chainID ]
                 , td [] [ text residueNumber ]
                 , td [] [ text aminoAcid ]
-                , td [] [ toString ddG |> text ]
-                , td [] [ toString stdDevDDG |> text ]
+                , td [] [ String.fromFloat ddG |> text ]
+                , td [] [ String.fromFloat stdDevDDG |> text ]
                 ]
     in
     table [ class "scan-results-table" ]
@@ -297,7 +297,7 @@ scanResultsTable ligandResults =
             ]
          ]
             ++ (List.filter (\res -> res.ddG /= 0) ligandResults
-                    |> List.map resultsRow
+                    |> List.map scanResultsRow
                )
         )
 
@@ -537,7 +537,7 @@ residueSelectTable :
     -> Html msg
 residueSelectTable updateMsg selected ligandResults =
     let
-        resultsRow resResult =
+        residueResultsRow resResult =
             let
                 { chainID, residueNumber, aminoAcid, ddG } =
                     resResult
@@ -558,7 +558,7 @@ residueSelectTable updateMsg selected ligandResults =
                 [ td [] [ text chainID ]
                 , td [] [ text residueNumber ]
                 , td [] [ text aminoAcid ]
-                , td [] [ toString ddG |> text ]
+                , td [] [ String.fromFloat ddG |> text ]
                 ]
     in
     table [ class "scan-results-table" ]
@@ -570,7 +570,7 @@ residueSelectTable updateMsg selected ligandResults =
             ]
          ]
             ++ (List.filter (\res -> res.ddG /= 0) ligandResults
-                    |> List.map resultsRow
+                    |> List.map residueResultsRow
                )
         )
 
@@ -604,7 +604,7 @@ residuesSettingsView updateMsg scanResults settings =
                     << Update.UpdateConstellationSize
             ]
           <|
-            List.map (simpleOption <| toString settings.constellationSize)
+            List.map (simpleOption <| String.fromInt settings.constellationSize)
                 [ "2", "3", "4", "5" ]
         , h3 [] [ text "Select Residues" ]
         , text "Click to select."
@@ -648,7 +648,11 @@ resultsRow : ( String, Float ) -> Html Update.Msg
 resultsRow ( constellation, meanDDG ) =
     let
         constResidues =
-            Regex.find Regex.All (Regex.regex "([A-Za-z])(\\d+)") constellation
+            Regex.find
+                (Regex.fromString "([A-Za-z])(\\d+)"
+                    |> Maybe.withDefault Regex.never
+                )
+                constellation
                 |> List.filterMap submatchToMaybe
     in
     tr
@@ -666,7 +670,7 @@ resultsRow ( constellation, meanDDG ) =
             |> onMouseOut
         ]
         [ td [] [ text constellation ]
-        , td [] [ text <| toString meanDDG ]
+        , td [] [ text <| String.fromFloat meanDDG ]
         ]
 
 
@@ -736,35 +740,6 @@ jobTable :
     -> List Model.JobDetails
     -> Html Update.Msg
 jobTable getMsg deleteMsg tableTitle jobs =
-    let
-        tableRow { jobID, name, status } =
-            tr [ class "details" ]
-                [ td [] [ text name ]
-                , td [] [ text jobID ]
-                , td [] [ text <| toString status ]
-                , td []
-                    [ button
-                        [ getMsg jobID
-                            |> onClick
-                        , (if status == Model.Completed then
-                            False
-
-                           else
-                            True
-                          )
-                            |> disabled
-                        ]
-                        [ text "Get Results" ]
-                    ]
-                , td []
-                    [ button
-                        [ deleteMsg jobID
-                            |> onClick
-                        ]
-                        [ text "Delete" ]
-                    ]
-                ]
-    in
     div []
         [ h3 [] [ text tableTitle ]
         , if List.length jobs > 0 then
@@ -776,11 +751,45 @@ jobTable getMsg deleteMsg tableTitle jobs =
                     , th [] []
                     ]
                  ]
-                    ++ List.map tableRow jobs
+                    ++ List.map (jobTableRow getMsg deleteMsg) jobs
                 )
 
           else
             text "No Jobs submitted."
+        ]
+
+
+jobTableRow :
+    (String -> Update.Msg)
+    -> (String -> Update.Msg)
+    -> Model.JobDetails
+    -> Html Update.Msg
+jobTableRow getMsg deleteMsg { jobID, name, status } =
+    tr [ class "details" ]
+        [ td [] [ text name ]
+        , td [] [ text jobID ]
+        , td [] [ text <| Model.statusToString status ]
+        , td []
+            [ button
+                [ getMsg jobID
+                    |> onClick
+                , (if status == Model.Completed then
+                    False
+
+                   else
+                    True
+                  )
+                    |> disabled
+                ]
+                [ text "Get Results" ]
+            ]
+        , td []
+            [ button
+                [ deleteMsg jobID
+                    |> onClick
+                ]
+                [ text "Delete" ]
+            ]
         ]
 
 

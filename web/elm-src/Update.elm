@@ -1,4 +1,12 @@
-module Update exposing (AutoSettingsMsg(..), ConstellationMsg(..), ManualSettingsMsg(..), Msg(..), ResiduesSettingsMsg(..), ScanMsg(..), checkAutoJobStatus, checkManualJobStatus, checkResiduesJobStatus, checkScanJobStatus, getAutoResults, getManualResults, getResiduesResults, getScanResults, removeListItem, submitAlanineScan, submitAutoJob, submitManualJob, submitResiduesJob, sucessfulConResults, sucessfulConSubmit, update, updateAutoSettings, updateConstellation, updateManualSettings, updateResiduesSettings, updateScan)
+module Update exposing
+    ( AutoSettingsMsg(..)
+    , ConstellationMsg(..)
+    , ManualSettingsMsg(..)
+    , Msg(..)
+    , ResiduesSettingsMsg(..)
+    , ScanMsg(..)
+    , update
+    )
 
 {- # UPDATE
    This section contains all code that updates the state of the application.
@@ -7,7 +15,7 @@ module Update exposing (AutoSettingsMsg(..), ConstellationMsg(..), ManualSetting
 import Dict
 import Http
 import Model
-import Notifications exposing ((#), Notification)
+import Notifications exposing (Notification)
 import Ports
 import Set
 import Time
@@ -326,7 +334,7 @@ type ScanMsg
     | SetScanName String
     | SubmitScanJob
     | ScanJobSubmitted (Result Http.Error Model.JobDetails)
-    | CheckScanJobs Time.Time
+    | CheckScanJobs Time.Posix
     | ProcessScanStatus (Result Http.Error Model.JobDetails)
     | GetScanResults String
     | ProcessScanResults (Result Http.Error Model.AlanineScanResults)
@@ -352,14 +360,14 @@ updateScan scanMsg scanModel =
         GetStructure ->
             ( scanModel
             , Ports.requestPDBFile ()
+            , []
             )
-                # []
 
         UpdateStructure structure ->
             ( { scanModel | structure = structure }
             , Cmd.none
+            , []
             )
-                # []
 
         ChangeVisibility label ->
             case scanModel.structure of
@@ -381,20 +389,20 @@ updateScan scanMsg scanModel =
                                         }
                               }
                             , Ports.setVisibility ( label, hidden )
+                            , []
                             )
-                                # []
 
                         Nothing ->
                             ( scanModel
                             , Cmd.none
+                            , []
                             )
-                                # []
 
                 Nothing ->
                     ( scanModel
                     , Cmd.none
+                    , []
                     )
-                        # []
 
         SetReceptor chainID ->
             ( { scanModel
@@ -407,8 +415,8 @@ updateScan scanMsg scanModel =
                     }
               }
             , Ports.colourGeometry ( "red", chainID ++ "_cartoon" )
+            , []
             )
-                # []
 
         SetLigand chainID ->
             ( { scanModel
@@ -421,8 +429,8 @@ updateScan scanMsg scanModel =
                     }
               }
             , Ports.colourGeometry ( "blue", chainID ++ "_cartoon" )
+            , []
             )
-                # []
 
         ClearReceptor chainID ->
             ( { scanModel
@@ -435,8 +443,8 @@ updateScan scanMsg scanModel =
                     }
               }
             , Ports.colourGeometry ( "white", chainID ++ "_cartoon" )
+            , []
             )
-                # []
 
         ClearLigand chainID ->
             ( { scanModel
@@ -449,8 +457,8 @@ updateScan scanMsg scanModel =
                     }
               }
             , Ports.colourGeometry ( "white", chainID ++ "_cartoon" )
+            , []
             )
-                # []
 
         SetScanName name ->
             ( { scanModel
@@ -458,8 +466,8 @@ updateScan scanMsg scanModel =
                     { scanSub | name = name }
               }
             , Cmd.none
+            , []
             )
-                # []
 
         SubmitScanJob ->
             case scanModel.structure of
@@ -468,14 +476,14 @@ updateScan scanMsg scanModel =
                     , submitAlanineScan
                         structure
                         scanModel.alanineScanSub
+                    , []
                     )
-                        # []
 
                 Nothing ->
                     ( scanModel
                     , Cmd.none
+                    , []
                     )
-                        # []
 
         ScanJobSubmitted (Ok jobDetails) ->
             ( { scanModel
@@ -483,8 +491,8 @@ updateScan scanMsg scanModel =
                 , jobs = jobDetails :: scanModel.jobs
               }
             , Cmd.none
+            , []
             )
-                # []
 
         ScanJobSubmitted (Err error) ->
             let
@@ -493,11 +501,11 @@ updateScan scanMsg scanModel =
             in
             ( scanModel
             , Cmd.none
+            , [ Notifications.errorToNotification
+                    "Failed to Submit Scan Job"
+                    error
+              ]
             )
-                # [ Notifications.errorToNotification
-                        "Failed to Submit Scan Job"
-                        error
-                  ]
 
         CheckScanJobs _ ->
             ( scanModel
@@ -505,8 +513,8 @@ updateScan scanMsg scanModel =
                 (List.map checkScanJobStatus
                     scanModel.jobs
                 )
+            , []
             )
-                # []
 
         ProcessScanStatus (Ok jobDetails) ->
             ( { scanModel
@@ -519,39 +527,38 @@ updateScan scanMsg scanModel =
                         |> List.map Tuple.second
               }
             , Cmd.none
+            , case jobDetails.status of
+                Model.Completed ->
+                    [ Notification
+                        ""
+                        "Alanine Scan Completed"
+                        ("Alanine scan job "
+                            ++ jobDetails.name
+                            ++ " ("
+                            ++ jobDetails.jobID
+                            ++ ") complete. Retrieve the results from"
+                            ++ " the 'Jobs' tab."
+                        )
+                    ]
+
+                Model.Failed ->
+                    [ Notification
+                        ""
+                        "Alanine Scan Failed"
+                        ("Alanine scan job "
+                            ++ jobDetails.name
+                            ++ " ("
+                            ++ jobDetails.jobID
+                            ++ ") failed:\n"
+                            ++ Maybe.withDefault
+                                "Unknown error."
+                                jobDetails.stdOut
+                        )
+                    ]
+
+                _ ->
+                    []
             )
-                # (case jobDetails.status of
-                    Model.Completed ->
-                        [ Notification
-                            ""
-                            "Alanine Scan Completed"
-                            ("Alanine scan job "
-                                ++ jobDetails.name
-                                ++ " ("
-                                ++ jobDetails.jobID
-                                ++ ") complete. Retrieve the results from"
-                                ++ " the 'Jobs' tab."
-                            )
-                        ]
-
-                    Model.Failed ->
-                        [ Notification
-                            ""
-                            "Alanine Scan Failed"
-                            ("Alanine scan job "
-                                ++ jobDetails.name
-                                ++ " ("
-                                ++ jobDetails.jobID
-                                ++ ") failed:\n"
-                                ++ Maybe.withDefault
-                                    "Unknown error."
-                                    jobDetails.stdOut
-                            )
-                        ]
-
-                    _ ->
-                        []
-                  )
 
         ProcessScanStatus (Err error) ->
             let
@@ -560,20 +567,20 @@ updateScan scanMsg scanModel =
             in
             ( scanModel
             , Cmd.none
+            , []
             )
-                # []
 
         GetScanResults scanID ->
             ( scanModel
             , getScanResults scanID
+            , []
             )
-                # []
 
         ProcessScanResults (Ok results) ->
             ( { scanModel | results = Just results }
             , Ports.displayScanResults results
+            , []
             )
-                # []
 
         ProcessScanResults (Err error) ->
             let
@@ -582,8 +589,8 @@ updateScan scanMsg scanModel =
             in
             ( scanModel
             , Cmd.none
+            , []
             )
-                # []
 
         DeleteScanJob jobID ->
             ( { scanModel
@@ -596,20 +603,20 @@ updateScan scanMsg scanModel =
                         |> List.map Tuple.second
               }
             , Cmd.none
+            , []
             )
-                # []
 
         FocusOnResidue residueResult ->
             ( scanModel
             , Ports.focusOnResidue residueResult
+            , []
             )
-                # []
 
         ClearScanSubmission ->
             ( { scanModel | results = Nothing, structure = Nothing }
             , Cmd.none
+            , []
             )
-                # []
 
 
 
@@ -626,19 +633,19 @@ type ConstellationMsg
     | UpdateResiduesSettings ResiduesSettingsMsg
     | SubmitConstellationJob Model.AlanineScanResults
     | AutoJobSubmitted (Result Http.Error Model.JobDetails)
-    | CheckAutoJobs Time.Time
+    | CheckAutoJobs Time.Posix
     | ProcessAutoJobStatus (Result Http.Error Model.JobDetails)
     | GetAutoResults String
     | DeleteAutoJob String
     | ProcessAutoResults (Result Http.Error Model.ConstellationResults)
     | ManualJobSubmitted (Result Http.Error Model.JobDetails)
-    | CheckManualJobs Time.Time
+    | CheckManualJobs Time.Posix
     | ProcessManualJobStatus (Result Http.Error Model.JobDetails)
     | GetManualResults String
     | DeleteManualJob String
     | ProcessManualResults (Result Http.Error Model.ConstellationResults)
     | ResiduesJobSubmitted (Result Http.Error Model.JobDetails)
-    | CheckResiduesJobs Time.Time
+    | CheckResiduesJobs Time.Posix
     | ProcessResiduesJobStatus (Result Http.Error Model.JobDetails)
     | GetResiduesResults String
     | DeleteResiduesJob String
@@ -667,8 +674,8 @@ updateConstellation msg model =
                                 Model.defaultAutoSettings
                       }
                     , Cmd.none
+                    , []
                     )
-                        # []
 
                 "Manual" ->
                     ( { model
@@ -677,8 +684,8 @@ updateConstellation msg model =
                                 Model.defaultManualSettings
                       }
                     , Cmd.none
+                    , []
                     )
-                        # []
 
                 "Residues" ->
                     ( { model
@@ -687,14 +694,14 @@ updateConstellation msg model =
                                 Model.defaultResiduesSettings
                       }
                     , Cmd.none
+                    , []
                     )
-                        # []
 
                 _ ->
                     ( model
                     , Cmd.none
+                    , []
                     )
-                        # []
 
         UpdateAutoSettings settingsMsg ->
             case model.constellationSub of
@@ -705,14 +712,14 @@ updateConstellation msg model =
                                 |> Model.Auto
                       }
                     , Cmd.none
+                    , []
                     )
-                        # []
 
                 _ ->
                     ( model
                     , Cmd.none
+                    , []
                     )
-                        # []
 
         UpdateManualSettings settingsMsg ->
             case model.constellationSub of
@@ -726,14 +733,14 @@ updateConstellation msg model =
                             Model.Manual updatedSettings
                       }
                     , Cmd.map UpdateManualSettings manualCmds
+                    , []
                     )
-                        # []
 
                 _ ->
                     ( model
                     , Cmd.none
+                    , []
                     )
-                        # []
 
         UpdateResiduesSettings settingsMsg ->
             case model.constellationSub of
@@ -747,34 +754,34 @@ updateConstellation msg model =
                             Model.Residues updatedSettings
                       }
                     , Cmd.map UpdateResiduesSettings residuesCmds
+                    , []
                     )
-                        # []
 
                 _ ->
                     ( model
                     , Cmd.none
+                    , []
                     )
-                        # []
 
         SubmitConstellationJob alaScanResults ->
             case model.constellationSub of
                 Model.Auto settings ->
                     ( model
                     , submitAutoJob alaScanResults settings
+                    , []
                     )
-                        # []
 
                 Model.Manual settings ->
                     ( model
                     , submitManualJob alaScanResults settings
+                    , []
                     )
-                        # []
 
                 Model.Residues settings ->
                     ( model
                     , submitResiduesJob alaScanResults settings
+                    , []
                     )
-                        # []
 
         AutoJobSubmitted (Ok jobDetails) ->
             ( { model
@@ -782,8 +789,8 @@ updateConstellation msg model =
                 , autoJobs = jobDetails :: model.autoJobs
               }
             , Cmd.none
+            , []
             )
-                # []
 
         AutoJobSubmitted (Err error) ->
             let
@@ -792,11 +799,11 @@ updateConstellation msg model =
             in
             ( model
             , Cmd.none
+            , [ Notifications.errorToNotification
+                    "Failed to Constellation Scan Job"
+                    error
+              ]
             )
-                # [ Notifications.errorToNotification
-                        "Failed to Constellation Scan Job"
-                        error
-                  ]
 
         CheckAutoJobs _ ->
             ( model
@@ -804,8 +811,8 @@ updateConstellation msg model =
                 (List.map checkAutoJobStatus
                     model.autoJobs
                 )
+            , []
             )
-                # []
 
         ProcessAutoJobStatus (Ok jobDetails) ->
             ( { model
@@ -818,39 +825,38 @@ updateConstellation msg model =
                         |> List.map Tuple.second
               }
             , Cmd.none
+            , case jobDetails.status of
+                Model.Completed ->
+                    [ Notification
+                        ""
+                        "Auto Constellation Scan Completed"
+                        ("Auto constellation scan job "
+                            ++ jobDetails.name
+                            ++ " ("
+                            ++ jobDetails.jobID
+                            ++ " complete. Retrieve the results from"
+                            ++ " the 'Jobs' tab."
+                        )
+                    ]
+
+                Model.Failed ->
+                    [ Notification
+                        ""
+                        "Auto Constellation Scan Failed"
+                        ("Alanine constellation scan job "
+                            ++ jobDetails.name
+                            ++ " ("
+                            ++ jobDetails.jobID
+                            ++ ") failed:\n"
+                            ++ Maybe.withDefault
+                                "Unknown error."
+                                jobDetails.stdOut
+                        )
+                    ]
+
+                _ ->
+                    []
             )
-                # (case jobDetails.status of
-                    Model.Completed ->
-                        [ Notification
-                            ""
-                            "Auto Constellation Scan Completed"
-                            ("Auto constellation scan job "
-                                ++ jobDetails.name
-                                ++ " ("
-                                ++ jobDetails.jobID
-                                ++ " complete. Retrieve the results from"
-                                ++ " the 'Jobs' tab."
-                            )
-                        ]
-
-                    Model.Failed ->
-                        [ Notification
-                            ""
-                            "Auto Constellation Scan Failed"
-                            ("Alanine constellation scan job "
-                                ++ jobDetails.name
-                                ++ " ("
-                                ++ jobDetails.jobID
-                                ++ ") failed:\n"
-                                ++ Maybe.withDefault
-                                    "Unknown error."
-                                    jobDetails.stdOut
-                            )
-                        ]
-
-                    _ ->
-                        []
-                  )
 
         ProcessAutoJobStatus (Err error) ->
             let
@@ -859,14 +865,14 @@ updateConstellation msg model =
             in
             ( model
             , Cmd.none
+            , []
             )
-                # []
 
         GetAutoResults jobID ->
             ( model
             , getAutoResults jobID
+            , []
             )
-                # []
 
         DeleteAutoJob jobID ->
             ( { model
@@ -879,14 +885,14 @@ updateConstellation msg model =
                         |> List.map Tuple.second
               }
             , Cmd.none
+            , []
             )
-                # []
 
         ProcessAutoResults (Ok results) ->
             ( { model | results = Just results }
             , Cmd.none
+            , []
             )
-                # []
 
         ProcessAutoResults (Err error) ->
             let
@@ -895,8 +901,8 @@ updateConstellation msg model =
             in
             ( model
             , Cmd.none
+            , []
             )
-                # []
 
         ManualJobSubmitted (Ok jobDetails) ->
             ( { model
@@ -904,8 +910,8 @@ updateConstellation msg model =
                 , manualJobs = jobDetails :: model.manualJobs
               }
             , Cmd.none
+            , []
             )
-                # []
 
         ManualJobSubmitted (Err error) ->
             let
@@ -916,11 +922,11 @@ updateConstellation msg model =
             in
             ( model
             , Cmd.none
+            , [ Notifications.errorToNotification
+                    "Failed to submit manual constellation scan job"
+                    error
+              ]
             )
-                # [ Notifications.errorToNotification
-                        "Failed to submit manual constellation scan job"
-                        error
-                  ]
 
         CheckManualJobs _ ->
             ( model
@@ -928,8 +934,8 @@ updateConstellation msg model =
                 (List.map checkManualJobStatus
                     model.manualJobs
                 )
+            , []
             )
-                # []
 
         ProcessManualJobStatus (Ok jobDetails) ->
             ( { model
@@ -942,39 +948,38 @@ updateConstellation msg model =
                         |> List.map Tuple.second
               }
             , Cmd.none
+            , case jobDetails.status of
+                Model.Completed ->
+                    [ Notification
+                        ""
+                        "Manual Constellation Scan Completed"
+                        ("Manual constellation scan job "
+                            ++ jobDetails.name
+                            ++ " ("
+                            ++ jobDetails.jobID
+                            ++ " complete. Retrieve the results from"
+                            ++ " the 'Jobs' tab."
+                        )
+                    ]
+
+                Model.Failed ->
+                    [ Notification
+                        ""
+                        "Manual Constellation Scan Failed"
+                        ("Alanine constellation scan job "
+                            ++ jobDetails.name
+                            ++ " ("
+                            ++ jobDetails.jobID
+                            ++ ") failed:\n"
+                            ++ Maybe.withDefault
+                                "Unknown error."
+                                jobDetails.stdOut
+                        )
+                    ]
+
+                _ ->
+                    []
             )
-                # (case jobDetails.status of
-                    Model.Completed ->
-                        [ Notification
-                            ""
-                            "Manual Constellation Scan Completed"
-                            ("Manual constellation scan job "
-                                ++ jobDetails.name
-                                ++ " ("
-                                ++ jobDetails.jobID
-                                ++ " complete. Retrieve the results from"
-                                ++ " the 'Jobs' tab."
-                            )
-                        ]
-
-                    Model.Failed ->
-                        [ Notification
-                            ""
-                            "Manual Constellation Scan Failed"
-                            ("Alanine constellation scan job "
-                                ++ jobDetails.name
-                                ++ " ("
-                                ++ jobDetails.jobID
-                                ++ ") failed:\n"
-                                ++ Maybe.withDefault
-                                    "Unknown error."
-                                    jobDetails.stdOut
-                            )
-                        ]
-
-                    _ ->
-                        []
-                  )
 
         ProcessManualJobStatus (Err error) ->
             let
@@ -983,14 +988,14 @@ updateConstellation msg model =
             in
             ( model
             , Cmd.none
+            , []
             )
-                # []
 
         GetManualResults jobID ->
             ( model
             , getManualResults jobID
+            , []
             )
-                # []
 
         DeleteManualJob jobID ->
             ( { model
@@ -1003,14 +1008,14 @@ updateConstellation msg model =
                         |> List.map Tuple.second
               }
             , Cmd.none
+            , []
             )
-                # []
 
         ProcessManualResults (Ok results) ->
             ( { model | results = Just results }
             , Cmd.none
+            , []
             )
-                # []
 
         ProcessManualResults (Err error) ->
             let
@@ -1019,8 +1024,8 @@ updateConstellation msg model =
             in
             ( model
             , Cmd.none
+            , []
             )
-                # []
 
         ResiduesJobSubmitted (Ok jobDetails) ->
             ( { model
@@ -1028,8 +1033,8 @@ updateConstellation msg model =
                 , residuesJobs = jobDetails :: model.residuesJobs
               }
             , Cmd.none
+            , []
             )
-                # []
 
         ResiduesJobSubmitted (Err error) ->
             let
@@ -1040,11 +1045,11 @@ updateConstellation msg model =
             in
             ( model
             , Cmd.none
+            , [ Notifications.errorToNotification
+                    "Failed to submit residues constellation scan job"
+                    error
+              ]
             )
-                # [ Notifications.errorToNotification
-                        "Failed to submit residues constellation scan job"
-                        error
-                  ]
 
         CheckResiduesJobs _ ->
             ( model
@@ -1052,8 +1057,8 @@ updateConstellation msg model =
                 (List.map checkResiduesJobStatus
                     model.residuesJobs
                 )
+            , []
             )
-                # []
 
         ProcessResiduesJobStatus (Ok jobDetails) ->
             ( { model
@@ -1066,39 +1071,38 @@ updateConstellation msg model =
                         |> List.map Tuple.second
               }
             , Cmd.none
+            , case jobDetails.status of
+                Model.Completed ->
+                    [ Notification
+                        ""
+                        "Residues Constellation Scan Completed"
+                        ("Residues constellation scan job "
+                            ++ jobDetails.name
+                            ++ " ("
+                            ++ jobDetails.jobID
+                            ++ " complete. Retrieve the results from"
+                            ++ " the 'Jobs' tab."
+                        )
+                    ]
+
+                Model.Failed ->
+                    [ Notification
+                        ""
+                        "Residues Constellation Scan Failed"
+                        ("Alanine constellation scan job "
+                            ++ jobDetails.name
+                            ++ " ("
+                            ++ jobDetails.jobID
+                            ++ ") failed:\n"
+                            ++ Maybe.withDefault
+                                "Unknown error."
+                                jobDetails.stdOut
+                        )
+                    ]
+
+                _ ->
+                    []
             )
-                # (case jobDetails.status of
-                    Model.Completed ->
-                        [ Notification
-                            ""
-                            "Residues Constellation Scan Completed"
-                            ("Residues constellation scan job "
-                                ++ jobDetails.name
-                                ++ " ("
-                                ++ jobDetails.jobID
-                                ++ " complete. Retrieve the results from"
-                                ++ " the 'Jobs' tab."
-                            )
-                        ]
-
-                    Model.Failed ->
-                        [ Notification
-                            ""
-                            "Residues Constellation Scan Failed"
-                            ("Alanine constellation scan job "
-                                ++ jobDetails.name
-                                ++ " ("
-                                ++ jobDetails.jobID
-                                ++ ") failed:\n"
-                                ++ Maybe.withDefault
-                                    "Unknown error."
-                                    jobDetails.stdOut
-                            )
-                        ]
-
-                    _ ->
-                        []
-                  )
 
         ProcessResiduesJobStatus (Err error) ->
             let
@@ -1107,14 +1111,14 @@ updateConstellation msg model =
             in
             ( model
             , Cmd.none
+            , []
             )
-                # []
 
         GetResiduesResults jobID ->
             ( model
             , getResiduesResults jobID
+            , []
             )
-                # []
 
         DeleteResiduesJob jobID ->
             ( { model
@@ -1127,14 +1131,14 @@ updateConstellation msg model =
                         |> List.map Tuple.second
               }
             , Cmd.none
+            , []
             )
-                # []
 
         ProcessResiduesResults (Ok results) ->
             ( { model | results = Just results }
             , Cmd.none
+            , []
             )
-                # []
 
         ProcessResiduesResults (Err error) ->
             let
@@ -1143,8 +1147,8 @@ updateConstellation msg model =
             in
             ( model
             , Cmd.none
+            , []
             )
-                # []
 
 
 type AutoSettingsMsg
@@ -1250,7 +1254,7 @@ updateResiduesSettings msg settings =
             ( { settings
                 | constellationSize =
                     String.toInt size
-                        |> Result.withDefault 3
+                        |> Maybe.withDefault 3
               }
             , Cmd.none
             )

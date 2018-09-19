@@ -1,4 +1,45 @@
-module Model exposing (AlanineScanModel, AlanineScanResults, AlanineScanSub, AppMode(..), AutoSettings, ChainID, ConstellationMode(..), ConstellationModel, ConstellationResults, ExportableJobDetails, ExportableModel, ExportableStructure, JobDetails, JobStatus(..), ManualSettings, Model, Panel(..), ResidueColour, ResidueInfo, ResidueResult, ResiduesSettings, Structure, autoResultsDecoder, defaultAutoSettings, defaultManualSettings, defaultResiduesSettings, emptyAlaScanModel, emptyConstellationModel, emptyModel, emptyScanSub, encodeAlanineScanSub, encodeAutoJob, encodeManualJob, encodeResiduesJob, exportJobDetails, exportModel, getActiveJobs, importJobDetails, importModel, intToJobStatus, jobDetailsDecoder, representsFloat, representsInt, scanResultsDecoder, stringToStatus, validAutoSettings, validManualSettings, validResiduesSettings, validScanSub)
+module Model exposing
+    ( AlanineScanModel
+    , AlanineScanResults
+    , AlanineScanSub
+    , AppMode(..)
+    , AutoSettings
+    , ChainID
+    , ConstellationMode(..)
+    , ConstellationModel
+    , ConstellationResults
+    , ExportableModel
+    , JobDetails
+    , JobStatus(..)
+    , ManualSettings
+    , Model
+    , Panel(..)
+    , ResidueColour
+    , ResidueInfo
+    , ResidueResult
+    , ResiduesSettings
+    , Structure
+    , autoResultsDecoder
+    , defaultAutoSettings
+    , defaultManualSettings
+    , defaultResiduesSettings
+    , emptyModel
+    , emptyScanSub
+    , encodeAlanineScanSub
+    , encodeAutoJob
+    , encodeManualJob
+    , encodeResiduesJob
+    , exportModel
+    , getActiveJobs
+    , importModel
+    , jobDetailsDecoder
+    , scanResultsDecoder
+    , statusToString
+    , validAutoSettings
+    , validManualSettings
+    , validResiduesSettings
+    , validScanSub
+    )
 
 {- # MODEL
    This module contains the types that describe the state of the application,
@@ -7,9 +48,8 @@ module Model exposing (AlanineScanModel, AlanineScanResults, AlanineScanSub, App
 -}
 
 import Json.Decode as JDe
-import Json.Decode.Extra exposing ((|:))
 import Json.Encode as JEn
-import Notifications exposing ((#), Notification)
+import Notifications exposing (Notification)
 import Set
 
 
@@ -170,8 +210,8 @@ encodeAlanineScanSub structure scanSub =
     JEn.object
         [ ( "name", scanSub.name |> JEn.string )
         , ( "pdbFile", JEn.string structure.pdbFile )
-        , ( "receptor", List.map JEn.string scanSub.receptor |> JEn.list )
-        , ( "ligand", List.map JEn.string scanSub.ligand |> JEn.list )
+        , ( "receptor", JEn.list JEn.string scanSub.receptor )
+        , ( "ligand", JEn.list JEn.string scanSub.ligand )
         ]
 
 
@@ -204,32 +244,32 @@ type alias ResidueResult =
 -}
 scanResultsDecoder : JDe.Decoder AlanineScanResults
 scanResultsDecoder =
-    JDe.succeed AlanineScanResults
-        |: JDe.field "name" JDe.string
-        |: JDe.field "pdbFile" JDe.string
-        |: JDe.field "receptor" (JDe.list JDe.string)
-        |: JDe.field "ligand" (JDe.list JDe.string)
-        |: JDe.field "dG" JDe.float
-        |: (JDe.field "receptorData" <|
-                JDe.list <|
-                    JDe.succeed ResidueResult
-                        |: JDe.index 0 JDe.string
-                        |: JDe.index 1 JDe.string
-                        |: JDe.index 2 JDe.string
-                        |: JDe.index 3 JDe.float
-                        |: JDe.index 4 JDe.int
-                        |: JDe.index 5 JDe.float
-           )
-        |: (JDe.field "ligandData" <|
-                JDe.list <|
-                    JDe.succeed ResidueResult
-                        |: JDe.index 0 JDe.string
-                        |: JDe.index 1 JDe.string
-                        |: JDe.index 2 JDe.string
-                        |: JDe.index 3 JDe.float
-                        |: JDe.index 4 JDe.int
-                        |: JDe.index 5 JDe.float
-           )
+    JDe.map7 AlanineScanResults
+        (JDe.field "name" JDe.string)
+        (JDe.field "pdbFile" JDe.string)
+        (JDe.field "receptor" (JDe.list JDe.string))
+        (JDe.field "ligand" (JDe.list JDe.string))
+        (JDe.field "dG" JDe.float)
+        (JDe.field "receptorData" <|
+            JDe.list <|
+                JDe.map6 ResidueResult
+                    (JDe.index 0 JDe.string)
+                    (JDe.index 1 JDe.string)
+                    (JDe.index 2 JDe.string)
+                    (JDe.index 3 JDe.float)
+                    (JDe.index 4 JDe.int)
+                    (JDe.index 5 JDe.float)
+        )
+        (JDe.field "ligandData" <|
+            JDe.list <|
+                JDe.map6 ResidueResult
+                    (JDe.index 0 JDe.string)
+                    (JDe.index 1 JDe.string)
+                    (JDe.index 2 JDe.string)
+                    (JDe.index 3 JDe.float)
+                    (JDe.index 4 JDe.int)
+                    (JDe.index 5 JDe.float)
+        )
 
 
 
@@ -324,7 +364,7 @@ encodeAutoJob scanResults settings =
     JEn.object
         [ ( "name", settings.name |> JEn.string )
         , ( "ddGCutOff"
-          , Result.withDefault
+          , Maybe.withDefault
                 5.0
                 (String.toFloat
                     settings.ddGCutOff
@@ -332,7 +372,7 @@ encodeAutoJob scanResults settings =
                 |> JEn.float
           )
         , ( "constellationSize"
-          , Result.withDefault
+          , Maybe.withDefault
                 3
                 (String.toInt
                     settings.constellationSize
@@ -340,17 +380,17 @@ encodeAutoJob scanResults settings =
                 |> JEn.int
           )
         , ( "cutOffDistance"
-          , Result.withDefault
+          , Maybe.withDefault
                 13.0
                 (String.toFloat
                     settings.cutOffDistance
                 )
                 |> JEn.float
           )
-        , ( "scanName", scanResults.name |> JEn.string )
-        , ( "pdbFile", scanResults.pdbFile |> JEn.string )
-        , ( "receptor", List.map JEn.string scanResults.receptor |> JEn.list )
-        , ( "ligand", List.map JEn.string scanResults.ligand |> JEn.list )
+        , ( "scanName", JEn.string scanResults.name )
+        , ( "pdbFile", JEn.string scanResults.pdbFile )
+        , ( "receptor", JEn.list JEn.string scanResults.receptor )
+        , ( "ligand", JEn.list JEn.string scanResults.ligand )
         ]
 
 
@@ -395,13 +435,12 @@ encodeManualJob scanResults { name, residues } =
         [ ( "name", JEn.string name )
         , ( "residues"
           , Set.toList residues
-                |> List.map JEn.string
-                |> JEn.list
+                |> JEn.list JEn.string
           )
         , ( "scanName", scanResults.name |> JEn.string )
         , ( "pdbFile", scanResults.pdbFile |> JEn.string )
-        , ( "receptor", List.map JEn.string scanResults.receptor |> JEn.list )
-        , ( "ligand", List.map JEn.string scanResults.ligand |> JEn.list )
+        , ( "receptor", JEn.list JEn.string scanResults.receptor )
+        , ( "ligand", JEn.list JEn.string scanResults.ligand )
         ]
 
 
@@ -454,13 +493,12 @@ encodeResiduesJob scanResults { name, constellationSize, residues } =
         , ( "constellationSize", JEn.int constellationSize )
         , ( "residues"
           , Set.toList residues
-                |> List.map JEn.string
-                |> JEn.list
+                |> JEn.list JEn.string
           )
-        , ( "scanName", scanResults.name |> JEn.string )
-        , ( "pdbFile", scanResults.pdbFile |> JEn.string )
-        , ( "receptor", List.map JEn.string scanResults.receptor |> JEn.list )
-        , ( "ligand", List.map JEn.string scanResults.ligand |> JEn.list )
+        , ( "scanName", JEn.string scanResults.name )
+        , ( "pdbFile", JEn.string scanResults.pdbFile )
+        , ( "receptor", JEn.list JEn.string scanResults.receptor )
+        , ( "ligand", JEn.list JEn.string scanResults.ligand )
         ]
 
 
@@ -469,10 +507,10 @@ encodeResiduesJob scanResults { name, constellationSize, residues } =
 representsFloat : String -> Bool
 representsFloat inString =
     case String.toFloat inString of
-        Ok _ ->
+        Just _ ->
             True
 
-        Err _ ->
+        Nothing ->
             False
 
 
@@ -481,10 +519,10 @@ representsFloat inString =
 representsInt : String -> Bool
 representsInt inString =
     case String.toInt inString of
-        Ok _ ->
+        Just _ ->
             True
 
-        Err _ ->
+        Nothing ->
             False
 
 
@@ -501,16 +539,16 @@ type alias ConstellationResults =
 -}
 autoResultsDecoder : JDe.Decoder ConstellationResults
 autoResultsDecoder =
-    JDe.succeed ConstellationResults
-        |: JDe.field "name" JDe.string
-        |: (JDe.field "hotConstellations" <|
-                JDe.list <|
-                    JDe.map2
-                        (\a b -> ( a, b ))
-                        (JDe.index 0 JDe.string)
-                        (JDe.index 1 JDe.float)
-           )
-        |: JDe.field "scanResults" scanResultsDecoder
+    JDe.map3 ConstellationResults
+        (JDe.field "name" JDe.string)
+        (JDe.field "hotConstellations" <|
+            JDe.list <|
+                JDe.map2
+                    (\a b -> ( a, b ))
+                    (JDe.index 0 JDe.string)
+                    (JDe.index 1 JDe.float)
+        )
+        (JDe.field "scanResults" scanResultsDecoder)
 
 
 
@@ -557,23 +595,31 @@ type alias ExportableJobDetails =
 
 exportJobDetails : JobDetails -> ExportableJobDetails
 exportJobDetails details =
-    { details | status = toString details.status }
+    ExportableJobDetails
+        details.jobID
+        details.name
+        (statusToString details.status)
+        details.stdOut
 
 
 importJobDetails : ExportableJobDetails -> JobDetails
 importJobDetails exported =
-    { exported | status = stringToStatus exported.status }
+    JobDetails
+        exported.jobID
+        exported.name
+        (stringToStatus exported.status)
+        exported.stdOut
 
 
 {-| Decodes JSON produced by the server into `JobDetails`.
 -}
 jobDetailsDecoder : JDe.Decoder JobDetails
 jobDetailsDecoder =
-    JDe.succeed JobDetails
-        |: JDe.field "_id" JDe.string
-        |: JDe.field "name" JDe.string
-        |: JDe.field "status" (JDe.int |> JDe.andThen intToJobStatus)
-        |: JDe.maybe (JDe.field "std_out" JDe.string)
+    JDe.map4 JobDetails
+        (JDe.field "_id" JDe.string)
+        (JDe.field "name" JDe.string)
+        (JDe.field "status" (JDe.int |> JDe.andThen intToJobStatus))
+        (JDe.maybe (JDe.field "std_out" JDe.string))
 
 
 {-| Represents the possible status that any job on the server could have. This
@@ -585,6 +631,25 @@ type JobStatus
     | Running
     | Completed
     | Failed
+
+
+statusToString : JobStatus -> String
+statusToString jobStatus =
+    case jobStatus of
+        Submitted ->
+            "Submitted"
+
+        Queued ->
+            "Queued"
+
+        Running ->
+            "Running"
+
+        Completed ->
+            "Completed"
+
+        Failed ->
+            "Failed"
 
 
 stringToStatus : String -> JobStatus

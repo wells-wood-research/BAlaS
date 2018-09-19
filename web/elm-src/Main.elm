@@ -17,6 +17,7 @@ The application is composed of 4 modules:
 
 -}
 
+import Browser
 import Html exposing (..)
 import Model
 import Ports
@@ -27,7 +28,7 @@ import View
 
 main : Program (Maybe Model.ExportableModel) Model.Model Update.Msg
 main =
-    programWithFlags
+    Browser.element
         { init = init
         , view = View.view
         , update = Update.update
@@ -57,8 +58,7 @@ subscriptions : Model.Model -> Sub Update.Msg
 subscriptions model =
     Sub.batch <|
         [ Ports.receiveStructure <| Update.UpdateScan << Update.UpdateStructure
-
-        -- , atomClick <| UpdateScan << ToggleResidueSelection
+        , atomClick <| UpdateScan << ToggleResidueSelection
         ]
             ++ (case model.alanineScan.structure of
                     Just _ ->
@@ -72,7 +72,7 @@ subscriptions model =
                         (Model.getActiveJobs model.alanineScan.jobs)
                         > 0
                 then
-                    [ Time.every (5 * Time.second)
+                    [ Time.every 5000
                         (Update.UpdateScan << Update.CheckScanJobs)
                     ]
 
@@ -84,7 +84,7 @@ subscriptions model =
                         (Model.getActiveJobs model.constellation.autoJobs)
                         > 0
                 then
-                    [ Time.every (5 * Time.second)
+                    [ Time.every 5000
                         (Update.UpdateConstellation << Update.CheckAutoJobs)
                     ]
 
@@ -96,7 +96,7 @@ subscriptions model =
                         (Model.getActiveJobs model.constellation.manualJobs)
                         > 0
                 then
-                    [ Time.every (5 * Time.second)
+                    [ Time.every 5000
                         (Update.UpdateConstellation << Update.CheckManualJobs)
                     ]
 
@@ -108,7 +108,7 @@ subscriptions model =
                         (Model.getActiveJobs model.constellation.residuesJobs)
                         > 0
                 then
-                    [ Time.every (5 * Time.second)
+                    [ Time.every 5000
                         (Update.UpdateConstellation << Update.CheckResiduesJobs)
                     ]
 
