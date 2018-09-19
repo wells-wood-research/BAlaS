@@ -1,4 +1,4 @@
-port module Main exposing (init, main, subscriptions)
+module Main exposing (init, main, subscriptions)
 
 {-| This module provides the main entry point to the BALS web application
 front end.
@@ -58,7 +58,8 @@ subscriptions : Model.Model -> Sub Update.Msg
 subscriptions model =
     Sub.batch <|
         [ Ports.receiveStructure <| Update.UpdateScan << Update.UpdateStructure
-        , atomClick <| UpdateScan << ToggleResidueSelection
+
+        -- , atomClick <| UpdateScan << ToggleResidueSelection
         ]
             ++ (case model.alanineScan.structure of
                     Just _ ->
