@@ -1,4 +1,4 @@
-port module Main exposing (..)
+port module Main exposing (init, main, subscriptions)
 
 {-| This module provides the main entry point to the BALS web application
 front end.
@@ -41,10 +41,14 @@ init : Maybe Model.ExportableModel -> ( Model.Model, Cmd msg )
 init mExported =
     case mExported of
         Just exported ->
-            Model.importModel exported ! [ Ports.initialiseViewer () ]
+            ( Model.importModel exported
+            , Ports.initialiseViewer ()
+            )
 
         Nothing ->
-            Model.emptyModel ! [ Ports.initialiseViewer () ]
+            ( Model.emptyModel
+            , Ports.initialiseViewer ()
+            )
 
 
 {-| Describes the active subscriptions based on the current state of the model.
@@ -71,6 +75,7 @@ subscriptions model =
                     [ Time.every (5 * Time.second)
                         (Update.UpdateScan << Update.CheckScanJobs)
                     ]
+
                 else
                     []
                )
@@ -82,6 +87,7 @@ subscriptions model =
                     [ Time.every (5 * Time.second)
                         (Update.UpdateConstellation << Update.CheckAutoJobs)
                     ]
+
                 else
                     []
                )
@@ -93,6 +99,7 @@ subscriptions model =
                     [ Time.every (5 * Time.second)
                         (Update.UpdateConstellation << Update.CheckManualJobs)
                     ]
+
                 else
                     []
                )
@@ -104,6 +111,7 @@ subscriptions model =
                     [ Time.every (5 * Time.second)
                         (Update.UpdateConstellation << Update.CheckResiduesJobs)
                     ]
+
                 else
                     []
                )

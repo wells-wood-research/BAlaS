@@ -1,10 +1,10 @@
-port module Notifications exposing (..)
+port module Notifications exposing (Notification, emptyNotification, encodeNotification, errorToNotification, notificationDecoder)
 
 {-| Module containing the notifications data structure and helper functions.
 -}
 
 import Http
-import Json.Decode exposing (field, bool, string, float, decodeString)
+import Json.Decode exposing (bool, decodeString, field, float, string)
 import Json.Decode.Extra exposing ((|:))
 import Json.Encode as JEn
 
@@ -32,9 +32,9 @@ emptyNotification =
 notificationDecoder : Json.Decode.Decoder Notification
 notificationDecoder =
     Json.Decode.succeed Notification
-        |: (field "date" string)
-        |: (field "title" string)
-        |: (field "message" string)
+        |: field "date" string
+        |: field "title" string
+        |: field "message" string
 
 
 encodeNotification : Notification -> JEn.Value

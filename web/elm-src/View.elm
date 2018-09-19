@@ -13,6 +13,7 @@ import Set
 import Update
 
 
+
 {- # VIEW
    This section contains all functions for displaying the current state of the
    model.
@@ -63,42 +64,42 @@ view model =
                 ]
                 [ text "Jobs" ]
             ]
-         , (case model.appMode of
-                Model.Scan ->
-                    case model.alanineScan.results of
-                        Just results ->
-                            scanResultsView results
+         , case model.appMode of
+            Model.Scan ->
+                case model.alanineScan.results of
+                    Just results ->
+                        scanResultsView results
 
-                        Nothing ->
-                            scanSubmissionView
-                                Update.UpdateScan
-                                model.alanineScan.structure
-                                model.alanineScan.alanineScanSub
+                    Nothing ->
+                        scanSubmissionView
+                            Update.UpdateScan
+                            model.alanineScan.structure
+                            model.alanineScan.alanineScanSub
 
-                Model.Constellation ->
-                    case model.constellation.results of
-                        Just results ->
-                            constellationResultsView results
+            Model.Constellation ->
+                case model.constellation.results of
+                    Just results ->
+                        constellationResultsView results
 
-                        Nothing ->
-                            constellationSubmissionView
-                                Update.UpdateConstellation
-                                model.constellation
-                                model.alanineScan.results
+                    Nothing ->
+                        constellationSubmissionView
+                            Update.UpdateConstellation
+                            model.constellation
+                            model.alanineScan.results
 
-                Model.Jobs ->
-                    jobsView model
-           )
+            Model.Jobs ->
+                jobsView model
          ]
-            ++ case model.openPanel of
-                Model.Notifications ->
-                    [ notificationPanel model.notifications ]
+            ++ (case model.openPanel of
+                    Model.Notifications ->
+                        [ notificationPanel model.notifications ]
 
-                Model.ViewerOptions ->
-                    [ viewerOptions model.alanineScan.structure ]
+                    Model.ViewerOptions ->
+                        [ viewerOptions model.alanineScan.structure ]
 
-                Model.Closed ->
-                    []
+                    Model.Closed ->
+                        []
+               )
         )
 
 
@@ -206,13 +207,12 @@ scanSubmissionView updateMsg mStructure scanSub =
                             , th [] [ text "Ligand" ]
                             ]
                          ]
-                            ++ (List.map
-                                    (chainSelect updateMsg
-                                        scanSub.receptor
-                                        scanSub.ligand
-                                    )
-                                    structure.chainLabels
-                               )
+                            ++ List.map
+                                (chainSelect updateMsg
+                                    scanSub.receptor
+                                    scanSub.ligand
+                                )
+                                structure.chainLabels
                         )
                     , button
                         [ onClick <| updateMsg Update.SubmitScanJob
@@ -259,47 +259,47 @@ scanResultsTable ligandResults =
                 { chainID, residueNumber, aminoAcid, ddG, stdDevDDG } =
                     resResult
             in
-                tr
-                    [ onClick <| Update.UpdateScan <| Update.FocusOnResidue resResult
-                    , Model.ResidueColour
-                        "ligand_ballsAndSticks"
-                        [ ( chainID
-                          , residueNumber
-                          )
-                        ]
-                        "red"
-                        |> Update.ColourResidues
-                        |> onMouseOver
-                    , Model.ResidueColour
-                        "ligand_ballsAndSticks"
-                        [ ( chainID
-                          , residueNumber
-                          )
-                        ]
-                        "cpk"
-                        |> Update.ColourResidues
-                        |> onMouseOut
+            tr
+                [ onClick <| Update.UpdateScan <| Update.FocusOnResidue resResult
+                , Model.ResidueColour
+                    "ligand_ballsAndSticks"
+                    [ ( chainID
+                      , residueNumber
+                      )
                     ]
-                    [ td [] [ text chainID ]
-                    , td [] [ text residueNumber ]
-                    , td [] [ text aminoAcid ]
-                    , td [] [ toString ddG |> text ]
-                    , td [] [ toString stdDevDDG |> text ]
+                    "red"
+                    |> Update.ColourResidues
+                    |> onMouseOver
+                , Model.ResidueColour
+                    "ligand_ballsAndSticks"
+                    [ ( chainID
+                      , residueNumber
+                      )
                     ]
-    in
-        table [ class "scan-results-table" ]
-            ([ tr []
-                [ th [] [ text "Chain" ]
-                , th [] [ text "Residue" ]
-                , th [] [ text "Amino Acid" ]
-                , th [] [ text "ΔΔG" ]
-                , th [] [ text "Std Dev" ]
+                    "cpk"
+                    |> Update.ColourResidues
+                    |> onMouseOut
                 ]
-             ]
-                ++ (List.filter (\res -> res.ddG /= 0) ligandResults
-                        |> List.map resultsRow
-                   )
-            )
+                [ td [] [ text chainID ]
+                , td [] [ text residueNumber ]
+                , td [] [ text aminoAcid ]
+                , td [] [ toString ddG |> text ]
+                , td [] [ toString stdDevDDG |> text ]
+                ]
+    in
+    table [ class "scan-results-table" ]
+        ([ tr []
+            [ th [] [ text "Chain" ]
+            , th [] [ text "Residue" ]
+            , th [] [ text "Amino Acid" ]
+            , th [] [ text "ΔΔG" ]
+            , th [] [ text "Std Dev" ]
+            ]
+         ]
+            ++ (List.filter (\res -> res.ddG /= 0) ligandResults
+                    |> List.map resultsRow
+               )
+        )
 
 
 {-| View for selecting the receptor and ligand chains.
@@ -322,8 +322,10 @@ chainSelect updateMsg receptorLabels ligandLabels label =
                     ]
                     [ text "Clear" ]
                 ]
+
              else if List.member label ligandLabels then
                 []
+
              else
                 [ button
                     [ onClick <|
@@ -342,8 +344,10 @@ chainSelect updateMsg receptorLabels ligandLabels label =
                     ]
                     [ text "Clear" ]
                 ]
+
              else if List.member label receptorLabels then
                 []
+
              else
                 [ button
                     [ onClick <|
@@ -407,21 +411,21 @@ activeConstellationSub updateMsg model scanRes =
                 Model.Residues _ ->
                     "Residues"
     in
-        div []
-            [ h3 [] [ text "Select Mode" ]
-            , select [ onInput <| updateMsg << Update.ChangeMode ] <|
-                List.map (simpleOption modeString)
-                    [ "Auto", "Manual", "Residues" ]
-            , case model.constellationSub of
-                Model.Auto settings ->
-                    autoSettingsView updateMsg scanRes settings
+    div []
+        [ h3 [] [ text "Select Mode" ]
+        , select [ onInput <| updateMsg << Update.ChangeMode ] <|
+            List.map (simpleOption modeString)
+                [ "Auto", "Manual", "Residues" ]
+        , case model.constellationSub of
+            Model.Auto settings ->
+                autoSettingsView updateMsg scanRes settings
 
-                Model.Manual settings ->
-                    manualSettingsView updateMsg scanRes settings
+            Model.Manual settings ->
+                manualSettingsView updateMsg scanRes settings
 
-                Model.Residues settings ->
-                    residuesSettingsView updateMsg scanRes settings
-            ]
+            Model.Residues settings ->
+                residuesSettingsView updateMsg scanRes settings
+        ]
 
 
 {-| View for submission of auto settings input.
@@ -436,55 +440,55 @@ autoSettingsView updateMsg scanRes settings =
         { ddGCutOff, constellationSize, cutOffDistance } =
             settings
     in
-        div []
-            [ h3 [] [ text "Job Name" ]
-            , input
-                [ onInput <|
-                    updateMsg
-                        << Update.UpdateAutoSettings
-                        << Update.UpdateAutoName
-                ]
-                []
-            , h3 [] [ text "ΔΔG Cut Off Value" ]
-            , input
-                [ onInput <|
-                    updateMsg
-                        << Update.UpdateAutoSettings
-                        << Update.UpdateDDGCutOff
-                , pattern "[+-]?([0-9]*[.])?[0-9]+"
-                , value ddGCutOff
-                , placeholder "ΔΔG"
-                ]
-                []
-            , h3 [] [ text "Constellation Size" ]
-            , input
-                [ onInput <|
-                    updateMsg
-                        << Update.UpdateAutoSettings
-                        << Update.UpdateSize
-                , pattern "[0-9]*"
-                , value constellationSize
-                , placeholder "Size"
-                ]
-                []
-            , h3 [] [ text "Cut Off Distance" ]
-            , input
-                [ onInput <|
-                    updateMsg
-                        << Update.UpdateAutoSettings
-                        << Update.UpdateDistanceCutOff
-                , pattern "[+-]?([0-9]*[.])?[0-9]+"
-                , value cutOffDistance
-                , placeholder "Distance"
-                ]
-                []
-            , br [] []
-            , button
-                [ onClick <| updateMsg <| Update.SubmitConstellationJob scanRes
-                , disabled <| not <| Model.validAutoSettings settings
-                ]
-                [ text "Submit" ]
+    div []
+        [ h3 [] [ text "Job Name" ]
+        , input
+            [ onInput <|
+                updateMsg
+                    << Update.UpdateAutoSettings
+                    << Update.UpdateAutoName
             ]
+            []
+        , h3 [] [ text "ΔΔG Cut Off Value" ]
+        , input
+            [ onInput <|
+                updateMsg
+                    << Update.UpdateAutoSettings
+                    << Update.UpdateDDGCutOff
+            , pattern "[+-]?([0-9]*[.])?[0-9]+"
+            , value ddGCutOff
+            , placeholder "ΔΔG"
+            ]
+            []
+        , h3 [] [ text "Constellation Size" ]
+        , input
+            [ onInput <|
+                updateMsg
+                    << Update.UpdateAutoSettings
+                    << Update.UpdateSize
+            , pattern "[0-9]*"
+            , value constellationSize
+            , placeholder "Size"
+            ]
+            []
+        , h3 [] [ text "Cut Off Distance" ]
+        , input
+            [ onInput <|
+                updateMsg
+                    << Update.UpdateAutoSettings
+                    << Update.UpdateDistanceCutOff
+            , pattern "[+-]?([0-9]*[.])?[0-9]+"
+            , value cutOffDistance
+            , placeholder "Distance"
+            ]
+            []
+        , br [] []
+        , button
+            [ onClick <| updateMsg <| Update.SubmitConstellationJob scanRes
+            , disabled <| not <| Model.validAutoSettings settings
+            ]
+            [ text "Submit" ]
+        ]
 
 
 {-| View for submission of manual settings input.
@@ -499,31 +503,31 @@ manualSettingsView updateMsg scanResults settings =
         { residues } =
             settings
     in
-        div []
-            [ h3 [] [ text "Job Name" ]
-            , input
-                [ onInput <|
-                    updateMsg
-                        << Update.UpdateManualSettings
-                        << Update.UpdateManualName
-                ]
-                []
-            , h3 [] [ text "Select Residues" ]
-            , text "Click to select."
-            , residueSelectTable
-                (updateMsg
+    div []
+        [ h3 [] [ text "Job Name" ]
+        , input
+            [ onInput <|
+                updateMsg
                     << Update.UpdateManualSettings
-                    << Update.SelectManualResidue
-                )
-                residues
-                scanResults.ligandResults
-            , br [] []
-            , button
-                [ onClick <| updateMsg <| Update.SubmitConstellationJob scanResults
-                , disabled <| not <| Model.validManualSettings settings
-                ]
-                [ text "Submit" ]
+                    << Update.UpdateManualName
             ]
+            []
+        , h3 [] [ text "Select Residues" ]
+        , text "Click to select."
+        , residueSelectTable
+            (updateMsg
+                << Update.UpdateManualSettings
+                << Update.SelectManualResidue
+            )
+            residues
+            scanResults.ligandResults
+        , br [] []
+        , button
+            [ onClick <| updateMsg <| Update.SubmitConstellationJob scanResults
+            , disabled <| not <| Model.validManualSettings settings
+            ]
+            [ text "Submit" ]
+        ]
 
 
 residueSelectTable :
@@ -541,34 +545,34 @@ residueSelectTable updateMsg selected ligandResults =
                 residueID =
                     chainID ++ residueNumber
             in
-                tr
-                    [ case Set.member residueID selected of
-                        True ->
-                            class "selected-residue"
+            tr
+                [ case Set.member residueID selected of
+                    True ->
+                        class "selected-residue"
 
-                        False ->
-                            class "unselected-residue"
-                    , onClick <|
-                        updateMsg resResult
-                    ]
-                    [ td [] [ text chainID ]
-                    , td [] [ text residueNumber ]
-                    , td [] [ text aminoAcid ]
-                    , td [] [ toString ddG |> text ]
-                    ]
-    in
-        table [ class "scan-results-table" ]
-            ([ tr []
-                [ th [] [ text "Chain" ]
-                , th [] [ text "Residue" ]
-                , th [] [ text "Amino Acid" ]
-                , th [] [ text "ΔΔG" ]
+                    False ->
+                        class "unselected-residue"
+                , onClick <|
+                    updateMsg resResult
                 ]
-             ]
-                ++ (List.filter (\res -> res.ddG /= 0) ligandResults
-                        |> List.map resultsRow
-                   )
-            )
+                [ td [] [ text chainID ]
+                , td [] [ text residueNumber ]
+                , td [] [ text aminoAcid ]
+                , td [] [ toString ddG |> text ]
+                ]
+    in
+    table [ class "scan-results-table" ]
+        ([ tr []
+            [ th [] [ text "Chain" ]
+            , th [] [ text "Residue" ]
+            , th [] [ text "Amino Acid" ]
+            , th [] [ text "ΔΔG" ]
+            ]
+         ]
+            ++ (List.filter (\res -> res.ddG /= 0) ligandResults
+                    |> List.map resultsRow
+               )
+        )
 
 
 {-| View for submission of residues settings input.
@@ -583,41 +587,41 @@ residuesSettingsView updateMsg scanResults settings =
         { residues } =
             settings
     in
-        div []
-            [ h3 [] [ text "Job Name" ]
-            , input
-                [ onInput <|
-                    updateMsg
-                        << Update.UpdateResiduesSettings
-                        << Update.UpdateResiduesName
-                ]
-                []
-            , h3 [] [ text "Constellation Size" ]
-            , select
-                [ onInput <|
-                    updateMsg
-                        << Update.UpdateResiduesSettings
-                        << Update.UpdateConstellationSize
-                ]
-              <|
-                List.map (simpleOption <| toString settings.constellationSize)
-                    [ "2", "3", "4", "5" ]
-            , h3 [] [ text "Select Residues" ]
-            , text "Click to select."
-            , residueSelectTable
-                (updateMsg
+    div []
+        [ h3 [] [ text "Job Name" ]
+        , input
+            [ onInput <|
+                updateMsg
                     << Update.UpdateResiduesSettings
-                    << Update.SelectResiduesResidue
-                )
-                residues
-                scanResults.ligandResults
-            , br [] []
-            , button
-                [ onClick <| updateMsg <| Update.SubmitConstellationJob scanResults
-                , disabled <| not <| Model.validResiduesSettings settings
-                ]
-                [ text "Submit" ]
+                    << Update.UpdateResiduesName
             ]
+            []
+        , h3 [] [ text "Constellation Size" ]
+        , select
+            [ onInput <|
+                updateMsg
+                    << Update.UpdateResiduesSettings
+                    << Update.UpdateConstellationSize
+            ]
+          <|
+            List.map (simpleOption <| toString settings.constellationSize)
+                [ "2", "3", "4", "5" ]
+        , h3 [] [ text "Select Residues" ]
+        , text "Click to select."
+        , residueSelectTable
+            (updateMsg
+                << Update.UpdateResiduesSettings
+                << Update.SelectResiduesResidue
+            )
+            residues
+            scanResults.ligandResults
+        , br [] []
+        , button
+            [ onClick <| updateMsg <| Update.SubmitConstellationJob scanResults
+            , disabled <| not <| Model.validResiduesSettings settings
+            ]
+            [ text "Submit" ]
+        ]
 
 
 {-| Main view for the constellation tab when in results mode. This is hidden
@@ -647,23 +651,23 @@ resultsRow ( constellation, meanDDG ) =
             Regex.find Regex.All (Regex.regex "([A-Za-z])(\\d+)") constellation
                 |> List.filterMap submatchToMaybe
     in
-        tr
-            [ Model.ResidueColour
-                "ligand_ballsAndSticks"
-                constResidues
-                "red"
-                |> Update.ColourResidues
-                |> onMouseOver
-            , Model.ResidueColour
-                "ligand_ballsAndSticks"
-                constResidues
-                "cpk"
-                |> Update.ColourResidues
-                |> onMouseOut
-            ]
-            [ td [] [ text constellation ]
-            , td [] [ text <| toString meanDDG ]
-            ]
+    tr
+        [ Model.ResidueColour
+            "ligand_ballsAndSticks"
+            constResidues
+            "red"
+            |> Update.ColourResidues
+            |> onMouseOver
+        , Model.ResidueColour
+            "ligand_ballsAndSticks"
+            constResidues
+            "cpk"
+            |> Update.ColourResidues
+            |> onMouseOut
+        ]
+        [ td [] [ text constellation ]
+        , td [] [ text <| toString meanDDG ]
+        ]
 
 
 submatchToMaybe : Regex.Match -> Maybe ( String, String )
@@ -697,29 +701,29 @@ jobsView model =
         residuesJobs =
             model.constellation.residuesJobs
     in
-        div [ class "control-panel jobs-panel" ]
-            [ h2 [] [ text "Jobs" ]
-            , jobTable
-                (Update.UpdateScan << Update.GetScanResults)
-                (Update.UpdateScan << Update.DeleteScanJob)
-                "Alanine Scan Jobs"
-                (List.sortBy (\{ name } -> name) alaScanJobs)
-            , jobTable
-                (Update.UpdateConstellation << Update.GetAutoResults)
-                (Update.UpdateConstellation << Update.DeleteAutoJob)
-                "Auto Constellation Scan Jobs"
-                (List.sortBy (\{ name } -> name) autoJobs)
-            , jobTable
-                (Update.UpdateConstellation << Update.GetManualResults)
-                (Update.UpdateConstellation << Update.DeleteManualJob)
-                "Manual Constellation Scan Jobs"
-                (List.sortBy (\{ name } -> name) manualJobs)
-            , jobTable
-                (Update.UpdateConstellation << Update.GetResiduesResults)
-                (Update.UpdateConstellation << Update.DeleteResiduesJob)
-                "Residues Constellation Scan Jobs"
-                (List.sortBy (\{ name } -> name) residuesJobs)
-            ]
+    div [ class "control-panel jobs-panel" ]
+        [ h2 [] [ text "Jobs" ]
+        , jobTable
+            (Update.UpdateScan << Update.GetScanResults)
+            (Update.UpdateScan << Update.DeleteScanJob)
+            "Alanine Scan Jobs"
+            (List.sortBy (\{ name } -> name) alaScanJobs)
+        , jobTable
+            (Update.UpdateConstellation << Update.GetAutoResults)
+            (Update.UpdateConstellation << Update.DeleteAutoJob)
+            "Auto Constellation Scan Jobs"
+            (List.sortBy (\{ name } -> name) autoJobs)
+        , jobTable
+            (Update.UpdateConstellation << Update.GetManualResults)
+            (Update.UpdateConstellation << Update.DeleteManualJob)
+            "Manual Constellation Scan Jobs"
+            (List.sortBy (\{ name } -> name) manualJobs)
+        , jobTable
+            (Update.UpdateConstellation << Update.GetResiduesResults)
+            (Update.UpdateConstellation << Update.DeleteResiduesJob)
+            "Residues Constellation Scan Jobs"
+            (List.sortBy (\{ name } -> name) residuesJobs)
+        ]
 
 
 {-| Creates a table of job details. Takes a `Msg` constructor as an argument so
@@ -742,8 +746,9 @@ jobTable getMsg deleteMsg tableTitle jobs =
                     [ button
                         [ getMsg jobID
                             |> onClick
-                        , (if (status == Model.Completed) then
+                        , (if status == Model.Completed then
                             False
+
                            else
                             True
                           )
@@ -760,22 +765,23 @@ jobTable getMsg deleteMsg tableTitle jobs =
                     ]
                 ]
     in
-        div []
-            [ h3 [] [ text tableTitle ]
-            , if List.length jobs > 0 then
-                table [ class "jobs-table" ]
-                    ([ tr []
-                        [ th [] [ text "Name" ]
-                        , th [] [ text "Job ID" ]
-                        , th [] [ text "Status" ]
-                        , th [] []
-                        ]
-                     ]
-                        ++ List.map tableRow jobs
-                    )
-              else
-                text "No Jobs submitted."
-            ]
+    div []
+        [ h3 [] [ text tableTitle ]
+        , if List.length jobs > 0 then
+            table [ class "jobs-table" ]
+                ([ tr []
+                    [ th [] [ text "Name" ]
+                    , th [] [ text "Job ID" ]
+                    , th [] [ text "Status" ]
+                    , th [] []
+                    ]
+                 ]
+                    ++ List.map tableRow jobs
+                )
+
+          else
+            text "No Jobs submitted."
+        ]
 
 
 

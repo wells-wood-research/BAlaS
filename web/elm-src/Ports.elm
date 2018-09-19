@@ -1,4 +1,4 @@
-port module Ports exposing (..)
+port module Ports exposing (atomClick, colourGeometry, colourResidues, displayScanResults, focusOnResidue, hoveredName, initialiseViewer, receiveStructure, requestPDBFile, saveState, setVisibility)
 
 {- # COMMANDS AND SUBSCRIPTIONS
    This section contains all code for communicating with the outside world, whether
@@ -6,6 +6,7 @@ port module Ports exposing (..)
 -}
 
 import Model
+
 
 
 {- Each of the following ports corresponds to a JavaScript function in

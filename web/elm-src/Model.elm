@@ -1,4 +1,4 @@
-module Model exposing (..)
+module Model exposing (AlanineScanModel, AlanineScanResults, AlanineScanSub, AppMode(..), AutoSettings, ChainID, ConstellationMode(..), ConstellationModel, ConstellationResults, ExportableJobDetails, ExportableModel, ExportableStructure, JobDetails, JobStatus(..), ManualSettings, Model, Panel(..), ResidueColour, ResidueInfo, ResidueResult, ResiduesSettings, Structure, autoResultsDecoder, defaultAutoSettings, defaultManualSettings, defaultResiduesSettings, emptyAlaScanModel, emptyConstellationModel, emptyModel, emptyScanSub, encodeAlanineScanSub, encodeAutoJob, encodeManualJob, encodeResiduesJob, exportJobDetails, exportModel, getActiveJobs, importJobDetails, importModel, intToJobStatus, jobDetailsDecoder, representsFloat, representsInt, scanResultsDecoder, stringToStatus, validAutoSettings, validManualSettings, validResiduesSettings, validScanSub)
 
 {- # MODEL
    This module contains the types that describe the state of the application,
@@ -6,11 +6,11 @@ module Model exposing (..)
    JSON.
 -}
 
-import Set
 import Json.Decode as JDe
 import Json.Decode.Extra exposing ((|:))
 import Json.Encode as JEn
 import Notifications exposing ((#), Notification)
+import Set
 
 
 {-| Describes the current state of the application
@@ -158,9 +158,9 @@ validScanSub { name, receptor, ligand } =
                 Nothing ->
                     False
     in
-        (name /= "")
-            && (List.length receptor > 0)
-            && (List.length ligand > 0)
+    (name /= "")
+        && (List.length receptor > 0)
+        && (List.length ligand > 0)
 
 
 {-| JSON encoder for `AlanineScanSub`
@@ -205,30 +205,30 @@ type alias ResidueResult =
 scanResultsDecoder : JDe.Decoder AlanineScanResults
 scanResultsDecoder =
     JDe.succeed AlanineScanResults
-        |: (JDe.field "name" JDe.string)
-        |: (JDe.field "pdbFile" JDe.string)
-        |: (JDe.field "receptor" (JDe.list JDe.string))
-        |: (JDe.field "ligand" (JDe.list JDe.string))
-        |: (JDe.field "dG" JDe.float)
+        |: JDe.field "name" JDe.string
+        |: JDe.field "pdbFile" JDe.string
+        |: JDe.field "receptor" (JDe.list JDe.string)
+        |: JDe.field "ligand" (JDe.list JDe.string)
+        |: JDe.field "dG" JDe.float
         |: (JDe.field "receptorData" <|
                 JDe.list <|
                     JDe.succeed ResidueResult
-                        |: (JDe.index 0 JDe.string)
-                        |: (JDe.index 1 JDe.string)
-                        |: (JDe.index 2 JDe.string)
-                        |: (JDe.index 3 JDe.float)
-                        |: (JDe.index 4 JDe.int)
-                        |: (JDe.index 5 JDe.float)
+                        |: JDe.index 0 JDe.string
+                        |: JDe.index 1 JDe.string
+                        |: JDe.index 2 JDe.string
+                        |: JDe.index 3 JDe.float
+                        |: JDe.index 4 JDe.int
+                        |: JDe.index 5 JDe.float
            )
         |: (JDe.field "ligandData" <|
                 JDe.list <|
                     JDe.succeed ResidueResult
-                        |: (JDe.index 0 JDe.string)
-                        |: (JDe.index 1 JDe.string)
-                        |: (JDe.index 2 JDe.string)
-                        |: (JDe.index 3 JDe.float)
-                        |: (JDe.index 4 JDe.int)
-                        |: (JDe.index 5 JDe.float)
+                        |: JDe.index 0 JDe.string
+                        |: JDe.index 1 JDe.string
+                        |: JDe.index 2 JDe.string
+                        |: JDe.index 3 JDe.float
+                        |: JDe.index 4 JDe.int
+                        |: JDe.index 5 JDe.float
            )
 
 
@@ -307,13 +307,13 @@ validAutoSettings { name, ddGCutOff, constellationSize, cutOffDistance } =
                 [ ddGCutOff, constellationSize, cutOffDistance ]
                 |> List.any identity
     in
-        List.all identity
-            [ validName
-            , validDDGCutOff
-            , validConSize
-            , validDistance
-            , not anyEmpty
-            ]
+    List.all identity
+        [ validName
+        , validDDGCutOff
+        , validConSize
+        , validDistance
+        , not anyEmpty
+        ]
 
 
 {-| JSON encoder that creates an auto job from a previous `AlanineScanResults`
@@ -380,10 +380,10 @@ validManualSettings { name, residues } =
         validResidues =
             Set.isEmpty residues |> not
     in
-        List.all identity
-            [ validName
-            , validResidues
-            ]
+    List.all identity
+        [ validName
+        , validResidues
+        ]
 
 
 {-| JSON encoder that creates an manual job from a previous `AlanineScanResults`
@@ -435,13 +435,13 @@ validResiduesSettings { name, constellationSize, residues } =
 
         validResidues =
             (Set.isEmpty residues |> not)
-                && ((Set.size residues) >= constellationSize)
+                && (Set.size residues >= constellationSize)
     in
-        List.all identity
-            [ validName
-            , validConstSize
-            , validResidues
-            ]
+    List.all identity
+        [ validName
+        , validConstSize
+        , validResidues
+        ]
 
 
 {-| JSON encoder that creates an residues job from a previous `AlanineScanResults`
@@ -502,15 +502,15 @@ type alias ConstellationResults =
 autoResultsDecoder : JDe.Decoder ConstellationResults
 autoResultsDecoder =
     JDe.succeed ConstellationResults
-        |: (JDe.field "name" JDe.string)
+        |: JDe.field "name" JDe.string
         |: (JDe.field "hotConstellations" <|
                 JDe.list <|
                     JDe.map2
-                        (,)
+                        (\a b -> ( a, b ))
                         (JDe.index 0 JDe.string)
                         (JDe.index 1 JDe.float)
            )
-        |: (JDe.field "scanResults" scanResultsDecoder)
+        |: JDe.field "scanResults" scanResultsDecoder
 
 
 
@@ -570,10 +570,10 @@ importJobDetails exported =
 jobDetailsDecoder : JDe.Decoder JobDetails
 jobDetailsDecoder =
     JDe.succeed JobDetails
-        |: (JDe.field "_id" JDe.string)
-        |: (JDe.field "name" JDe.string)
-        |: (JDe.field "status" (JDe.int |> JDe.andThen intToJobStatus))
-        |: (JDe.maybe (JDe.field "std_out" JDe.string))
+        |: JDe.field "_id" JDe.string
+        |: JDe.field "name" JDe.string
+        |: JDe.field "status" (JDe.int |> JDe.andThen intToJobStatus)
+        |: JDe.maybe (JDe.field "std_out" JDe.string)
 
 
 {-| Represents the possible status that any job on the server could have. This
