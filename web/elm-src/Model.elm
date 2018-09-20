@@ -319,7 +319,7 @@ type alias ConstellationModel =
 emptyConstellationModel : ConstellationModel
 emptyConstellationModel =
     ConstellationModel
-        (Auto defaultAutoSettings)
+        (Manual defaultManualSettings)
         []
         []
         []
