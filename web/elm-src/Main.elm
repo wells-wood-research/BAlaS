@@ -19,14 +19,16 @@ The application is composed of 4 modules:
 
 import Browser
 import Html exposing (..)
-import Model
+import Json.Decode as JDe
+import Model exposing (emptyModel)
+import Notifications
 import Ports
 import Time
 import Update
 import View
 
 
-main : Program (Maybe Model.ExportableModel) Model.Model Update.Msg
+main : Program JDe.Value Model.Model Update.Msg
 main =
     Browser.element
         { init = init
@@ -38,16 +40,23 @@ main =
 
 {-| Creates a model and Cmd Msgs for the initial state of the application.
 -}
-init : Maybe Model.ExportableModel -> ( Model.Model, Cmd msg )
-init mExported =
-    case mExported of
-        Just exported ->
-            ( Model.importModel exported
+init : JDe.Value -> ( Model.Model, Cmd msg )
+init saveState =
+    case Model.loadModel saveState of
+        Ok model ->
+            ( model
             , Ports.initialiseViewer ()
             )
 
-        Nothing ->
-            ( Model.emptyModel
+        Err error ->
+            ( { emptyModel
+                | notifications =
+                    [ Notifications.Notification
+                        ""
+                        "Something went wrong while loading your last session..."
+                        (JDe.errorToString error)
+                    ]
+              }
             , Ports.initialiseViewer ()
             )
 

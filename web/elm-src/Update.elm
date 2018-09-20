@@ -241,7 +241,7 @@ update msg model =
 
         SaveState ->
             ( model
-            , Model.exportModel model |> Ports.saveState
+            , Model.saveModel model |> Ports.saveState
             )
 
 
@@ -495,15 +495,15 @@ updateScan scanMsg scanModel =
             )
 
         ScanJobSubmitted (Err error) ->
-            let
-                err =
-                    Debug.log "Scan job submission error" error
-            in
             ( scanModel
             , Cmd.none
-            , [ Notifications.errorToNotification
-                    "Failed to Submit Scan Job"
-                    error
+            , [ Notification
+                    ""
+                    "Failed to submit scan job"
+                    """An error occurred while submitting your job to the
+                    server. Please check your internet connection and try
+                    resubmitting.
+                    """
               ]
             )
 
@@ -561,10 +561,6 @@ updateScan scanMsg scanModel =
             )
 
         ProcessScanStatus (Err error) ->
-            let
-                err =
-                    Debug.log "Scan status check error" error
-            in
             ( scanModel
             , Cmd.none
             , []
@@ -583,13 +579,16 @@ updateScan scanMsg scanModel =
             )
 
         ProcessScanResults (Err error) ->
-            let
-                err =
-                    Debug.log "Failed to retrieve scan results" error
-            in
             ( scanModel
             , Cmd.none
-            , []
+            , [ Notification
+                    ""
+                    "Failed to retrieve scan results"
+                    """An error occurred while retrieving your job from the
+                    server. Please check your internet connection and try
+                    again.
+                    """
+              ]
             )
 
         DeleteScanJob jobID ->
@@ -793,15 +792,15 @@ updateConstellation msg model =
             )
 
         AutoJobSubmitted (Err error) ->
-            let
-                err =
-                    Debug.log "Constellation job submission error" error
-            in
             ( model
             , Cmd.none
-            , [ Notifications.errorToNotification
-                    "Failed to Constellation Scan Job"
-                    error
+            , [ Notifications.Notification
+                    ""
+                    "Failed to submit constellation scan job"
+                    """An error occurred while submitting your job to the
+                    server. Please check your internet connection and try
+                    resubmitting.
+                    """
               ]
             )
 
@@ -859,10 +858,6 @@ updateConstellation msg model =
             )
 
         ProcessAutoJobStatus (Err error) ->
-            let
-                err =
-                    Debug.log "Auto job status check error" error
-            in
             ( model
             , Cmd.none
             , []
@@ -895,13 +890,16 @@ updateConstellation msg model =
             )
 
         ProcessAutoResults (Err error) ->
-            let
-                err =
-                    Debug.log "Failed to retrieve scan results" error
-            in
             ( model
             , Cmd.none
-            , []
+            , [ Notification
+                    ""
+                    "Failed to retrieve auto job results"
+                    """An error occurred while retrieving your job from the
+                    server. Please check your internet connection and try
+                    again.
+                    """
+              ]
             )
 
         ManualJobSubmitted (Ok jobDetails) ->
@@ -914,17 +912,15 @@ updateConstellation msg model =
             )
 
         ManualJobSubmitted (Err error) ->
-            let
-                err =
-                    Debug.log
-                        "Manual Constellation job submission error"
-                        error
-            in
             ( model
             , Cmd.none
-            , [ Notifications.errorToNotification
-                    "Failed to submit manual constellation scan job"
-                    error
+            , [ Notification
+                    ""
+                    "Failed to submit manual constellation job"
+                    """An error occurred while submitting your job to the
+                    server. Please check your internet connection and try
+                    resubmitting.
+                    """
               ]
             )
 
@@ -982,10 +978,6 @@ updateConstellation msg model =
             )
 
         ProcessManualJobStatus (Err error) ->
-            let
-                err =
-                    Debug.log "Manual job status check error" error
-            in
             ( model
             , Cmd.none
             , []
@@ -1018,13 +1010,16 @@ updateConstellation msg model =
             )
 
         ProcessManualResults (Err error) ->
-            let
-                err =
-                    Debug.log "Failed to retrieve scan results" error
-            in
             ( model
             , Cmd.none
-            , []
+            , [ Notification
+                    ""
+                    "Failed to retrieve manual job results"
+                    """An error occurred while retrieving your job from the
+                    server. Please check your internet connection and try
+                    again.
+                    """
+              ]
             )
 
         ResiduesJobSubmitted (Ok jobDetails) ->
@@ -1037,17 +1032,15 @@ updateConstellation msg model =
             )
 
         ResiduesJobSubmitted (Err error) ->
-            let
-                err =
-                    Debug.log
-                        "Residues Constellation job submission error"
-                        error
-            in
             ( model
             , Cmd.none
-            , [ Notifications.errorToNotification
-                    "Failed to submit residues constellation scan job"
-                    error
+            , [ Notification
+                    ""
+                    "Failed to submit residues job"
+                    """An error occurred while submitting your job to the
+                    server. Please check your internet connection and try
+                    resubmitting.
+                    """
               ]
             )
 
@@ -1105,10 +1098,6 @@ updateConstellation msg model =
             )
 
         ProcessResiduesJobStatus (Err error) ->
-            let
-                err =
-                    Debug.log "Residues job status check error" error
-            in
             ( model
             , Cmd.none
             , []
@@ -1141,13 +1130,16 @@ updateConstellation msg model =
             )
 
         ProcessResiduesResults (Err error) ->
-            let
-                err =
-                    Debug.log "Failed to retrieve scan results" error
-            in
             ( model
             , Cmd.none
-            , []
+            , [ Notification
+                    ""
+                    "Failed to retrieve residues job results"
+                    """An error occurred while retrieving your job from the
+                    server. Please check your internet connection and try
+                    again.
+                    """
+              ]
             )
 
 

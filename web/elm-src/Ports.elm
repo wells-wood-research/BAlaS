@@ -17,6 +17,7 @@ port module Ports exposing
    that's with the server or javascript inside the index.html file.
 -}
 
+import Json.Decode as JDe
 import Model
 
 
@@ -27,7 +28,7 @@ import Model
 -}
 
 
-port saveState : Model.ExportableModel -> Cmd msg
+port saveState : JDe.Value -> Cmd msg
 
 
 port initialiseViewer : () -> Cmd msg

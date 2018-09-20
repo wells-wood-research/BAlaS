@@ -1,8 +1,7 @@
-port module Notifications exposing
+module Notifications exposing
     ( Notification
     , emptyNotification
     , encodeNotification
-    , errorToNotification
     , notificationDecoder
     )
 
@@ -44,11 +43,3 @@ encodeNotification notification =
         , ( "title", JEn.string notification.title )
         , ( "message", JEn.string notification.message )
         ]
-
-
-errorToNotification : String -> Http.Error -> Notification
-errorToNotification title err =
-    Notification
-        ""
-        title
-        (Debug.toString err)

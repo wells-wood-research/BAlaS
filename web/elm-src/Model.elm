@@ -8,7 +8,6 @@ module Model exposing
     , ConstellationMode(..)
     , ConstellationModel
     , ConstellationResults
-    , ExportableModel
     , JobDetails
     , JobStatus(..)
     , ManualSettings
@@ -29,10 +28,10 @@ module Model exposing
     , encodeAutoJob
     , encodeManualJob
     , encodeResiduesJob
-    , exportModel
     , getActiveJobs
-    , importModel
     , jobDetailsDecoder
+    , loadModel
+    , saveModel
     , scanResultsDecoder
     , statusToString
     , validAutoSettings
@@ -49,7 +48,8 @@ module Model exposing
 
 import Json.Decode as JDe
 import Json.Encode as JEn
-import Notifications exposing (Notification)
+import Json.Encode.Extra as JEnEx
+import Notifications exposing (Notification, encodeNotification, notificationDecoder)
 import Set
 
 
@@ -82,44 +82,73 @@ emptyModel =
         Closed
 
 
-type alias ExportableModel =
-    { alanineScan : List ExportableJobDetails
-    , autoJobs : List ExportableJobDetails
-    , manualJobs : List ExportableJobDetails
-    , residuesJobs : List ExportableJobDetails
+type alias SaveState =
+    { alaScanJobs : List JobDetails
+    , autoJobs : List JobDetails
+    , manualJobs : List JobDetails
+    , residuesJobs : List JobDetails
     , notifications : List Notification
     }
 
 
-exportModel : Model -> ExportableModel
-exportModel model =
-    ExportableModel
-        (List.map exportJobDetails model.alanineScan.jobs)
-        (List.map exportJobDetails model.constellation.autoJobs)
-        (List.map exportJobDetails model.constellation.manualJobs)
-        (List.map exportJobDetails model.constellation.residuesJobs)
+modelToSaveState : Model -> SaveState
+modelToSaveState model =
+    SaveState
+        model.alanineScan.jobs
+        model.constellation.autoJobs
+        model.constellation.manualJobs
+        model.constellation.residuesJobs
         model.notifications
 
 
-importModel : ExportableModel -> Model
-importModel exported =
+saveStateToModel : SaveState -> Model
+saveStateToModel saveState =
     Model
         Scan
-        { emptyAlaScanModel
-            | jobs =
-                List.map importJobDetails exported.alanineScan
-        }
+        { emptyAlaScanModel | jobs = saveState.alaScanJobs }
         { emptyConstellationModel
-            | autoJobs =
-                List.map importJobDetails exported.autoJobs
-            , manualJobs =
-                List.map importJobDetails exported.manualJobs
-            , residuesJobs =
-                List.map importJobDetails exported.residuesJobs
+            | autoJobs = saveState.autoJobs
+            , manualJobs = saveState.manualJobs
+            , residuesJobs = saveState.residuesJobs
         }
         Nothing
-        exported.notifications
+        saveState.notifications
         Closed
+
+
+encodeSaveState : SaveState -> JEn.Value
+encodeSaveState saveState =
+    JEn.object
+        [ ( "alaScanJobs", JEn.list encodeJobDetails saveState.alaScanJobs )
+        , ( "autoJobs", JEn.list encodeJobDetails saveState.autoJobs )
+        , ( "manualJobs", JEn.list encodeJobDetails saveState.manualJobs )
+        , ( "residuesJobs", JEn.list encodeJobDetails saveState.residuesJobs )
+        , ( "notifications"
+          , JEn.list encodeNotification
+                saveState.notifications
+          )
+        ]
+
+
+saveStateDecoder : JDe.Decoder SaveState
+saveStateDecoder =
+    JDe.map5 SaveState
+        (JDe.field "alaScanJobs" (JDe.list jobDetailsDecoder))
+        (JDe.field "autoJobs" (JDe.list jobDetailsDecoder))
+        (JDe.field "manualJobs" (JDe.list jobDetailsDecoder))
+        (JDe.field "residuesJobs" (JDe.list jobDetailsDecoder))
+        (JDe.field "notifications" (JDe.list notificationDecoder))
+
+
+saveModel : Model -> JEn.Value
+saveModel =
+    modelToSaveState >> encodeSaveState
+
+
+loadModel : JDe.Value -> Result JDe.Error Model
+loadModel value =
+    JDe.decodeValue saveStateDecoder value
+        |> Result.map saveStateToModel
 
 
 {-| Modes available in the app, corresponding to the 3 main tabs.
@@ -562,10 +591,6 @@ type alias Structure =
     }
 
 
-type alias ExportableStructure =
-    Structure
-
-
 type alias ResidueColour =
     { geometryLabel : String
     , residues : List ( ChainID, String )
@@ -585,30 +610,14 @@ type alias JobDetails =
     }
 
 
-type alias ExportableJobDetails =
-    { jobID : String
-    , name : String
-    , status : String
-    , stdOut : Maybe String
-    }
-
-
-exportJobDetails : JobDetails -> ExportableJobDetails
-exportJobDetails details =
-    ExportableJobDetails
-        details.jobID
-        details.name
-        (statusToString details.status)
-        details.stdOut
-
-
-importJobDetails : ExportableJobDetails -> JobDetails
-importJobDetails exported =
-    JobDetails
-        exported.jobID
-        exported.name
-        (stringToStatus exported.status)
-        exported.stdOut
+encodeJobDetails : JobDetails -> JEn.Value
+encodeJobDetails { jobID, name, status, stdOut } =
+    JEn.object
+        [ ( "_id", JEn.string jobID )
+        , ( "name", JEn.string name )
+        , ( "status", jobStatusToInt status |> JEn.int )
+        , ( "stdOut", JEnEx.maybe JEn.string stdOut )
+        ]
 
 
 {-| Decodes JSON produced by the server into `JobDetails`.
@@ -698,6 +707,25 @@ intToJobStatus statusNumber =
 
         _ ->
             JDe.fail "Unknown status."
+
+
+jobStatusToInt : JobStatus -> Int
+jobStatusToInt status =
+    case status of
+        Submitted ->
+            1
+
+        Queued ->
+            2
+
+        Running ->
+            3
+
+        Completed ->
+            4
+
+        Failed ->
+            5
 
 
 {-| Filters a list of `JobDetails` for jobs that are submitted, queued or
