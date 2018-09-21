@@ -1,4 +1,4 @@
-module Session exposing (Session(..), update, view)
+module Session exposing (Msg(..), Session(..), update, view)
 
 import Html exposing (Html)
 import Model
@@ -12,27 +12,39 @@ type Session
     | TutorialMode (Tutorial.Tutorial Update.Msg)
 
 
-update : Update.Msg -> Session -> ( Session, Cmd Update.Msg )
-update msg session =
-    case session of
-        ActiveMode model _ ->
-            let
-                ( updatedModel, cmds ) =
-                    Update.update msg model
-            in
-            ( ActiveMode updatedModel True
-            , cmds
-            )
+type Msg
+    = ToggleMode
+    | ActiveMsg Update.Msg
 
-        TutorialMode _ ->
+
+update : Msg -> Session -> ( Session, Cmd Msg )
+update msg session =
+    case msg of
+        ActiveMsg activeMsg ->
+            case session of
+                ActiveMode model _ ->
+                    let
+                        ( updatedModel, cmds ) =
+                            Update.update activeMsg model
+                    in
+                    ( ActiveMode updatedModel True
+                    , Cmd.map ActiveMsg cmds
+                    )
+
+                TutorialMode _ ->
+                    ( session, Cmd.none )
+
+        ToggleMode ->
             ( session, Cmd.none )
 
 
-view : Session -> Html Update.Msg
+view : Session -> Html Msg
 view session =
     case session of
         ActiveMode model _ ->
-            View.view model
+            Html.map ActiveMsg <|
+                View.view model
 
         TutorialMode (Tutorial.Tutorial _ section _) ->
-            View.view section.model
+            Html.map ActiveMsg <|
+                View.view section.model

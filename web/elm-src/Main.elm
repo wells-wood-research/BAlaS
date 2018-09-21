@@ -29,7 +29,7 @@ import Update
 import View
 
 
-main : Program JDe.Value Session.Session Update.Msg
+main : Program JDe.Value Session.Session Session.Msg
 main =
     Browser.element
         { init = init
@@ -41,7 +41,7 @@ main =
 
 {-| Creates a model and Cmd Msgs for the initial state of the application.
 -}
-init : JDe.Value -> ( Session.Session, Cmd msg )
+init : JDe.Value -> ( Session.Session, Cmd Session.Msg )
 init saveState =
     case Model.loadModel saveState of
         Ok model ->
@@ -66,70 +66,76 @@ init saveState =
 
 {-| Describes the active subscriptions based on the current state of the model.
 -}
-subscriptions : Session.Session -> Sub Update.Msg
+subscriptions : Session.Session -> Sub Session.Msg
 subscriptions session =
     case session of
         Session.ActiveMode model _ ->
-            Sub.batch <|
-                [ Ports.receiveStructure <| Update.UpdateScan << Update.UpdateStructure
-
-                -- , atomClick <| UpdateScan << ToggleResidueSelection
-                ]
-                    ++ (case model.alanineScan.structure of
-                            Just _ ->
-                                [ Ports.hoveredName Update.SetHoveredName ]
-
-                            Nothing ->
-                                []
-                       )
-                    ++ (if
-                            List.length
-                                (Model.getActiveJobs model.alanineScan.jobs)
-                                > 0
-                        then
-                            [ Time.every 5000
-                                (Update.UpdateScan << Update.CheckScanJobs)
-                            ]
-
-                        else
-                            []
-                       )
-                    ++ (if
-                            List.length
-                                (Model.getActiveJobs model.constellation.autoJobs)
-                                > 0
-                        then
-                            [ Time.every 5000
-                                (Update.UpdateConstellation << Update.CheckAutoJobs)
-                            ]
-
-                        else
-                            []
-                       )
-                    ++ (if
-                            List.length
-                                (Model.getActiveJobs model.constellation.manualJobs)
-                                > 0
-                        then
-                            [ Time.every 5000
-                                (Update.UpdateConstellation << Update.CheckManualJobs)
-                            ]
-
-                        else
-                            []
-                       )
-                    ++ (if
-                            List.length
-                                (Model.getActiveJobs model.constellation.residuesJobs)
-                                > 0
-                        then
-                            [ Time.every 5000
-                                (Update.UpdateConstellation << Update.CheckResiduesJobs)
-                            ]
-
-                        else
-                            []
-                       )
+            Sub.map Session.ActiveMsg <|
+                appSubscriptions model
 
         Session.TutorialMode _ ->
             Sub.none
+
+
+appSubscriptions : Model.Model -> Sub Update.Msg
+appSubscriptions model =
+    Sub.batch <|
+        [ Ports.receiveStructure <| Update.UpdateScan << Update.UpdateStructure
+
+        -- , atomClick <| UpdateScan << ToggleResidueSelection
+        ]
+            ++ (case model.alanineScan.structure of
+                    Just _ ->
+                        [ Ports.hoveredName Update.SetHoveredName ]
+
+                    Nothing ->
+                        []
+               )
+            ++ (if
+                    List.length
+                        (Model.getActiveJobs model.alanineScan.jobs)
+                        > 0
+                then
+                    [ Time.every 5000
+                        (Update.UpdateScan << Update.CheckScanJobs)
+                    ]
+
+                else
+                    []
+               )
+            ++ (if
+                    List.length
+                        (Model.getActiveJobs model.constellation.autoJobs)
+                        > 0
+                then
+                    [ Time.every 5000
+                        (Update.UpdateConstellation << Update.CheckAutoJobs)
+                    ]
+
+                else
+                    []
+               )
+            ++ (if
+                    List.length
+                        (Model.getActiveJobs model.constellation.manualJobs)
+                        > 0
+                then
+                    [ Time.every 5000
+                        (Update.UpdateConstellation << Update.CheckManualJobs)
+                    ]
+
+                else
+                    []
+               )
+            ++ (if
+                    List.length
+                        (Model.getActiveJobs model.constellation.residuesJobs)
+                        > 0
+                then
+                    [ Time.every 5000
+                        (Update.UpdateConstellation << Update.CheckResiduesJobs)
+                    ]
+
+                else
+                    []
+               )
