@@ -33,8 +33,8 @@ main : Program JDe.Value Session.Session Update.Msg
 main =
     Browser.element
         { init = init
-        , view = View.sessionView
-        , update = Update.sessionUpdate
+        , view = Session.view
+        , update = Session.update
         , subscriptions = subscriptions
         }
 

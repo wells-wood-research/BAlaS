@@ -5,7 +5,6 @@ module Update exposing
     , Msg(..)
     , ResiduesSettingsMsg(..)
     , ScanMsg(..)
-    , sessionUpdate
     , update
     )
 
@@ -18,22 +17,8 @@ import Http
 import Model
 import Notifications exposing (Notification)
 import Ports
-import Session
 import Set
 import Time
-
-
-sessionUpdate : Msg -> Session.Session -> ( Session.Session, Cmd Msg )
-sessionUpdate msg session =
-    case session of
-        Session.ActiveMode model _ ->
-            let
-                ( updatedModel, cmds ) =
-                    update msg model
-            in
-            ( Session.ActiveMode updatedModel True
-            , cmds
-            )
 
 
 {-| Type that signals to the main update function how the model should be

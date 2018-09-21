@@ -1,4 +1,4 @@
-module View exposing (sessionView)
+module View exposing (view)
 
 {-| The main view function that is called every time the model is updated.
 -}
@@ -9,7 +9,6 @@ import Html.Events exposing (..)
 import Model
 import Notifications exposing (Notification)
 import Regex
-import Session
 import Set
 import Update
 
@@ -19,13 +18,6 @@ import Update
    This section contains all functions for displaying the current state of the
    model.
 -}
-
-
-sessionView : Session.Session -> Html Update.Msg
-sessionView session =
-    case session of
-        Session.ActiveMode model _ ->
-            view model
 
 
 view : Model.Model -> Html Update.Msg
