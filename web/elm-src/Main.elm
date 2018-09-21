@@ -23,105 +23,110 @@ import Json.Decode as JDe
 import Model exposing (emptyModel)
 import Notifications
 import Ports
+import Session
 import Time
 import Update
 import View
 
 
-main : Program JDe.Value Model.Model Update.Msg
+main : Program JDe.Value Session.Session Update.Msg
 main =
     Browser.element
         { init = init
-        , view = View.view
-        , update = Update.update
+        , view = View.sessionView
+        , update = Update.sessionUpdate
         , subscriptions = subscriptions
         }
 
 
 {-| Creates a model and Cmd Msgs for the initial state of the application.
 -}
-init : JDe.Value -> ( Model.Model, Cmd msg )
+init : JDe.Value -> ( Session.Session, Cmd msg )
 init saveState =
     case Model.loadModel saveState of
         Ok model ->
-            ( model
+            ( Session.ActiveMode model True
             , Ports.initialiseViewer ()
             )
 
         Err error ->
-            ( { emptyModel
-                | notifications =
-                    [ Notifications.Notification
-                        ""
-                        "Something went wrong while loading your last session..."
-                        (JDe.errorToString error)
-                    ]
-              }
+            ( Session.ActiveMode
+                { emptyModel
+                    | notifications =
+                        [ Notifications.Notification
+                            ""
+                            "Something went wrong while loading your last session..."
+                            (JDe.errorToString error)
+                        ]
+                }
+                True
             , Ports.initialiseViewer ()
             )
 
 
 {-| Describes the active subscriptions based on the current state of the model.
 -}
-subscriptions : Model.Model -> Sub Update.Msg
-subscriptions model =
-    Sub.batch <|
-        [ Ports.receiveStructure <| Update.UpdateScan << Update.UpdateStructure
+subscriptions : Session.Session -> Sub Update.Msg
+subscriptions session =
+    case session of
+        Session.ActiveMode model _ ->
+            Sub.batch <|
+                [ Ports.receiveStructure <| Update.UpdateScan << Update.UpdateStructure
 
-        -- , atomClick <| UpdateScan << ToggleResidueSelection
-        ]
-            ++ (case model.alanineScan.structure of
-                    Just _ ->
-                        [ Ports.hoveredName Update.SetHoveredName ]
+                -- , atomClick <| UpdateScan << ToggleResidueSelection
+                ]
+                    ++ (case model.alanineScan.structure of
+                            Just _ ->
+                                [ Ports.hoveredName Update.SetHoveredName ]
 
-                    Nothing ->
-                        []
-               )
-            ++ (if
-                    List.length
-                        (Model.getActiveJobs model.alanineScan.jobs)
-                        > 0
-                then
-                    [ Time.every 5000
-                        (Update.UpdateScan << Update.CheckScanJobs)
-                    ]
+                            Nothing ->
+                                []
+                       )
+                    ++ (if
+                            List.length
+                                (Model.getActiveJobs model.alanineScan.jobs)
+                                > 0
+                        then
+                            [ Time.every 5000
+                                (Update.UpdateScan << Update.CheckScanJobs)
+                            ]
 
-                else
-                    []
-               )
-            ++ (if
-                    List.length
-                        (Model.getActiveJobs model.constellation.autoJobs)
-                        > 0
-                then
-                    [ Time.every 5000
-                        (Update.UpdateConstellation << Update.CheckAutoJobs)
-                    ]
+                        else
+                            []
+                       )
+                    ++ (if
+                            List.length
+                                (Model.getActiveJobs model.constellation.autoJobs)
+                                > 0
+                        then
+                            [ Time.every 5000
+                                (Update.UpdateConstellation << Update.CheckAutoJobs)
+                            ]
 
-                else
-                    []
-               )
-            ++ (if
-                    List.length
-                        (Model.getActiveJobs model.constellation.manualJobs)
-                        > 0
-                then
-                    [ Time.every 5000
-                        (Update.UpdateConstellation << Update.CheckManualJobs)
-                    ]
+                        else
+                            []
+                       )
+                    ++ (if
+                            List.length
+                                (Model.getActiveJobs model.constellation.manualJobs)
+                                > 0
+                        then
+                            [ Time.every 5000
+                                (Update.UpdateConstellation << Update.CheckManualJobs)
+                            ]
 
-                else
-                    []
-               )
-            ++ (if
-                    List.length
-                        (Model.getActiveJobs model.constellation.residuesJobs)
-                        > 0
-                then
-                    [ Time.every 5000
-                        (Update.UpdateConstellation << Update.CheckResiduesJobs)
-                    ]
+                        else
+                            []
+                       )
+                    ++ (if
+                            List.length
+                                (Model.getActiveJobs model.constellation.residuesJobs)
+                                > 0
+                        then
+                            [ Time.every 5000
+                                (Update.UpdateConstellation << Update.CheckResiduesJobs)
+                            ]
 
-                else
-                    []
-               )
+                        else
+                            []
+                       )
