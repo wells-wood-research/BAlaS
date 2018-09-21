@@ -130,3 +130,6 @@ subscriptions session =
                         else
                             []
                        )
+
+        Session.TutorialMode _ ->
+            Sub.none
