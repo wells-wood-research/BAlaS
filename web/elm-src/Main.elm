@@ -70,7 +70,7 @@ subscriptions : Session.Session -> Sub Session.Msg
 subscriptions session =
     case session of
         Session.ActiveMode model _ ->
-            Sub.map Session.ActiveMsg <|
+            Sub.map Session.ActiveMessage <|
                 appSubscriptions model
 
         Session.TutorialMode _ ->

@@ -1,4 +1,10 @@
-module Tutorial exposing (Tutorial(..), tutorial)
+module Tutorial exposing
+    ( Config
+    , Tutorial(..)
+    , moveBackwards
+    , moveForward
+    , tutorial
+    )
 
 import Html exposing (..)
 import Model
