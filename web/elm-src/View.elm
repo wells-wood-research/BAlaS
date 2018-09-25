@@ -3,9 +3,12 @@ module View exposing (view)
 {-| The main view function that is called every time the model is updated.
 -}
 
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
+import Css
+import Fancy
+import Html
+import Html.Styled as Styled exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (..)
 import Model
 import Notifications exposing (Notification)
 import Regex
@@ -22,48 +25,23 @@ import Update
 
 view : Model.Model -> Html Update.Msg
 view model =
-    div [ class "main-grid" ]
-        ([ div [ class "banner" ]
-            [ header [] [ h1 [] [ text "BUDE Alanine Scan" ] ]
-            , div [ class "controls" ]
-                [ div
-                    [ class "control-button"
-                    , onClick <| Update.OpenPanel Model.ViewerOptions
-                    ]
-                    [ text "⚛️" ]
-                , div
-                    [ class "control-button"
-                    , onClick <| Update.OpenPanel Model.Notifications
-                    ]
-                    [ List.length model.notifications
-                        |> String.fromInt
-                        |> (++) "🔔"
-                        |> text
-                    ]
-                ]
+    div
+        [ css
+            [ Css.fontFamilies [ "Titillium Web", "sans-serif" ]
+            , Css.property "display" "grid"
+            , Css.property "grid-template-columns" "2fr 1fr"
+            , Css.property "grid-template-rows" "5% 95%"
+            , Css.height (Css.pct 100)
+            , Css.left Css.zero
+            , Css.minWidth (Css.px 500)
+            , Css.position Css.absolute
+            , Css.top Css.zero
+            , Css.width (Css.pct 100)
             ]
-         , div [ id "viewer" ]
-            [ div [ class "hover-label" ]
-                [ Maybe.withDefault "" model.hoveredName |> text ]
-            ]
-         , div [ class "tabs" ]
-            [ div
-                [ class "tab scan-tab"
-                , onClick <| Update.SetAppMode Model.Scan
-                ]
-                [ text "Scan" ]
-            , div
-                [ class "tab constellation-tab"
-                , onClick <|
-                    Update.SetAppMode Model.Constellation
-                ]
-                [ text "Constellation" ]
-            , div
-                [ class "tab jobs-tab"
-                , onClick <| Update.SetAppMode Model.Jobs
-                ]
-                [ text "Jobs" ]
-            ]
+        ]
+        ([ banner <| List.length model.notifications
+         , viewer model.hoveredName
+         , modeTabs model
          , case model.appMode of
             Model.Scan ->
                 case model.alanineScan.results of
@@ -90,27 +68,170 @@ view model =
             Model.Jobs ->
                 jobsView model
          ]
-            ++ (case model.openPanel of
-                    Model.Notifications ->
-                        [ notificationPanel model.notifications ]
-
-                    Model.ViewerOptions ->
-                        [ viewerOptions model.alanineScan.structure ]
-
-                    Model.Closed ->
-                        []
-               )
+            ++ sidePanel model
         )
+
+
+banner : Int -> Html Update.Msg
+banner notificationNumber =
+    div
+        [ css
+            [ Css.alignItems Css.center
+            , Css.backgroundColor Fancy.colourPalette.c2
+            , Css.displayFlex
+            , Css.property "grid-column" "1 / 2"
+            , Css.property "grid-row" "1 / 2"
+            , Css.justifyContent Css.spaceBetween
+            , Css.padding (Css.px 5)
+            ]
+        ]
+        [ header [] [ Fancy.h1 [] [ text "BUDE Alanine Scan" ] ]
+        , div [ css [ Css.displayFlex ] ]
+            [ controlButton
+                [ onClick <| Update.OpenPanel Model.ViewerOptions
+                ]
+                [ text "⚛️" ]
+            , controlButton
+                [ onClick <| Update.OpenPanel Model.Notifications
+                ]
+                [ notificationNumber
+                    |> String.fromInt
+                    |> (++) "🔔"
+                    |> text
+                ]
+            ]
+        ]
+
+
+controlButton : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
+controlButton =
+    styled button
+        [ Css.backgroundColor Fancy.colourPalette.c2
+        , Css.borderStyle Css.solid
+        , Css.borderWidth (Css.px 1)
+        , Css.cursor Css.pointer
+        , Css.margin (Css.px 5)
+        , Css.padding (Css.px 3)
+        , Css.textAlign Css.center
+        , Css.width (Css.px 40)
+        ]
+
+
+viewer : Maybe String -> Html msg
+viewer hoveredName =
+    div
+        [ id "viewer"
+        , css
+            [ Css.property "grid-column" "1 / 2"
+            , Css.property "grid-row" "2 / 3"
+            , Css.overflow Css.hidden
+            , Css.position Css.relative
+            ]
+        ]
+        [ hoverLabel hoveredName
+        ]
+
+
+hoverLabel : Maybe String -> Html msg
+hoverLabel hoveredName =
+    div
+        [ css
+            [ Css.backgroundColor Fancy.colourPalette.white
+            , Css.padding (Css.px 2)
+            , Css.position Css.absolute
+            , Css.zIndex (Css.int 100)
+            ]
+        ]
+        [ Maybe.withDefault "" hoveredName |> text ]
+
+
+modeTabs : Model.Model -> Html Update.Msg
+modeTabs model =
+    div
+        [ css
+            [ Css.property "display" "grid"
+            , Css.property "grid-template-columns" "repeat(3, 1fr)"
+            , Css.property "grid-column" "2 / 3"
+            , Css.property "grid-row" "1 / 2"
+            , Css.textAlign Css.center
+            , Css.hover
+                [ Css.cursor Css.pointer ]
+            ]
+        ]
+        [ tab
+            [ css [ Css.backgroundColor Fancy.colourPalette.c3 ]
+            , onClick <| Update.SetAppMode Model.Scan
+            ]
+            [ text "Scan" ]
+        , tab
+            [ css [ Css.backgroundColor Fancy.colourPalette.c4 ]
+            , onClick <|
+                Update.SetAppMode Model.Constellation
+            ]
+            [ text "Constellation" ]
+        , tab
+            [ css [ Css.backgroundColor Fancy.colourPalette.c5 ]
+            , onClick <| Update.SetAppMode Model.Jobs
+            ]
+            [ text "Jobs" ]
+        ]
+
+
+tab : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
+tab =
+    styled button
+        [ Css.alignItems Css.center
+        , Css.displayFlex
+        , Css.justifyContent Css.center
+        , Css.border Css.zero
+        , Css.focus
+            [ Css.outline Css.zero
+            ]
+        ]
+
+
+sidePanel : Model.Model -> List (Html Update.Msg)
+sidePanel model =
+    case model.openPanel of
+        Model.Notifications ->
+            [ notificationPanel model.notifications ]
+
+        Model.ViewerOptions ->
+            [ viewerOptions model.alanineScan.structure ]
+
+        Model.Closed ->
+            []
+
+
+panel : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
+panel =
+    styled div
+        [ Css.backgroundColor Fancy.colourPalette.c2
+        , Css.boxShadow5
+            Css.zero
+            (Css.px 5)
+            (Css.px 10)
+            Css.zero
+            (Css.rgba 133 133 133 1)
+        , Css.height (Css.pct 100)
+        , Css.left Css.zero
+        , Css.position Css.fixed
+        , Css.textAlign Css.center
+        , Css.top Css.zero
+        , Css.width (Css.px 300)
+        , Css.zIndex (Css.int 1000)
+        ]
 
 
 {-| Side panel that displays notifications. Can be toggled on and off.
 -}
 notificationPanel : List Notification -> Html Update.Msg
 notificationPanel notifications =
-    div [ class "notification-panel" ]
-        [ h3 [] [ text "Notifications" ]
-        , button [ onClick <| Update.ClearNotifications ] [ text "Dismiss All" ]
-        , button [ onClick Update.ClosePanel ] [ text "Close" ]
+    panel
+        []
+        [ Fancy.h3 [] [ text "Notifications" ]
+        , Fancy.button [ onClick <| Update.ClearNotifications ] [ text "Dismiss All" ]
+        , Fancy.button [ onClick Update.ClosePanel ] [ text "Close" ]
         , div [] <| List.indexedMap notificationView notifications
         ]
 
@@ -119,11 +240,17 @@ notificationPanel notifications =
 -}
 notificationView : Int -> Notification -> Html Update.Msg
 notificationView idx notification =
-    div [ class "notification" ]
-        [ h4 [] [ text notification.title ]
-        , button [ onClick <| Update.DismissNotification idx ] [ text "Dismiss" ]
-        , p [ class "details" ]
-            [ text notification.message ]
+    div
+        [ css
+            [ Css.backgroundColor Fancy.colourPalette.c3
+            , Css.margin (Css.px 3)
+            , Css.padding (Css.px 3)
+            , Css.textAlign Css.left
+            ]
+        ]
+        [ Fancy.h4 [] [ text notification.title ]
+        , Fancy.button [ onClick <| Update.DismissNotification idx ] [ text "Dismiss" ]
+        , details [] [ text notification.message ]
         ]
 
 
@@ -131,36 +258,35 @@ notificationView idx notification =
 -}
 viewerOptions : Maybe Model.Structure -> Html Update.Msg
 viewerOptions mStructure =
-    div [ class "notification-panel" ]
-        [ h3 [] [ text "Viewer Options" ]
-        , button [ onClick Update.ClosePanel ] [ text "Close" ]
+    panel
+        []
+        [ Fancy.h3 [] [ text "Viewer Options" ]
+        , Fancy.button [ onClick Update.ClosePanel ] [ text "Close" ]
         , case mStructure of
             Just structure ->
-                div []
-                    [ table []
-                        ([ tr []
-                            [ th [] [ text "Selection" ]
-                            , th [] [ text "Hidden" ]
-                            ]
-                         ]
-                            ++ (structure.geometryLabels
-                                    |> List.map viewerSelectionRow
-                               )
-                        )
-                    ]
+                Fancy.table []
+                    ([ Fancy.tr []
+                        [ Fancy.th [] [ text "Selection" ]
+                        , Fancy.th [] [ text "Hidden" ]
+                        ]
+                     ]
+                        ++ (structure.geometryLabels
+                                |> List.map viewerSelectionRow
+                           )
+                    )
 
             Nothing ->
                 div []
-                    [ text "Load a structure before changing structure." ]
+                    [ text "Load a structure before changing the representation." ]
         ]
 
 
 viewerSelectionRow : ( String, Bool ) -> Html Update.Msg
 viewerSelectionRow ( geometryLabel, hidden ) =
-    tr []
-        [ td [] [ text geometryLabel ]
-        , td []
-            [ input
+    Fancy.tr []
+        [ Fancy.td [] [ text geometryLabel ]
+        , Fancy.td []
+            [ Fancy.input
                 [ onClick <|
                     Update.UpdateScan <|
                         Update.ChangeVisibility geometryLabel
@@ -169,6 +295,17 @@ viewerSelectionRow ( geometryLabel, hidden ) =
                 ]
                 []
             ]
+        ]
+
+
+tabPane : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
+tabPane =
+    styled div
+        [ Css.property "grid-column" "2 / 3"
+        , Css.property "grid-row" "2 / 3"
+        , Css.padding (Css.px 10)
+        , Css.overflow Css.auto
+        , Css.maxWidth (Css.pct 100)
         ]
 
 
@@ -185,12 +322,15 @@ scanSubmissionView :
     -> Model.AlanineScanSub
     -> Html msg
 scanSubmissionView updateMsg mStructure scanSub =
-    div
-        [ class "control-panel scan-panel" ]
-        [ h2 [] [ text "Scan Submission" ]
+    tabPane
+        [ css
+            [ Css.backgroundColor Fancy.colourPalette.c3
+            ]
+        ]
+        [ Fancy.h2 [] [ text "Scan Submission" ]
         , div []
-            [ input [ type_ "file", id "pdbFileToLoad" ] []
-            , button [ onClick <| updateMsg Update.GetStructure ] [ text "Upload" ]
+            [ Fancy.input [ type_ "file", id "pdbFileToLoad" ] []
+            , Fancy.button [ onClick <| updateMsg Update.GetStructure ] [ text "Upload" ]
             ]
         , div []
             (case mStructure of
@@ -198,13 +338,13 @@ scanSubmissionView updateMsg mStructure scanSub =
                     [ div []
                         [ text "Job Name"
                         , br [] []
-                        , input [ onInput <| updateMsg << Update.SetScanName ] []
+                        , Fancy.input [ onInput <| updateMsg << Update.SetScanName ] []
                         ]
-                    , table []
-                        ([ tr []
-                            [ th [] [ text "Chain" ]
-                            , th [] [ text "Receptor" ]
-                            , th [] [ text "Ligand" ]
+                    , Fancy.table []
+                        ([ Fancy.tr []
+                            [ Fancy.th [] [ text "Chain" ]
+                            , Fancy.th [] [ text "Receptor" ]
+                            , Fancy.th [] [ text "Ligand" ]
                             ]
                          ]
                             ++ List.map
@@ -214,7 +354,7 @@ scanSubmissionView updateMsg mStructure scanSub =
                                 )
                                 structure.chainLabels
                         )
-                    , button
+                    , Fancy.button
                         [ onClick <| updateMsg Update.SubmitScanJob
                         , Model.validScanSub scanSub |> not |> disabled
                         ]
@@ -232,17 +372,20 @@ submission mode.
 -}
 scanResultsView : Model.AlanineScanResults -> Html Update.Msg
 scanResultsView results =
-    div
-        [ class "control-panel scan-panel" ]
-        [ h2 [] [ text "Alanine Scan Results" ]
-        , button
+    tabPane
+        [ css
+            [ Css.backgroundColor Fancy.colourPalette.c3
+            ]
+        ]
+        [ Fancy.h2 [] [ text "Alanine Scan Results" ]
+        , Fancy.button
             [ onClick <| Update.UpdateScan Update.ClearScanSubmission ]
             [ text "New Submission" ]
-        , h3 [] [ text "Job Name" ]
-        , p [] [ text results.name ]
-        , h3 [] [ text "ΔG" ]
-        , p [] [ String.fromFloat results.dG |> text ]
-        , h3 [] [ text "Residue Results (Non-Zero)" ]
+        , Fancy.h3 [] [ text "Job Name" ]
+        , Fancy.p [] [ text results.name ]
+        , Fancy.h3 [] [ text "ΔG" ]
+        , Fancy.p [] [ String.fromFloat results.dG |> text ]
+        , Fancy.h3 [] [ text "Residue Results (Non-Zero)" ]
         , text
             "Standard deviation only available for multiple models (NMR, MD etc)."
         , scanResultsTable results.ligandResults
@@ -259,8 +402,10 @@ scanResultsTable ligandResults =
                 { chainID, residueNumber, aminoAcid, ddG, stdDevDDG } =
                     resResult
             in
-            tr
-                [ onClick <| Update.UpdateScan <| Update.FocusOnResidue resResult
+            Fancy.tr
+                [ onClick <|
+                    Update.UpdateScan <|
+                        Update.FocusOnResidue resResult
                 , Model.ResidueColour
                     "ligand_ballsAndSticks"
                     [ ( chainID
@@ -280,20 +425,25 @@ scanResultsTable ligandResults =
                     |> Update.ColourResidues
                     |> onMouseOut
                 ]
-                [ td [] [ text chainID ]
-                , td [] [ text residueNumber ]
-                , td [] [ text aminoAcid ]
-                , td [] [ String.fromFloat ddG |> text ]
-                , td [] [ String.fromFloat stdDevDDG |> text ]
+                [ Fancy.td [] [ text chainID ]
+                , Fancy.td [] [ text residueNumber ]
+                , Fancy.td [] [ text aminoAcid ]
+                , Fancy.td [] [ String.fromFloat ddG |> text ]
+                , Fancy.td [] [ String.fromFloat stdDevDDG |> text ]
                 ]
     in
-    table [ class "scan-results-table" ]
-        ([ tr []
-            [ th [] [ text "Chain" ]
-            , th [] [ text "Residue" ]
-            , th [] [ text "Amino Acid" ]
-            , th [] [ text "ΔΔG" ]
-            , th [] [ text "Std Dev" ]
+    Fancy.table
+        [ css
+            [ Css.tableLayout Css.fixed
+            , Css.width (Css.pct 100)
+            ]
+        ]
+        ([ Fancy.tr []
+            [ Fancy.th [] [ text "Chain" ]
+            , Fancy.th [] [ text "Residue" ]
+            , Fancy.th [] [ text "Amino Acid" ]
+            , Fancy.th [] [ text "ΔΔG" ]
+            , Fancy.th [] [ text "Std Dev" ]
             ]
          ]
             ++ (List.filter (\res -> res.ddG /= 0) ligandResults
@@ -311,11 +461,11 @@ chainSelect :
     -> Model.ChainID
     -> Html msg
 chainSelect updateMsg receptorLabels ligandLabels label =
-    tr []
-        [ td [] [ text label ]
-        , td []
+    Fancy.tr []
+        [ Fancy.td [] [ text label ]
+        , Fancy.td []
             (if List.member label receptorLabels then
-                [ button
+                [ Fancy.button
                     [ onClick <|
                         updateMsg <|
                             Update.ClearReceptor label
@@ -327,7 +477,7 @@ chainSelect updateMsg receptorLabels ligandLabels label =
                 []
 
              else
-                [ button
+                [ Fancy.button
                     [ onClick <|
                         updateMsg <|
                             Update.SetReceptor label
@@ -335,9 +485,9 @@ chainSelect updateMsg receptorLabels ligandLabels label =
                     [ text "Set" ]
                 ]
             )
-        , td []
+        , Fancy.td []
             (if List.member label ligandLabels then
-                [ button
+                [ Fancy.button
                     [ onClick <|
                         updateMsg <|
                             Update.ClearLigand label
@@ -349,7 +499,7 @@ chainSelect updateMsg receptorLabels ligandLabels label =
                 []
 
              else
-                [ button
+                [ Fancy.button
                     [ onClick <|
                         updateMsg <|
                             Update.SetLigand label
@@ -373,8 +523,12 @@ constellationSubmissionView :
     -> Maybe Model.AlanineScanResults
     -> Html msg
 constellationSubmissionView updateMsg model mScanResults =
-    div [ class "control-panel constellation-panel" ]
-        [ h2 [] [ text "Constellation Submission" ]
+    tabPane
+        [ css
+            [ Css.backgroundColor Fancy.colourPalette.c4
+            ]
+        ]
+        [ Fancy.h2 [] [ text "Constellation Submission" ]
         , case mScanResults of
             Just results ->
                 activeConstellationSub updateMsg model results
@@ -412,7 +566,7 @@ activeConstellationSub updateMsg model scanRes =
                     "Residues"
     in
     div []
-        [ h3 [] [ text "Select Mode" ]
+        [ Fancy.h3 [] [ text "Select Mode" ]
         , select [ onInput <| updateMsg << Update.ChangeMode ] <|
             List.map (simpleOption modeString)
                 [ "Auto", "Manual", "Residues" ]
@@ -441,16 +595,16 @@ autoSettingsView updateMsg scanRes settings =
             settings
     in
     div []
-        [ h3 [] [ text "Job Name" ]
-        , input
+        [ Fancy.h3 [] [ text "Job Name" ]
+        , Fancy.input
             [ onInput <|
                 updateMsg
                     << Update.UpdateAutoSettings
                     << Update.UpdateAutoName
             ]
             []
-        , h3 [] [ text "ΔΔG Cut Off Value" ]
-        , input
+        , Fancy.h3 [] [ text "ΔΔG Cut Off Value" ]
+        , Fancy.input
             [ onInput <|
                 updateMsg
                     << Update.UpdateAutoSettings
@@ -460,8 +614,8 @@ autoSettingsView updateMsg scanRes settings =
             , placeholder "ΔΔG"
             ]
             []
-        , h3 [] [ text "Constellation Size" ]
-        , input
+        , Fancy.h3 [] [ text "Constellation Size" ]
+        , Fancy.input
             [ onInput <|
                 updateMsg
                     << Update.UpdateAutoSettings
@@ -471,8 +625,8 @@ autoSettingsView updateMsg scanRes settings =
             , placeholder "Size"
             ]
             []
-        , h3 [] [ text "Cut Off Distance" ]
-        , input
+        , Fancy.h3 [] [ text "Cut Off Distance" ]
+        , Fancy.input
             [ onInput <|
                 updateMsg
                     << Update.UpdateAutoSettings
@@ -483,7 +637,7 @@ autoSettingsView updateMsg scanRes settings =
             ]
             []
         , br [] []
-        , button
+        , Fancy.button
             [ onClick <| updateMsg <| Update.SubmitConstellationJob scanRes
             , disabled <| not <| Model.validAutoSettings settings
             ]
@@ -504,15 +658,15 @@ manualSettingsView updateMsg scanResults settings =
             settings
     in
     div []
-        [ h3 [] [ text "Job Name" ]
-        , input
+        [ Fancy.h3 [] [ text "Job Name" ]
+        , Fancy.input
             [ onInput <|
                 updateMsg
                     << Update.UpdateManualSettings
                     << Update.UpdateManualName
             ]
             []
-        , h3 [] [ text "Select Residues" ]
+        , Fancy.h3 [] [ text "Select Residues" ]
         , text "Click to select."
         , residueSelectTable
             (updateMsg
@@ -522,7 +676,7 @@ manualSettingsView updateMsg scanResults settings =
             residues
             scanResults.ligandResults
         , br [] []
-        , button
+        , Fancy.button
             [ onClick <| updateMsg <| Update.SubmitConstellationJob scanResults
             , disabled <| not <| Model.validManualSettings settings
             ]
@@ -545,7 +699,7 @@ residueSelectTable updateMsg selected ligandResults =
                 residueID =
                     chainID ++ residueNumber
             in
-            tr
+            Fancy.tr
                 [ case Set.member residueID selected of
                     True ->
                         class "selected-residue"
@@ -555,18 +709,18 @@ residueSelectTable updateMsg selected ligandResults =
                 , onClick <|
                     updateMsg resResult
                 ]
-                [ td [] [ text chainID ]
-                , td [] [ text residueNumber ]
-                , td [] [ text aminoAcid ]
-                , td [] [ String.fromFloat ddG |> text ]
+                [ Fancy.td [] [ text chainID ]
+                , Fancy.td [] [ text residueNumber ]
+                , Fancy.td [] [ text aminoAcid ]
+                , Fancy.td [] [ String.fromFloat ddG |> text ]
                 ]
     in
-    table [ class "scan-results-table" ]
-        ([ tr []
-            [ th [] [ text "Chain" ]
-            , th [] [ text "Residue" ]
-            , th [] [ text "Amino Acid" ]
-            , th [] [ text "ΔΔG" ]
+    Fancy.table []
+        ([ Fancy.tr []
+            [ Fancy.th [] [ text "Chain" ]
+            , Fancy.th [] [ text "Residue" ]
+            , Fancy.th [] [ text "Amino Acid" ]
+            , Fancy.th [] [ text "ΔΔG" ]
             ]
          ]
             ++ (List.filter (\res -> res.ddG /= 0) ligandResults
@@ -588,15 +742,15 @@ residuesSettingsView updateMsg scanResults settings =
             settings
     in
     div []
-        [ h3 [] [ text "Job Name" ]
-        , input
+        [ Fancy.h3 [] [ text "Job Name" ]
+        , Fancy.input
             [ onInput <|
                 updateMsg
                     << Update.UpdateResiduesSettings
                     << Update.UpdateResiduesName
             ]
             []
-        , h3 [] [ text "Constellation Size" ]
+        , Fancy.h3 [] [ text "Constellation Size" ]
         , select
             [ onInput <|
                 updateMsg
@@ -606,7 +760,7 @@ residuesSettingsView updateMsg scanResults settings =
           <|
             List.map (simpleOption <| String.fromInt settings.constellationSize)
                 [ "2", "3", "4", "5" ]
-        , h3 [] [ text "Select Residues" ]
+        , Fancy.h3 [] [ text "Select Residues" ]
         , text "Click to select."
         , residueSelectTable
             (updateMsg
@@ -616,7 +770,7 @@ residuesSettingsView updateMsg scanResults settings =
             residues
             scanResults.ligandResults
         , br [] []
-        , button
+        , Fancy.button
             [ onClick <| updateMsg <| Update.SubmitConstellationJob scanResults
             , disabled <| not <| Model.validResiduesSettings settings
             ]
@@ -629,14 +783,17 @@ in submission mode.
 -}
 constellationResultsView : Model.ConstellationResults -> Html Update.Msg
 constellationResultsView { hotConstellations } =
-    div
-        [ class "control-panel constellation-panel" ]
-        [ h2 [] [ text "Constellation Scan Results" ]
-        , h3 [] [ text "🔥 Hot Constellations 🔥" ]
-        , table [ class "scan-results-table" ]
-            ([ tr []
-                [ th [] [ text "Constellation" ]
-                , th [] [ text "Mean ΔΔG" ]
+    tabPane
+        [ css
+            [ Css.backgroundColor Fancy.colourPalette.c4
+            ]
+        ]
+        [ Fancy.h2 [] [ text "Constellation Scan Results" ]
+        , Fancy.h3 [] [ text "🔥 Hot Constellations 🔥" ]
+        , Fancy.table []
+            ([ Fancy.tr []
+                [ Fancy.th [] [ text "Constellation" ]
+                , Fancy.th [] [ text "Mean ΔΔG" ]
                 ]
              ]
                 ++ List.map resultsRow hotConstellations
@@ -655,7 +812,7 @@ resultsRow ( constellation, meanDDG ) =
                 constellation
                 |> List.filterMap submatchToMaybe
     in
-    tr
+    Fancy.tr
         [ Model.ResidueColour
             "ligand_ballsAndSticks"
             constResidues
@@ -669,8 +826,8 @@ resultsRow ( constellation, meanDDG ) =
             |> Update.ColourResidues
             |> onMouseOut
         ]
-        [ td [] [ text constellation ]
-        , td [] [ text <| String.fromFloat meanDDG ]
+        [ Fancy.td [] [ text constellation ]
+        , Fancy.td [] [ text <| String.fromFloat meanDDG ]
         ]
 
 
@@ -705,8 +862,12 @@ jobsView model =
         residuesJobs =
             model.constellation.residuesJobs
     in
-    div [ class "control-panel jobs-panel" ]
-        [ h2 [] [ text "Jobs" ]
+    tabPane
+        [ css
+            [ Css.backgroundColor Fancy.colourPalette.c5
+            ]
+        ]
+        [ Fancy.h2 [] [ text "Jobs" ]
         , jobTable
             (Update.UpdateScan << Update.GetScanResults)
             (Update.UpdateScan << Update.DeleteScanJob)
@@ -741,14 +902,14 @@ jobTable :
     -> Html Update.Msg
 jobTable getMsg deleteMsg tableTitle jobs =
     div []
-        [ h3 [] [ text tableTitle ]
+        [ Fancy.h3 [] [ text tableTitle ]
         , if List.length jobs > 0 then
-            table [ class "jobs-table" ]
-                ([ tr []
-                    [ th [] [ text "Name" ]
-                    , th [] [ text "Job ID" ]
-                    , th [] [ text "Status" ]
-                    , th [] []
+            Fancy.table []
+                ([ Fancy.tr []
+                    [ Fancy.th [] [ text "Name" ]
+                    , Fancy.th [] [ text "Job ID" ]
+                    , Fancy.th [] [ text "Status" ]
+                    , Fancy.th [] []
                     ]
                  ]
                     ++ List.map (jobTableRow getMsg deleteMsg) jobs
@@ -765,12 +926,16 @@ jobTableRow :
     -> Model.JobDetails
     -> Html Update.Msg
 jobTableRow getMsg deleteMsg { jobID, name, status } =
-    tr [ class "details" ]
-        [ td [] [ text name ]
-        , td [] [ text jobID ]
-        , td [] [ text <| Model.statusToString status ]
-        , td []
-            [ button
+    Fancy.tr
+        [ css
+            [ Css.fontSize (Css.pt 10)
+            ]
+        ]
+        [ Fancy.td [] [ text name ]
+        , Fancy.td [] [ text jobID ]
+        , Fancy.td [] [ text <| Model.statusToString status ]
+        , Fancy.td []
+            [ Fancy.button
                 [ getMsg jobID
                     |> onClick
                 , (if status == Model.Completed then
@@ -783,8 +948,8 @@ jobTableRow getMsg deleteMsg { jobID, name, status } =
                 ]
                 [ text "Get Results" ]
             ]
-        , td []
-            [ button
+        , Fancy.td []
+            [ Fancy.button
                 [ deleteMsg jobID
                     |> onClick
                 ]

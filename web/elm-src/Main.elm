@@ -18,7 +18,11 @@ The application is composed of 4 modules:
 -}
 
 import Browser
-import Html exposing (..)
+import Css
+import Html
+import Html.Styled as Styled exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (..)
 import Json.Decode as JDe
 import Model exposing (emptyModel)
 import Notifications
@@ -33,7 +37,7 @@ main : Program JDe.Value Session.Session Session.Msg
 main =
     Browser.element
         { init = init
-        , view = Session.view
+        , view = Session.view >> Styled.toUnstyled
         , update = Session.update
         , subscriptions = subscriptions
         }

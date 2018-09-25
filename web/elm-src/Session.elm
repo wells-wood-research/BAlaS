@@ -1,8 +1,10 @@
 module Session exposing (Msg(..), Session(..), update, view)
 
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
+import Css
+import Html
+import Html.Styled as Styled exposing (..)
+import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (..)
 import Model
 import Tutorial
 import Update
@@ -104,7 +106,7 @@ view session =
             ++ [ case session of
                     ActiveMode model _ ->
                         div []
-                            [ Html.map ActiveMessage <|
+                            [ Styled.map ActiveMessage <|
                                 View.view model
                             ]
 
@@ -112,7 +114,7 @@ view session =
                         p []
                             [ button [ onClick <| TutorialMessage CancelTutorial ]
                                 [ text "Cancel" ]
-                            , Html.map ActiveMessage <|
+                            , Styled.map ActiveMessage <|
                                 View.view section.model
                             ]
                ]
