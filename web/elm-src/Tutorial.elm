@@ -92,6 +92,10 @@ tutorialWindow =
         ]
 
 
+
+-- Welcome
+
+
 welcome : Config msg -> Section msg
 welcome { next, cancel } =
     { tutorialWindow =
@@ -108,6 +112,10 @@ welcome { next, cancel } =
             ]
     , model = Model.emptyModel
     }
+
+
+
+-- Modes and overview
 
 
 modes : Config msg -> Section msg
