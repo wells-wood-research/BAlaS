@@ -1,6 +1,7 @@
 module Session exposing (Msg(..), Session(..), update, view)
 
 import Css
+import Fancy
 import Html
 import Html.Styled as Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
@@ -96,26 +97,54 @@ tutorialUpdate msg tutorial =
 view : Session -> Html Msg
 view session =
     div []
-        ([ button
+        ([ Fancy.controlButton
             [ onClick ToggleMode
-            , style "z-index" "2000"
-            , style "position" "absolute"
+            , css
+                [ Css.top (Css.calc (Css.pct 5) Css.plus (Css.px 5))
+                , Css.left (Css.px 5)
+                , Css.zIndex (Css.int 1001)
+                , Css.position Css.absolute
+                ]
             ]
-            [ text "Toggle" ]
+            [ text "❓" ]
          ]
             ++ [ case session of
                     ActiveMode model _ ->
-                        div []
+                        div
+                            [ css
+                                [ Css.fontFamilies
+                                    [ "Titillium Web", "sans-serif" ]
+                                ]
+                            ]
                             [ Styled.map ActiveMessage <|
                                 View.view model
                             ]
 
                     TutorialMode (Tutorial.Tutorial _ section _) ->
-                        p []
-                            [ button [ onClick <| TutorialMessage CancelTutorial ]
-                                [ text "Cancel" ]
-                            , Styled.map ActiveMessage <|
+                        div
+                            [ css
+                                [ Css.fontFamilies
+                                    [ "Titillium Web", "sans-serif" ]
+                                ]
+                            ]
+                            [ Styled.map ActiveMessage <|
                                 View.view section.model
+                            , div
+                                [ css
+                                    [ Css.alignItems Css.center
+                                    , Css.displayFlex
+                                    , Css.height (Css.pct 100)
+                                    , Css.justifyContent Css.center
+                                    , Css.left Css.zero
+                                    , Css.position Css.absolute
+                                    , Css.top Css.zero
+                                    , Css.width (Css.pct 100)
+                                    , Css.zIndex (Css.int 1002)
+                                    ]
+                                ]
+                                [ Styled.map TutorialMessage <|
+                                    section.tutorialWindow
+                                ]
                             ]
                ]
         )

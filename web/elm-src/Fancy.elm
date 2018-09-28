@@ -2,6 +2,7 @@ module Fancy exposing
     ( button
     , buttonInputStyle
     , colourPalette
+    , controlButton
     , details
     , h1
     , h2
@@ -43,6 +44,10 @@ colourPalette =
     , c5 = Css.hex "ead7d7"
     , white = Css.hex "ffffff"
     }
+
+
+
+-- Redefined Elements
 
 
 h1 : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
@@ -112,14 +117,14 @@ button =
     styled Styled.button
         [ buttonInputStyle
         , Css.backgroundColor <| Css.hex "aaaaaa"
-        , Css.hover
-            [ Css.backgroundColor <| Css.hex "999999" ]
         , Css.active
             [ Css.backgroundColor <| Css.hex "888888" ]
         , Css.disabled
             [ Css.backgroundColor <| Css.hex "bbbbbb"
             , Css.color <| Css.hex "999999"
             ]
+        , Css.hover
+            [ Css.backgroundColor <| Css.hex "999999" ]
         ]
 
 
@@ -173,148 +178,25 @@ tr =
 
 
 
+-- Shared
+
+
+controlButton : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
+controlButton =
+    styled button
+        [ Css.backgroundColor colourPalette.c2
+        , Css.borderStyle Css.solid
+        , Css.borderWidth (Css.px 1)
+        , Css.cursor Css.pointer
+        , Css.margin (Css.px 5)
+        , Css.padding (Css.px 3)
+        , Css.textAlign Css.center
+        , Css.width (Css.px 40)
+        ]
+
+
+
 {-
-   body {
-       font-family: 'Titillium Web', sans-serif;
-   }
-
-   .details {
-       font-size: 10pt;
-   }
-
-
-   #viewer {
-       grid-column: 1 / 2;
-       grid-row: 2 / 3;
-       overflow: hidden;
-       position: relative;
-   }
-
-   .hover-label {
-       background-color: white;
-       padding: 2px;
-       position: absolute;
-       z-index:100;
-   }
-
-   .banner {
-       align-items: center;
-       background-color: var(--c2);
-       display: flex;
-       grid-column: 1 / 2;
-       grid-row: 1 / 2;
-       justify-content: space-between;
-       padding: 5px;
-   }
-
-   .controls {
-       display: flex;
-   }
-
-   .notifications {
-       text-align: right;
-   }
-
-   .control-button {
-       background-color: var(--c2);
-       border-style: solid;
-       border-width: 1px;
-       cursor: pointer;
-       margin: 5px;
-       padding: 3px;
-       text-align: center;
-       width: 40px;
-   }
-
-   .notification-panel {
-       background-color: var(--c2);
-       box-shadow: 0 5px 10px 0 rgba(133,133,133,1);
-       height: 100%;
-       left: 0;
-       position: fixed;
-       text-align: center;
-       top: 0;
-       width: 300px;
-       z-index:1000;
-   }
-
-   .notification {
-       background: var(--c3);
-       margin: 3px;
-       padding: 3px;
-       text-align: left;
-   }
-
-   .notification > .details {
-       background: var(--c4);
-       margin: 3px;
-       padding: 3px;
-   }
-
-   .tabs {
-       display: grid;
-       grid-template-columns: repeat(3, 1fr);
-       grid-column: 2 / 3;
-       grid-row: 1 / 2;
-       text-align: center;
-   }
-
-   .tabs:hover {
-       cursor: pointer;
-   }
-
-   .tab {
-       align-items: center;
-       display: flex;
-       justify-content: center;
-   }
-
-   .scan-tab {
-       background-color: var(--c3);
-   }
-
-   .constellation-tab {
-       background-color: var(--c4);
-   }
-
-   .jobs-tab {
-       background-color: var(--c5);
-   }
-
-   .control-panel {
-       grid-column: 2 / 3;
-       grid-row: 2 / 3;
-       padding: 10px;
-       overflow: auto;
-       max-width: 100%;
-   }
-
-   .scan-panel {
-       background-color: var(--c3);
-   }
-
-   .constellation-panel {
-       background-color: var(--c4);
-   }
-
-   .jobs-panel {
-       background-color: var(--c5);
-   }
-
-   .scan-results-table {
-       table-layout: fixed;
-       width: 100%;
-   }
-
-   .selected-residue {
-       background-color: red !important;
-   }
-
-   .jobs-table {
-       table-layout: fixed;
-       width: 100%;
-   }
-
    @media (max-width: 1080px) {
        .main-grid {
            grid-template-columns: 100%;

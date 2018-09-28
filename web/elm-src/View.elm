@@ -27,8 +27,7 @@ view : Model.Model -> Html Update.Msg
 view model =
     div
         [ css
-            [ Css.fontFamilies [ "Titillium Web", "sans-serif" ]
-            , Css.property "display" "grid"
+            [ Css.property "display" "grid"
             , Css.property "grid-template-columns" "2fr 1fr"
             , Css.property "grid-template-rows" "5% 95%"
             , Css.height (Css.pct 100)
@@ -87,11 +86,11 @@ banner notificationNumber =
         ]
         [ header [] [ Fancy.h1 [] [ text "BUDE Alanine Scan" ] ]
         , div [ css [ Css.displayFlex ] ]
-            [ controlButton
+            [ Fancy.controlButton
                 [ onClick <| Update.OpenPanel Model.ViewerOptions
                 ]
                 [ text "⚛️" ]
-            , controlButton
+            , Fancy.controlButton
                 [ onClick <| Update.OpenPanel Model.Notifications
                 ]
                 [ notificationNumber
@@ -100,20 +99,6 @@ banner notificationNumber =
                     |> text
                 ]
             ]
-        ]
-
-
-controlButton : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
-controlButton =
-    styled button
-        [ Css.backgroundColor Fancy.colourPalette.c2
-        , Css.borderStyle Css.solid
-        , Css.borderWidth (Css.px 1)
-        , Css.cursor Css.pointer
-        , Css.margin (Css.px 5)
-        , Css.padding (Css.px 3)
-        , Css.textAlign Css.center
-        , Css.width (Css.px 40)
         ]
 
 

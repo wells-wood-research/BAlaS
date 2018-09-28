@@ -1,12 +1,16 @@
 module Tutorial exposing
     ( Config
+    , Section
     , Tutorial(..)
     , moveBackwards
     , moveForward
     , tutorial
     )
 
-import Html exposing (..)
+import Css
+import Fancy
+import Html.Styled as Styled exposing (..)
+import Html.Styled.Events exposing (..)
 import Model
 
 
@@ -23,7 +27,7 @@ type alias CurrentSection msg =
 
 
 type alias Section msg =
-    { tutorialPanel : Html msg
+    { tutorialWindow : Html msg
     , model : Model.Model
     }
 
@@ -74,9 +78,20 @@ moveBackwards (Tutorial previousSections currentSection nextSections) =
 
 welcome : Config msg -> Section msg
 welcome { previous, next, cancel } =
-    { tutorialPanel =
-        div []
-            [ p [] [ text "Why hello there!" ]
+    { tutorialWindow =
+        tutorialWindow []
+            [ p []
+                [ "Hello and welcome to BUDE Alanine Scan. This tutorial will "
+                    ++ "guide you through the basics of the application. "
+                    |> text
+                ]
+            , Fancy.button [ onClick cancel ] [ text "Cancel" ]
             ]
     , model = Model.emptyModel
     }
+
+
+tutorialWindow : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
+tutorialWindow =
+    styled Styled.div
+        [ Css.backgroundColor Fancy.colourPalette.c2 ]
