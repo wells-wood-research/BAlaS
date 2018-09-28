@@ -24,6 +24,8 @@ module Model exposing
     , defaultResiduesSettings
     , emptyModel
     , emptyScanSub
+    , emptyAlaScanModel
+    , emptyConstellationModel
     , encodeAlanineScanSub
     , encodeAutoJob
     , encodeManualJob
