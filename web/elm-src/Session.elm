@@ -7,6 +7,7 @@ import Html.Styled as Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (..)
 import Model
+import Ports
 import Tutorial
 import Update
 import View
@@ -70,7 +71,7 @@ update msg session =
 
                 TutorialMode _ ->
                     ( ActiveMode Model.emptyModel True
-                    , Cmd.none
+                    , Ports.clearViewer ()
                     )
 
 

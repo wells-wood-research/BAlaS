@@ -13,7 +13,7 @@ import Html.Styled as Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (..)
 import Markdown
-import Model exposing (emptyAlaScanModel, emptyModel)
+import Model exposing (AlanineScanSub, emptyAlaScanModel, emptyModel)
 import Ports
 import Update
 
@@ -81,6 +81,7 @@ tutorial config =
             [ modes
             , gettingStarted
             , theViewer
+            , scanSubmission
             ]
 
 
@@ -1112,3 +1113,64 @@ pdb1ycr =
         , ( "B_lines", False )
         ]
     }
+
+
+scanSubmission : Config msg -> Section msg
+scanSubmission { previous, next, cancel } =
+    { tutorialWindow =
+        div
+            [ css
+                [ Css.alignItems Css.center
+                , Css.displayFlex
+                , Css.height (Css.pct 100)
+                , Css.justifyContent Css.center
+                , Css.left Css.zero
+                , Css.position Css.absolute
+                , Css.top Css.zero
+                , Css.width (Css.pct 66.6)
+                ]
+            ]
+            [ tutorialWindow
+                [ css
+                    [ Css.width (Css.pct 80)
+                    ]
+                ]
+                [ Fancy.h2 [] [ text "Scan Submission" ]
+                , scanSubmissionText
+                , Fancy.button [ onClick previous ] [ text "Previous" ]
+                , Fancy.button [ onClick next ] [ text "Next" ]
+                , Fancy.button [ onClick cancel ] [ text "Cancel" ]
+                ]
+            ]
+    , model =
+        { emptyModel
+            | alanineScan =
+                { emptyAlaScanModel
+                    | structure = Just pdb1ycr
+                    , alanineScanSub =
+                        AlanineScanSub
+                            "1ycr AB Scan"
+                            [ "A" ]
+                            [ "B" ]
+                }
+        }
+    , command = Ports.clearViewer ()
+    }
+
+
+scanSubmissionText : Html msg
+scanSubmissionText =
+    """To submit a Scan job you need choose a name for the job, define the
+_receptor_ region and define the _ligand_ region. Both the ligand and the
+receptor can consist of one or more of the protein chains in the input
+structure.
+
+> The _receptor_ and the _ligand_ are the regions of the protein that you
+> want to measure the interaction energy between. The _ligand_ will be
+> mutated during the computational alanine scan.
+
+Once you've done all that, you can click submit scan to send the job to the
+server.
+    """
+        |> Markdown.toHtml []
+        |> Styled.fromUnstyled

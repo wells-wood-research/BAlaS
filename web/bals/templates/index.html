@@ -91,7 +91,9 @@
     });
 
     app.ports.showStructure.subscribe(function (pdbString) {
+        viewer.clear();
         showStructure(pdbString);
+        viewer.requestRedraw()
     });
 
     function setColorForAtom(go, atom, color) {

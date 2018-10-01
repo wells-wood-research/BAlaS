@@ -323,7 +323,11 @@ scanSubmissionView updateMsg mStructure scanSub =
                     [ div []
                         [ text "Job Name"
                         , br [] []
-                        , Fancy.input [ onInput <| updateMsg << Update.SetScanName ] []
+                        , Fancy.input
+                            [ onInput <| updateMsg << Update.SetScanName
+                            , value <| scanSub.name
+                            ]
+                            []
                         ]
                     , Fancy.table []
                         ([ Fancy.tr []
