@@ -48,7 +48,7 @@ port requestPDBFile : () -> Cmd msg
 port setVisibility : ( String, Bool ) -> Cmd msg
 
 
-port colourGeometry : ( String, Model.ChainID ) -> Cmd msg
+port colourGeometry : ( String, String ) -> Cmd msg
 
 
 port colourResidues : Model.ResidueColour -> Cmd msg

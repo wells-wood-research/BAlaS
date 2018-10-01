@@ -689,15 +689,21 @@ residueSelectTable updateMsg selected ligandResults =
                     chainID ++ residueNumber
             in
             Fancy.tr
-                [ case Set.member residueID selected of
-                    True ->
-                        class "selected-residue"
-
-                    False ->
-                        class "unselected-residue"
-                , onClick <|
+                ([ onClick <|
                     updateMsg resResult
-                ]
+                 ]
+                    ++ (case Set.member residueID selected of
+                            True ->
+                                [ css
+                                    [ Css.backgroundColor (Css.hex "00ff00")
+                                        |> Css.important
+                                    ]
+                                ]
+
+                            False ->
+                                []
+                       )
+                )
                 [ Fancy.td [] [ text chainID ]
                 , Fancy.td [] [ text residueNumber ]
                 , Fancy.td [] [ text aminoAcid ]
@@ -805,7 +811,7 @@ resultsRow ( constellation, meanDDG ) =
         [ Model.ResidueColour
             "ligand_ballsAndSticks"
             constResidues
-            "red"
+            "green"
             |> Update.ColourResidues
             |> onMouseOver
         , Model.ResidueColour

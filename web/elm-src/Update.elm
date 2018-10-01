@@ -176,6 +176,31 @@ update msg model =
                 ProcessResiduesResults (Ok { scanResults }) ->
                     sucessfulConResults model scanResults constellationMsg
 
+                ChangeMode _ ->
+                    let
+                        ( updatedConModel, conSubCmds, notifications ) =
+                            updateConstellation constellationMsg model.constellation
+                    in
+                    ( { model
+                        | constellation =
+                            updatedConModel
+                        , notifications =
+                            List.filter
+                                (\n ->
+                                    List.member n
+                                        model.notifications
+                                        |> not
+                                )
+                                notifications
+                                |> List.append
+                                    model.notifications
+                      }
+                    , Cmd.batch
+                        [ Cmd.map UpdateConstellation conSubCmds
+                        , Ports.colourGeometry ( "cpk", "ligand_ballsAndSticks" )
+                        ]
+                    )
+
                 _ ->
                     let
                         ( updatedConModel, conSubCmds, notifications ) =
@@ -1218,7 +1243,7 @@ updateManualSettings msg settings =
                           , residueResult.residueNumber
                           )
                         ]
-                        "red"
+                        "green"
                         |> Ports.colourResidues
                     )
 
@@ -1283,7 +1308,7 @@ updateResiduesSettings msg settings =
                           , residueResult.residueNumber
                           )
                         ]
-                        "red"
+                        "green"
                         |> Ports.colourResidues
                     )
 

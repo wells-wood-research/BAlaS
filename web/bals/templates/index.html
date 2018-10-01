@@ -142,7 +142,9 @@
 
     app.ports.colourGeometry.subscribe(function (colourAndLabel) {
         const [colour, label] = colourAndLabel;
-        geometry[label].colorBy(pv.color.uniform(colour));
+        geometry[label].colorBy(
+            colour === 'cpk' ? pv.color.byElement() : pv.color.uniform(colour),
+        );
         viewer.requestRedraw();
     });
 
