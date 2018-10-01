@@ -1,5 +1,6 @@
 port module Ports exposing
     ( atomClick
+    , clearViewer
     , colourGeometry
     , colourResidues
     , displayScanResults
@@ -10,6 +11,7 @@ port module Ports exposing
     , requestPDBFile
     , saveState
     , setVisibility
+    , showStructure
     )
 
 {- # COMMANDS AND SUBSCRIPTIONS
@@ -32,6 +34,12 @@ port saveState : JDe.Value -> Cmd msg
 
 
 port initialiseViewer : () -> Cmd msg
+
+
+port clearViewer : () -> Cmd msg
+
+
+port showStructure : String -> Cmd msg
 
 
 port requestPDBFile : () -> Cmd msg

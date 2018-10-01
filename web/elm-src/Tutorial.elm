@@ -14,6 +14,8 @@ import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (..)
 import Markdown
 import Model exposing (emptyAlaScanModel, emptyModel)
+import Ports
+import Update
 
 
 type Tutorial msg
@@ -31,6 +33,7 @@ type alias CurrentSection msg =
 type alias Section msg =
     { tutorialWindow : Html msg
     , model : Model.Model
+    , command : Cmd Update.Msg
     }
 
 
@@ -90,7 +93,7 @@ tutorialWindow =
             Css.zero
             (Css.px 10)
             Css.zero
-            (Css.rgba 133 133 133 1)
+            (Css.rgba 100 100 100 1)
         , Css.padding (Css.px 5)
         ]
 
@@ -114,6 +117,7 @@ welcome { next, cancel } =
             , Fancy.button [ onClick cancel ] [ text "Cancel" ]
             ]
     , model = Model.emptyModel
+    , command = Ports.clearViewer ()
     }
 
 
@@ -137,6 +141,7 @@ modes { previous, next, cancel } =
             , Fancy.button [ onClick cancel ] [ text "Cancel" ]
             ]
     , model = Model.emptyModel
+    , command = Cmd.none
     }
 
 
@@ -195,6 +200,7 @@ gettingStarted { previous, next, cancel } =
                 ]
             ]
     , model = emptyModel
+    , command = Ports.clearViewer ()
     }
 
 
@@ -221,10 +227,10 @@ theViewer { previous, next, cancel } =
                 , Css.displayFlex
                 , Css.height (Css.pct 100)
                 , Css.justifyContent Css.center
-                , Css.left Css.zero
+                , Css.left (Css.pct 66.6)
                 , Css.position Css.absolute
                 , Css.top Css.zero
-                , Css.width (Css.pct 66.6)
+                , Css.width (Css.pct 33.3)
                 ]
             ]
             [ tutorialWindow
@@ -244,6 +250,7 @@ theViewer { previous, next, cancel } =
             | alanineScan =
                 { emptyAlaScanModel | structure = Just pdb1ycr }
         }
+    , command = Ports.showStructure pdb1ycrString
     }
 
 

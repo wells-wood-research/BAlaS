@@ -52,10 +52,8 @@ update msg session =
         TutorialMessage tutorialMsg ->
             case session of
                 TutorialMode tutorial ->
-                    ( TutorialMode <|
-                        tutorialUpdate tutorialMsg tutorial
-                    , Cmd.none
-                    )
+                    tutorialUpdate tutorialMsg tutorial
+                        |> tutorialToSession
 
                 ActiveMode _ _ ->
                     ( session, Cmd.none )
@@ -63,14 +61,12 @@ update msg session =
         ToggleMode ->
             case session of
                 ActiveMode model _ ->
-                    ( { previous = PreviousSection
-                      , next = NextSection
-                      , cancel = CancelTutorial
-                      }
+                    { previous = PreviousSection
+                    , next = NextSection
+                    , cancel = CancelTutorial
+                    }
                         |> Tutorial.tutorial
-                        |> TutorialMode
-                    , Cmd.none
-                    )
+                        |> tutorialToSession
 
                 TutorialMode _ ->
                     ( ActiveMode Model.emptyModel True
@@ -92,6 +88,17 @@ tutorialUpdate msg tutorial =
 
         CancelTutorial ->
             tutorial
+
+
+tutorialToSession :
+    Tutorial.Tutorial TutorialMsg
+    -> ( Session, Cmd Msg )
+tutorialToSession tutorial =
+    let
+        (Tutorial.Tutorial _ currentSection _) =
+            tutorial
+    in
+    ( TutorialMode tutorial, Cmd.map ActiveMessage currentSection.command )
 
 
 view : Session -> Html Msg

@@ -85,6 +85,15 @@
         }
     );
 
+    app.ports.clearViewer.subscribe(function () {
+        viewer.clear();
+        viewer.requestRedraw()
+    });
+
+    app.ports.showStructure.subscribe(function (pdbString) {
+        showStructure(pdbString);
+    });
+
     function setColorForAtom(go, atom, color) {
         var view = go.structure().createEmptyView();
         view.addAtom(atom);
