@@ -94,6 +94,7 @@ tutorial config =
             , scanResults
             , constellationBasics
             , manualMode
+            , residuesMode
             ]
 
 
@@ -1452,6 +1453,70 @@ manualModeText =
     """In manual mode you select all the residues that you want to include in
 the constellation. To run the job, give it a name and click residues in the
 table to select them. Once you're done you can click "Submit".
+"""
+        |> Markdown.toHtml []
+        |> Styled.fromUnstyled
+
+
+residuesMode : Config msg -> Section msg
+residuesMode { previous, next, cancel } =
+    { tutorialWindow =
+        div
+            [ css
+                [ Css.alignItems Css.center
+                , Css.displayFlex
+                , Css.height (Css.pct 100)
+                , Css.justifyContent Css.center
+                , Css.left Css.zero
+                , Css.position Css.absolute
+                , Css.top Css.zero
+                , Css.width (Css.pct 66.6)
+                ]
+            ]
+            [ tutorialWindow
+                [ css
+                    [ Css.width (Css.pct 80)
+                    ]
+                ]
+                [ Fancy.h2 [] [ text "Residues Mode" ]
+                , residuesModeText
+                , Fancy.button [ onClick previous ] [ text "Previous" ]
+                , Fancy.button [ onClick next ] [ text "Next" ]
+                , Fancy.button [ onClick cancel ] [ text "Cancel" ]
+                ]
+            ]
+    , model =
+        { emptyModel
+            | alanineScan =
+                { emptyAlaScanModel
+                    | results =
+                        Just exampleScanResults
+                }
+            , constellation =
+                { emptyConstellationModel
+                    | constellationSub =
+                        Model.Residues
+                            { name = "1ycr Hydrophobic Face"
+                            , constellationSize = 3
+                            , residues =
+                                [ "B19", "B23", "B26", "B27" ]
+                                    |> Set.fromList
+                            }
+                }
+            , appMode = Model.Constellation
+        }
+    , command = Ports.displayScanResults exampleScanResults
+    }
+
+
+residuesModeText : Html msg
+residuesModeText =
+    """In residues mode you select any number of residues and set the number of
+residues you want in the constellation. BALS will then automatically create all
+combinations of residues for that constellation size.
+
+> You cannot submit a job with less residues selected than the size of your
+> constellation.
 """
         |> Markdown.toHtml []
         |> Styled.fromUnstyled

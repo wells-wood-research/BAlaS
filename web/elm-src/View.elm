@@ -580,7 +580,7 @@ autoSettingsView :
     -> Html msg
 autoSettingsView updateMsg scanRes settings =
     let
-        { ddGCutOff, constellationSize, cutOffDistance } =
+        { name, ddGCutOff, constellationSize, cutOffDistance } =
             settings
     in
     div []
@@ -590,6 +590,7 @@ autoSettingsView updateMsg scanRes settings =
                 updateMsg
                     << Update.UpdateAutoSettings
                     << Update.UpdateAutoName
+            , value name
             ]
             []
         , Fancy.h3 [] [ text "ΔΔG Cut Off Value" ]
@@ -643,7 +644,7 @@ manualSettingsView :
     -> Html msg
 manualSettingsView updateMsg scanResults settings =
     let
-        { residues } =
+        { residues, name } =
             settings
     in
     div []
@@ -653,6 +654,7 @@ manualSettingsView updateMsg scanResults settings =
                 updateMsg
                     << Update.UpdateManualSettings
                     << Update.UpdateManualName
+            , value name
             ]
             []
         , Fancy.h3 [] [ text "Select Residues" ]
@@ -733,7 +735,7 @@ residuesSettingsView :
     -> Html msg
 residuesSettingsView updateMsg scanResults settings =
     let
-        { residues } =
+        { residues, name } =
             settings
     in
     div []
@@ -743,6 +745,7 @@ residuesSettingsView updateMsg scanResults settings =
                 updateMsg
                     << Update.UpdateResiduesSettings
                     << Update.UpdateResiduesName
+            , value name
             ]
             []
         , Fancy.h3 [] [ text "Constellation Size" ]
