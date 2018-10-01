@@ -13,8 +13,16 @@ import Html.Styled as Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (..)
 import Markdown
-import Model exposing (AlanineScanSub, JobDetails, emptyAlaScanModel, emptyModel)
+import Model
+    exposing
+        ( AlanineScanSub
+        , JobDetails
+        , emptyAlaScanModel
+        , emptyConstellationModel
+        , emptyModel
+        )
 import Ports
+import Set
 import Update
 
 
@@ -85,6 +93,7 @@ tutorial config =
             , theJobsPanel
             , scanResults
             , constellationBasics
+            , manualMode
             ]
 
 
@@ -1255,31 +1264,32 @@ browser.
         |> Styled.fromUnstyled
 
 
+exampleScanResults : Model.AlanineScanResults
+exampleScanResults =
+    Model.AlanineScanResults
+        "1ycr AB Scan"
+        pdb1ycrString
+        [ "A" ]
+        [ "B" ]
+        -154.6038
+        []
+        [ Model.ResidueResult "17" "GLU" "B" 19.1207 0 0
+        , Model.ResidueResult "18" "THR" "B" 0.5949 0 0
+        , Model.ResidueResult "19" "PHE" "B" 20.3646 0 0
+        , Model.ResidueResult "21" "ASP" "B" 0.0506 0 0
+        , Model.ResidueResult "22" "LEU" "B" 6.7914 0 0
+        , Model.ResidueResult "23" "TRP" "B" 22.0543 0 0
+        , Model.ResidueResult "24" "LYS" "B" 0.5078 0 0
+        , Model.ResidueResult "25" "LEU" "B" 0.4186 0 0
+        , Model.ResidueResult "26" "LEU" "B" 8.3254 0 0
+        , Model.ResidueResult "27" "PRO" "B" 4.1877 0 0
+        , Model.ResidueResult "28" "GLU" "B" 15.6824 0 0
+        , Model.ResidueResult "29" "ASN" "B" 0.5048 0 0
+        ]
+
+
 scanResults : Config msg -> Section msg
 scanResults { previous, next, cancel } =
-    let
-        results =
-            Model.AlanineScanResults
-                "1ycr AB Scan"
-                pdb1ycrString
-                [ "A" ]
-                [ "B" ]
-                -154.6038
-                []
-                [ Model.ResidueResult "B" "17" "GLU" 19.1207 0 0
-                , Model.ResidueResult "B" "18" "THR" 0.5949 0 0
-                , Model.ResidueResult "B" "19" "PHE" 20.3646 0 0
-                , Model.ResidueResult "B" "21" "ASP" 0.0506 0 0
-                , Model.ResidueResult "B" "22" "LEU" 6.7914 0 0
-                , Model.ResidueResult "B" "23" "TRP" 22.0543 0 0
-                , Model.ResidueResult "B" "24" "LYS" 0.5078 0 0
-                , Model.ResidueResult "B" "25" "LEU" 0.4186 0 0
-                , Model.ResidueResult "B" "26" "LEU" 8.3254 0 0
-                , Model.ResidueResult "B" "27" "PRO" 4.1877 0 0
-                , Model.ResidueResult "B" "28" "GLU" 15.6824 0 0
-                , Model.ResidueResult "B" "29" "ASN" 0.5048 0 0
-                ]
-    in
     { tutorialWindow =
         div
             [ css
@@ -1310,10 +1320,10 @@ scanResults { previous, next, cancel } =
             | alanineScan =
                 { emptyAlaScanModel
                     | results =
-                        Just results
+                        Just exampleScanResults
                 }
         }
-    , command = Ports.displayScanResults results
+    , command = Ports.displayScanResults exampleScanResults
     }
 
 
@@ -1333,29 +1343,6 @@ hover over a residue in the table, it will be highlighted on the structure.
 
 constellationBasics : Config msg -> Section msg
 constellationBasics { previous, next, cancel } =
-    let
-        results =
-            Model.AlanineScanResults
-                "1ycr AB Scan"
-                pdb1ycrString
-                [ "A" ]
-                [ "B" ]
-                -154.6038
-                []
-                [ Model.ResidueResult "B" "17" "GLU" 19.1207 0 0
-                , Model.ResidueResult "B" "18" "THR" 0.5949 0 0
-                , Model.ResidueResult "B" "19" "PHE" 20.3646 0 0
-                , Model.ResidueResult "B" "21" "ASP" 0.0506 0 0
-                , Model.ResidueResult "B" "22" "LEU" 6.7914 0 0
-                , Model.ResidueResult "B" "23" "TRP" 22.0543 0 0
-                , Model.ResidueResult "B" "24" "LYS" 0.5078 0 0
-                , Model.ResidueResult "B" "25" "LEU" 0.4186 0 0
-                , Model.ResidueResult "B" "26" "LEU" 8.3254 0 0
-                , Model.ResidueResult "B" "27" "PRO" 4.1877 0 0
-                , Model.ResidueResult "B" "28" "GLU" 15.6824 0 0
-                , Model.ResidueResult "B" "29" "ASN" 0.5048 0 0
-                ]
-    in
     { tutorialWindow =
         div
             [ css
@@ -1386,25 +1373,85 @@ constellationBasics { previous, next, cancel } =
             | alanineScan =
                 { emptyAlaScanModel
                     | results =
-                        Just results
+                        Just exampleScanResults
                 }
             , appMode = Model.Constellation
         }
-    , command = Ports.displayScanResults results
+    , command = Ports.displayScanResults exampleScanResults
     }
 
 
 constellationBasicsText : Html msg
 constellationBasicsText =
-    """Once a Scan job is complete you can run a Constellation job. In
-Constellation mode you can combine multiple alanine mutations and look for
-clusters of _ligand_ residues that interact cooperatively with the _receptor_
-_i.e._ the sum of their individual ΔΔG values is less than the interaction
-energy with the _receptor_ when all residues are mutated to alanine
+    """Once you've got the results from a Scan job you can run a Constellation
+job. In Constellation mode you can combine multiple alanine mutations and look
+for clusters of _ligand_ residues that interact cooperatively with the
+_receptor_ _i.e._ the sum of their individual ΔΔG values is less than the
+interaction energy with the _receptor_ when all residues are mutated to alanine
 simultaneously. This is useful for highlighting regions of the _ligand_ that are
 key to forming the interaction with the _receptor_.
 
 There are three constellation job modes: "Manual", "Residues" and "Auto".
+"""
+        |> Markdown.toHtml []
+        |> Styled.fromUnstyled
+
+
+manualMode : Config msg -> Section msg
+manualMode { previous, next, cancel } =
+    { tutorialWindow =
+        div
+            [ css
+                [ Css.alignItems Css.center
+                , Css.displayFlex
+                , Css.height (Css.pct 100)
+                , Css.justifyContent Css.center
+                , Css.left Css.zero
+                , Css.position Css.absolute
+                , Css.top Css.zero
+                , Css.width (Css.pct 66.6)
+                ]
+            ]
+            [ tutorialWindow
+                [ css
+                    [ Css.width (Css.pct 80)
+                    ]
+                ]
+                [ Fancy.h2 [] [ text "Manual Mode" ]
+                , manualModeText
+                , Fancy.button [ onClick previous ] [ text "Previous" ]
+                , Fancy.button [ onClick next ] [ text "Next" ]
+                , Fancy.button [ onClick cancel ] [ text "Cancel" ]
+                ]
+            ]
+    , model =
+        { emptyModel
+            | alanineScan =
+                { emptyAlaScanModel
+                    | results =
+                        Just exampleScanResults
+                }
+            , constellation =
+                { emptyConstellationModel
+                    | constellationSub =
+                        Model.Manual
+                            { name = "1ycr PHE TRP LEU"
+                            , residues =
+                                [ "B19", "B23", "B26" ]
+                                    |> Set.fromList
+                            }
+                }
+            , appMode = Model.Constellation
+        }
+    , command = Ports.displayScanResults exampleScanResults
+    }
+
+
+manualModeText : Html msg
+manualModeText =
+    """In manual mode you select all the residues that you want to include in
+the constellation. To run the job, give it a name and click residues in the
+table to select them. Once you're done you can click "Submit".
 """
         |> Markdown.toHtml []
         |> Styled.fromUnstyled
