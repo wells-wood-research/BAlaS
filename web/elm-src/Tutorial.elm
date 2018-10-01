@@ -13,7 +13,7 @@ import Html.Styled as Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (..)
 import Markdown
-import Model exposing (AlanineScanSub, emptyAlaScanModel, emptyModel)
+import Model exposing (AlanineScanSub, JobDetails, emptyAlaScanModel, emptyModel)
 import Ports
 import Update
 
@@ -82,6 +82,9 @@ tutorial config =
             , gettingStarted
             , theViewer
             , scanSubmission
+            , theJobsPanel
+            , scanResults
+            , constellationBasics
             ]
 
 
@@ -276,7 +279,22 @@ like [Chimera](https://www.cgl.ucsf.edu/chimera/) or
 
 pdb1ycrString : String
 pdb1ycrString =
-    """
+    """HEADER    COMPLEX (ONCOGENE PROTEIN/PEPTIDE)      30-SEP-96   1YCR              
+TITLE     MDM2 BOUND TO THE TRANSACTIVATION DOMAIN OF P53                       
+HELIX    1   1 PRO A   32  VAL A   41  1                                  10    
+HELIX    2   2 MET A   50  THR A   63  1                                  14    
+HELIX    3   3 LEU A   81  PHE A   86  1                                   6    
+HELIX    4   4 HIS A   96  ASN A  106  1                                  11    
+HELIX    5   5 PHE B   19  LEU B   25  1                                   7    
+SHEET    1   A 2 ILE A  74  TYR A  76  0                                        
+SHEET    2   A 2 SER A  90  SER A  92 -1  N  PHE A  91   O  VAL A  75           
+CRYST1   43.414  100.546   54.853  90.00  90.00  90.00 C 2 2 21      8          
+ORIGX1      1.000000  0.000000  0.000000        0.00000                         
+ORIGX2      0.000000  1.000000  0.000000        0.00000                         
+ORIGX3      0.000000  0.000000  1.000000        0.00000                         
+SCALE1      0.023034  0.000000  0.000000        0.00000                         
+SCALE2      0.000000  0.009946  0.000000        0.00000                         
+SCALE3      0.000000  0.000000  0.018231        0.00000                         
 ATOM      1  N   GLU A  25      10.801 -12.147  -5.180  1.00 49.08           N  
 ATOM      2  CA  GLU A  25      11.124 -13.382  -4.414  1.00 50.43           C  
 ATOM      3  C   GLU A  25      11.769 -12.878  -3.130  1.00 49.75           C  
@@ -1154,7 +1172,7 @@ scanSubmission { previous, next, cancel } =
                             [ "B" ]
                 }
         }
-    , command = Ports.clearViewer ()
+    , command = Cmd.none
     }
 
 
@@ -1172,5 +1190,221 @@ structure.
 Once you've done all that, you can click submit scan to send the job to the
 server.
     """
+        |> Markdown.toHtml []
+        |> Styled.fromUnstyled
+
+
+theJobsPanel : Config msg -> Section msg
+theJobsPanel { previous, next, cancel } =
+    { tutorialWindow =
+        div
+            [ css
+                [ Css.alignItems Css.center
+                , Css.displayFlex
+                , Css.height (Css.pct 100)
+                , Css.justifyContent Css.center
+                , Css.left Css.zero
+                , Css.position Css.absolute
+                , Css.top Css.zero
+                , Css.width (Css.pct 66.6)
+                ]
+            ]
+            [ tutorialWindow
+                [ css
+                    [ Css.width (Css.pct 80)
+                    ]
+                ]
+                [ Fancy.h2 [] [ text "The Jobs Panel" ]
+                , theJobsPanelText
+                , Fancy.button [ onClick previous ] [ text "Previous" ]
+                , Fancy.button [ onClick next ] [ text "Next" ]
+                , Fancy.button [ onClick cancel ] [ text "Cancel" ]
+                ]
+            ]
+    , model =
+        { emptyModel
+            | appMode = Model.Jobs
+            , alanineScan =
+                { emptyAlaScanModel
+                    | jobs =
+                        [ JobDetails
+                            "5bb1eca7559d620012f74c31"
+                            "1ycr AB Scan"
+                            Model.Completed
+                            Nothing
+                        ]
+                }
+        }
+    , command = Ports.clearViewer ()
+    }
+
+
+theJobsPanelText : Html msg
+theJobsPanelText =
+    """Once you've submitted your Scan job to the server, it'll appear in the
+jobs tab. Scan jobs should finish quickly, but this depends on the size of the
+structure and the queue on the server. You'll be notified when your job is
+finish in the notification pane, which you can open with the 🔔 button.
+
+Once the job is complete you can click "Get Results" to display the
+results of the alanine scan. Your job list is persistant so you can come back to
+the jobs panel and reload your results at any time, even after you close the
+browser.
+"""
+        |> Markdown.toHtml []
+        |> Styled.fromUnstyled
+
+
+scanResults : Config msg -> Section msg
+scanResults { previous, next, cancel } =
+    let
+        results =
+            Model.AlanineScanResults
+                "1ycr AB Scan"
+                pdb1ycrString
+                [ "A" ]
+                [ "B" ]
+                -154.6038
+                []
+                [ Model.ResidueResult "B" "17" "GLU" 19.1207 0 0
+                , Model.ResidueResult "B" "18" "THR" 0.5949 0 0
+                , Model.ResidueResult "B" "19" "PHE" 20.3646 0 0
+                , Model.ResidueResult "B" "21" "ASP" 0.0506 0 0
+                , Model.ResidueResult "B" "22" "LEU" 6.7914 0 0
+                , Model.ResidueResult "B" "23" "TRP" 22.0543 0 0
+                , Model.ResidueResult "B" "24" "LYS" 0.5078 0 0
+                , Model.ResidueResult "B" "25" "LEU" 0.4186 0 0
+                , Model.ResidueResult "B" "26" "LEU" 8.3254 0 0
+                , Model.ResidueResult "B" "27" "PRO" 4.1877 0 0
+                , Model.ResidueResult "B" "28" "GLU" 15.6824 0 0
+                , Model.ResidueResult "B" "29" "ASN" 0.5048 0 0
+                ]
+    in
+    { tutorialWindow =
+        div
+            [ css
+                [ Css.alignItems Css.center
+                , Css.displayFlex
+                , Css.height (Css.pct 100)
+                , Css.justifyContent Css.center
+                , Css.left Css.zero
+                , Css.position Css.absolute
+                , Css.top Css.zero
+                , Css.width (Css.pct 66.6)
+                ]
+            ]
+            [ tutorialWindow
+                [ css
+                    [ Css.width (Css.pct 80)
+                    ]
+                ]
+                [ Fancy.h2 [] [ text "Alanine Scan Results" ]
+                , scanResultsText
+                , Fancy.button [ onClick previous ] [ text "Previous" ]
+                , Fancy.button [ onClick next ] [ text "Next" ]
+                , Fancy.button [ onClick cancel ] [ text "Cancel" ]
+                ]
+            ]
+    , model =
+        { emptyModel
+            | alanineScan =
+                { emptyAlaScanModel
+                    | results =
+                        Just results
+                }
+        }
+    , command = Ports.displayScanResults results
+    }
+
+
+scanResultsText : Html msg
+scanResultsText =
+    """Next you'll be taken back to the scan tab and the results will be
+displayed. These include the ΔG of the interaction between the _ligand_ and the
+_receptor_ and a table containing information about all the residues that have a
+non-zero ΔΔG, as these residues that form meaningful interactions with the
+_receptor_. The more positive the ΔΔG value is for a residue, the larger a
+contribution it makes to forming the interaction with the _receptor_. If you
+hover over a residue in the table, it will be highlighted on the structure.
+"""
+        |> Markdown.toHtml []
+        |> Styled.fromUnstyled
+
+
+constellationBasics : Config msg -> Section msg
+constellationBasics { previous, next, cancel } =
+    let
+        results =
+            Model.AlanineScanResults
+                "1ycr AB Scan"
+                pdb1ycrString
+                [ "A" ]
+                [ "B" ]
+                -154.6038
+                []
+                [ Model.ResidueResult "B" "17" "GLU" 19.1207 0 0
+                , Model.ResidueResult "B" "18" "THR" 0.5949 0 0
+                , Model.ResidueResult "B" "19" "PHE" 20.3646 0 0
+                , Model.ResidueResult "B" "21" "ASP" 0.0506 0 0
+                , Model.ResidueResult "B" "22" "LEU" 6.7914 0 0
+                , Model.ResidueResult "B" "23" "TRP" 22.0543 0 0
+                , Model.ResidueResult "B" "24" "LYS" 0.5078 0 0
+                , Model.ResidueResult "B" "25" "LEU" 0.4186 0 0
+                , Model.ResidueResult "B" "26" "LEU" 8.3254 0 0
+                , Model.ResidueResult "B" "27" "PRO" 4.1877 0 0
+                , Model.ResidueResult "B" "28" "GLU" 15.6824 0 0
+                , Model.ResidueResult "B" "29" "ASN" 0.5048 0 0
+                ]
+    in
+    { tutorialWindow =
+        div
+            [ css
+                [ Css.alignItems Css.center
+                , Css.displayFlex
+                , Css.height (Css.pct 100)
+                , Css.justifyContent Css.center
+                , Css.left Css.zero
+                , Css.position Css.absolute
+                , Css.top Css.zero
+                , Css.width (Css.pct 66.6)
+                ]
+            ]
+            [ tutorialWindow
+                [ css
+                    [ Css.width (Css.pct 80)
+                    ]
+                ]
+                [ Fancy.h2 [] [ text "Constellation Jobs" ]
+                , constellationBasicsText
+                , Fancy.button [ onClick previous ] [ text "Previous" ]
+                , Fancy.button [ onClick next ] [ text "Next" ]
+                , Fancy.button [ onClick cancel ] [ text "Cancel" ]
+                ]
+            ]
+    , model =
+        { emptyModel
+            | alanineScan =
+                { emptyAlaScanModel
+                    | results =
+                        Just results
+                }
+            , appMode = Model.Constellation
+        }
+    , command = Ports.displayScanResults results
+    }
+
+
+constellationBasicsText : Html msg
+constellationBasicsText =
+    """Once a Scan job is complete you can run a Constellation job. In
+Constellation mode you can combine multiple alanine mutations and look for
+clusters of _ligand_ residues that interact cooperatively with the _receptor_
+_i.e._ the sum of their individual ΔΔG values is less than the interaction
+energy with the _receptor_ when all residues are mutated to alanine
+simultaneously. This is useful for highlighting regions of the _ligand_ that are
+key to forming the interaction with the _receptor_.
+
+There are three constellation job modes: "Manual", "Residues" and "Auto".
+"""
         |> Markdown.toHtml []
         |> Styled.fromUnstyled

@@ -401,7 +401,7 @@ scanResultsTable ligandResults =
                       , residueNumber
                       )
                     ]
-                    "red"
+                    "green"
                     |> Update.ColourResidues
                     |> onMouseOver
                 , Model.ResidueColour
