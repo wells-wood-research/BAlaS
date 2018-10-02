@@ -75,7 +75,7 @@
                   picked.node().getColorForAtom(atom, color);
                   prevPicked = { atom : atom, color : color, node : picked.node() };
 
-                  setColorForAtom(picked.node(), atom, 'red');
+                  setColorForAtom(picked.node(), atom, 'green');
                 } else {
                   app.ports.hoveredName.send(null);
                   prevPicked = null;

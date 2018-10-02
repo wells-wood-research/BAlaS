@@ -95,6 +95,7 @@ tutorial config =
             , constellationBasics
             , manualMode
             , residuesMode
+            , autoMode
             ]
 
 
@@ -1517,6 +1518,70 @@ combinations of residues for that constellation size.
 
 > You cannot submit a job with less residues selected than the size of your
 > constellation.
+"""
+        |> Markdown.toHtml []
+        |> Styled.fromUnstyled
+
+
+autoMode : Config msg -> Section msg
+autoMode { previous, next, cancel } =
+    { tutorialWindow =
+        div
+            [ css
+                [ Css.alignItems Css.center
+                , Css.displayFlex
+                , Css.height (Css.pct 100)
+                , Css.justifyContent Css.center
+                , Css.left Css.zero
+                , Css.position Css.absolute
+                , Css.top Css.zero
+                , Css.width (Css.pct 66.6)
+                ]
+            ]
+            [ tutorialWindow
+                [ css
+                    [ Css.width (Css.pct 80)
+                    ]
+                ]
+                [ Fancy.h2 [] [ text "Auto Mode" ]
+                , autoModeText
+                , Fancy.button [ onClick previous ] [ text "Previous" ]
+                , Fancy.button [ onClick next ] [ text "Next" ]
+                , Fancy.button [ onClick cancel ] [ text "Cancel" ]
+                ]
+            ]
+    , model =
+        { emptyModel
+            | alanineScan =
+                { emptyAlaScanModel
+                    | results =
+                        Just exampleScanResults
+                }
+            , constellation =
+                { emptyConstellationModel
+                    | constellationSub =
+                        Model.Auto
+                            { name = "1ycr ddg5 con3 co15"
+                            , ddGCutOff = "15.0"
+                            , constellationSize = "3"
+                            , cutOffDistance = "15.0"
+                            }
+                }
+            , appMode = Model.Constellation
+        }
+    , command = Ports.displayScanResults exampleScanResults
+    }
+
+
+autoModeText : Html msg
+autoModeText =
+    """In auto mode you select a ΔΔG cut off value and all residues above that
+value will be used to create constellations, so long as the residues are within
+the distance cut off of each other. The residues that meet the ΔΔG cut off are
+shown in a list under the submit button.
+
+> Make sure that you have enough residues that meet your criteria to make your
+> desired size of constellation.
 """
         |> Markdown.toHtml []
         |> Styled.fromUnstyled

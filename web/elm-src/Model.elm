@@ -22,10 +22,10 @@ module Model exposing
     , defaultAutoSettings
     , defaultManualSettings
     , defaultResiduesSettings
-    , emptyModel
-    , emptyScanSub
     , emptyAlaScanModel
     , emptyConstellationModel
+    , emptyModel
+    , emptyScanSub
     , encodeAlanineScanSub
     , encodeAutoJob
     , encodeManualJob
@@ -357,9 +357,19 @@ defaultAutoSettings =
 
 {-| Validates an `AutoSettings` to determine if it can be safely submitted.
 -}
-validAutoSettings : AutoSettings -> Bool
-validAutoSettings { name, ddGCutOff, constellationSize, cutOffDistance } =
+validAutoSettings : List ResidueResult -> AutoSettings -> Bool
+validAutoSettings ligandResults { name, ddGCutOff, constellationSize, cutOffDistance } =
     let
+        ddGCO =
+            ddGCutOff
+                |> String.toFloat
+                |> Maybe.withDefault 0
+
+        constSize =
+            constellationSize
+                |> String.toInt
+                |> Maybe.withDefault 0
+
         validName =
             name /= ""
 
@@ -377,6 +387,12 @@ validAutoSettings { name, ddGCutOff, constellationSize, cutOffDistance } =
                 String.isEmpty
                 [ ddGCutOff, constellationSize, cutOffDistance ]
                 |> List.any identity
+
+        numResMoreThanConstSize =
+            ligandResults
+                |> List.filter (\res -> res.ddG > ddGCO)
+                |> List.length
+                |> (\x -> x > constSize)
     in
     List.all identity
         [ validName
@@ -384,6 +400,7 @@ validAutoSettings { name, ddGCutOff, constellationSize, cutOffDistance } =
         , validConSize
         , validDistance
         , not anyEmpty
+        , numResMoreThanConstSize
         ]
 
 

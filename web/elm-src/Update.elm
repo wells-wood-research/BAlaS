@@ -35,6 +35,7 @@ type Msg
     | ClosePanel
     | ColourResidues Model.ResidueColour
     | SaveState
+    | NoOp
 
 
 {-| The main update function that is run whenever a user interacts with an
@@ -268,6 +269,9 @@ update msg model =
             ( model
             , Model.saveModel model |> Ports.saveState
             )
+
+        NoOp ->
+            ( model, Cmd.none )
 
 
 sucessfulConSubmit : Model.Model -> ConstellationMsg -> ( Model.Model, Cmd Msg )

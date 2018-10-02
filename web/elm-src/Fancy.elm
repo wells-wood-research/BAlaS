@@ -43,7 +43,6 @@ colourPalette =
     , c4 = Css.hex "b49fcc"
     , c5 = Css.hex "ead7d7"
     , white = Css.hex "ffffff"
-    , red = Css.hex 
     }
 
 

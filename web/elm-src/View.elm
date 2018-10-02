@@ -629,10 +629,56 @@ autoSettingsView updateMsg scanRes settings =
         , br [] []
         , Fancy.button
             [ onClick <| updateMsg <| Update.SubmitConstellationJob scanRes
-            , disabled <| not <| Model.validAutoSettings settings
+            , disabled <|
+                not <|
+                    Model.validAutoSettings
+                        scanRes.ligandResults
+                        settings
             ]
             [ text "Submit" ]
+        , meetsCriteriaTable
+            settings
+            scanRes.ligandResults
         ]
+
+
+meetsCriteriaTable : Model.AutoSettings -> List Model.ResidueResult -> Html msg
+meetsCriteriaTable settings ligandResults =
+    let
+        ddGCutOff =
+            settings.ddGCutOff
+                |> String.toFloat
+                |> Maybe.withDefault 0
+
+        residueResultsRow resResult =
+            let
+                { chainID, residueNumber, aminoAcid, ddG } =
+                    resResult
+
+                residueID =
+                    chainID ++ residueNumber
+            in
+            Fancy.tr
+                []
+                [ Fancy.td [] [ text chainID ]
+                , Fancy.td [] [ text residueNumber ]
+                , Fancy.td [] [ text aminoAcid ]
+                , Fancy.td [] [ String.fromFloat ddG |> text ]
+                ]
+    in
+    Fancy.table []
+        ([ Fancy.tr []
+            [ Fancy.th [] [ text "Chain" ]
+            , Fancy.th [] [ text "Residue" ]
+            , Fancy.th [] [ text "Amino Acid" ]
+            , Fancy.th [] [ text "ΔΔG" ]
+            ]
+         ]
+            ++ (List.filter (\res -> res.ddG /= 0) ligandResults
+                    |> List.filter (\res -> res.ddG > ddGCutOff)
+                    |> List.map residueResultsRow
+               )
+        )
 
 
 {-| View for submission of manual settings input.
