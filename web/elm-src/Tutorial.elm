@@ -96,6 +96,7 @@ tutorial config =
             , manualMode
             , residuesMode
             , autoMode
+            , constellationResults
             ]
 
 
@@ -1582,6 +1583,77 @@ shown in a list under the submit button.
 
 > Make sure that you have enough residues that meet your criteria to make your
 > desired size of constellation.
+"""
+        |> Markdown.toHtml []
+        |> Styled.fromUnstyled
+
+
+constellationResults : Config msg -> Section msg
+constellationResults { previous, next, cancel } =
+    let
+        results =
+            { name = "1ycr Hydrophobic Face"
+            , hotConstellations =
+                [ ( "B19_B22_B23", -107.269 )
+                , ( "B19_B22_B26", -120.996 )
+                , ( "B19_B23_B26", -103.846 )
+                , ( "B22_B23_B26", -119.308 )
+                ]
+            , scanResults = exampleScanResults
+            }
+    in
+    { tutorialWindow =
+        div
+            [ css
+                [ Css.alignItems Css.center
+                , Css.displayFlex
+                , Css.height (Css.pct 100)
+                , Css.justifyContent Css.center
+                , Css.left Css.zero
+                , Css.position Css.absolute
+                , Css.top Css.zero
+                , Css.width (Css.pct 66.6)
+                ]
+            ]
+            [ tutorialWindow
+                [ css
+                    [ Css.width (Css.pct 80)
+                    ]
+                ]
+                [ Fancy.h2 [] [ text "Constellation Results" ]
+                , constellationResultsText
+                , Fancy.button [ onClick previous ] [ text "Previous" ]
+                , Fancy.button [ onClick next ] [ text "Next" ]
+                , Fancy.button [ onClick cancel ] [ text "Cancel" ]
+                ]
+            ]
+    , model =
+        { emptyModel
+            | alanineScan =
+                { emptyAlaScanModel
+                    | results =
+                        Just exampleScanResults
+                }
+            , constellation =
+                { emptyConstellationModel
+                    | results =
+                        Just results
+                }
+            , appMode = Model.Constellation
+        }
+    , command = Cmd.none
+    }
+
+
+constellationResultsText : Html msg
+constellationResultsText =
+    """Once your constellation job is finished you can get the results from the
+Job tab. The Constellation pane will then display a table with information about
+each constellation describing the residues involved, the interaction energy
+between the constellation and the _receptor_ and the summed energies of the
+individual residues in the constellation. The cooperativity of the constellation
+can be determined by comparing the summed individual energies with the
+interaction energy of the constellation.
 """
         |> Markdown.toHtml []
         |> Styled.fromUnstyled
