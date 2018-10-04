@@ -111,6 +111,8 @@ tutorialWindow =
             (Css.px 10)
             Css.zero
             (Css.rgba 100 100 100 1)
+        , Css.maxHeight (Css.pct 100)
+        , Css.overflow Css.auto
         , Css.padding (Css.px 5)
         ]
 

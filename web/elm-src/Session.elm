@@ -114,9 +114,9 @@ view session =
         ([ Fancy.controlButton
             [ onClick ToggleMode
             , css
-                [ Css.top (Css.calc (Css.pct 5) Css.plus (Css.px 5))
+                [ Css.bottom (Css.px 5)
                 , Css.left (Css.px 5)
-                , Css.zIndex (Css.int 1001)
+                , Css.zIndex (Css.int 900)
                 , Css.position Css.absolute
                 ]
             ]
