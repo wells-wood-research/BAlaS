@@ -9,6 +9,7 @@ import Html
 import Html.Styled as Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (..)
+import Json.Decode as JDe
 import Model
 import Notifications exposing (Notification)
 import Regex
@@ -298,6 +299,11 @@ tabPane =
 -- Scan
 
 
+onChange : msg -> Attribute msg
+onChange message =
+    on "change" (JDe.succeed message)
+
+
 {-| Main view for the scan tab when in submission mode. This is hidden in
 results mode.
 -}
@@ -314,7 +320,14 @@ scanSubmissionView updateMsg mStructure scanSub =
         ]
         [ Fancy.h2 [] [ text "Scan Submission" ]
         , div []
-            [ Fancy.input [ type_ "file", id "pdbFileToLoad" ] []
+            [ Fancy.input
+                [ type_ "file"
+                , onChange <|
+                    updateMsg
+                        Update.GetStructure
+                , id "pdbFileToLoad"
+                ]
+                []
             , Fancy.button [ onClick <| updateMsg Update.GetStructure ] [ text "Upload" ]
             ]
         , div []
