@@ -77,7 +77,7 @@ subscriptions session =
             Sub.map Session.ActiveMessage <|
                 appSubscriptions model
 
-        Session.TutorialMode _ ->
+        Session.TutorialMode _ _ ->
             Sub.none
 
 

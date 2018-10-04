@@ -17,6 +17,7 @@ module Model exposing
     , ResidueInfo
     , ResidueResult
     , ResiduesSettings
+    , SaveState
     , Structure
     , autoResultsDecoder
     , defaultAutoSettings
@@ -33,7 +34,9 @@ module Model exposing
     , getActiveJobs
     , jobDetailsDecoder
     , loadModel
+    , modelToSaveState
     , saveModel
+    , saveStateToModel
     , scanResultsDecoder
     , statusToString
     , validAutoSettings

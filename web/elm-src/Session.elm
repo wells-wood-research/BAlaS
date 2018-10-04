@@ -15,7 +15,7 @@ import View
 
 type Session
     = ActiveMode Model.Model Bool
-    | TutorialMode (Tutorial.Tutorial TutorialMsg)
+    | TutorialMode (Tutorial.Tutorial TutorialMsg) Model.SaveState
 
 
 type Msg
@@ -44,7 +44,7 @@ update msg session =
                     , Cmd.map ActiveMessage cmds
                     )
 
-                TutorialMode _ ->
+                TutorialMode _ _ ->
                     ( session, Cmd.none )
 
         TutorialMessage CancelTutorial ->
@@ -52,9 +52,12 @@ update msg session =
 
         TutorialMessage tutorialMsg ->
             case session of
-                TutorialMode tutorial ->
+                TutorialMode tutorial previousModel ->
                     tutorialUpdate tutorialMsg tutorial
                         |> tutorialToSession
+                            (Model.saveStateToModel
+                                previousModel
+                            )
 
                 ActiveMode _ _ ->
                     ( session, Cmd.none )
@@ -67,10 +70,10 @@ update msg session =
                     , cancel = CancelTutorial
                     }
                         |> Tutorial.tutorial
-                        |> tutorialToSession
+                        |> tutorialToSession model
 
-                TutorialMode _ ->
-                    ( ActiveMode Model.emptyModel True
+                TutorialMode _ saveState ->
+                    ( ActiveMode (Model.saveStateToModel saveState) True
                     , Ports.clearViewer ()
                     )
 
@@ -92,14 +95,17 @@ tutorialUpdate msg tutorial =
 
 
 tutorialToSession :
-    Tutorial.Tutorial TutorialMsg
+    Model.Model
+    -> Tutorial.Tutorial TutorialMsg
     -> ( Session, Cmd Msg )
-tutorialToSession tutorial =
+tutorialToSession model tutorial =
     let
         (Tutorial.Tutorial _ currentSection _) =
             tutorial
     in
-    ( TutorialMode tutorial, Cmd.map ActiveMessage currentSection.command )
+    ( TutorialMode tutorial (Model.modelToSaveState model)
+    , Cmd.map ActiveMessage currentSection.command
+    )
 
 
 view : Session -> Html Msg
@@ -128,7 +134,7 @@ view session =
                                 View.view model
                             ]
 
-                    TutorialMode (Tutorial.Tutorial _ section _) ->
+                    TutorialMode (Tutorial.Tutorial _ section _) _ ->
                         div
                             [ css
                                 [ Css.fontFamilies
