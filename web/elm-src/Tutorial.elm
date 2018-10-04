@@ -97,6 +97,7 @@ tutorial config =
             , residuesMode
             , autoMode
             , constellationResults
+            , complete
             ]
 
 
@@ -128,7 +129,6 @@ welcome { next, cancel } =
                     ++ "guide you through the basics of the application. "
                     |> text
                 ]
-            , Fancy.button [ disabled True ] [ text "Previous" ]
             , Fancy.button [ onClick next ] [ text "Next" ]
             , Fancy.button [ onClick cancel ] [ text "Cancel" ]
             ]
@@ -163,26 +163,20 @@ modes { previous, next, cancel } =
 
 modeExplaination : Html msg
 modeExplaination =
-    """BUDE Alanine Scan (BALS) has two modes of operation:
+    """BUDE Alanine Scan (BALS) has two modes of operation: scan and
+constellation. First we'll talk about scan then we'll come back to
+constellation.
 
-* **Scan** - performs standard computational alanine scan, where every residue
-of the protein of interest (called the _ligand_ in the app) is mutated to
-alanine in turn.  The interaction energy between each mutant of the _ligand_ and
-another protein (called the _receptor_ in the app) is calculated using the [BUDE
-all-atom force
+Scan performs standard computational alanine scan, where every residue
+of the polypeptide/s of interest (called the _ligand_ in the app) is mutated to
+alanine in turn. The interaction energy between each mutant of the _ligand_ and
+another polypeptide/s (called the _receptor_ in the app) is calculated using the
+[BUDE all-atom force
 field](http://journals.sagepub.com/doi/abs/10.1177/1094342014528252). The
-difference in the energy of with wild-type sequence _ligand_/_receptor_
+difference in the energy of the wild-type sequence _ligand_/_receptor_
 interaction and the mutant _ligand_/_receptor_ interaction, known as the ΔΔG, is
 calculated, which quantifies the energetic contribution of the residue to
 _ligand_/_receptor_ interaction.
-
-* **Constellation** - Once a Scan job is complete you can run a Constellation
-job.  In Constellation mode you can combine multiple alanine mutations and look
-for clusters of _ligand_ residues that cooperatively interact with the
-_receptor_ _i.e._ the sum of their individual ΔΔG values is less than the
-interaction energy with the _receptor_ when all residues are mutated to alanine
-simultaneously. This is useful for highlighting regions of the _ligand_ that are
-key to forming the interaction with the _receptor_.
 """
         |> Markdown.toHtml []
         |> Styled.fromUnstyled
@@ -222,9 +216,9 @@ gettingStarted { previous, next, cancel } =
 
 gettingStartedText : Html msg
 gettingStartedText =
-    """The first thing you need to do to uses BALS is to load your structure of
-interest in PDB format. To do this click the "Choose File" button in the Scan panel. Once
-you find the file on your computer click "Upload".
+    """The first thing you need to do to use BALS is to load in your structure
+of interest (it currently needs to be in PDB format). To do this click the
+"Choose File" button in the Scan panel and find the file on your computer.
 
 > BALS doesn't work with all PDB files. It can't handle some badly formatted
 > files or structures with non-canonical amino acids. If the job fails for this
@@ -272,15 +266,15 @@ theViewer { previous, next, cancel } =
 
 theViewerText : Html msg
 theViewerText =
-    """Once your structure's uploaded you can viewer in the main pane. The
-controls for the viewer are pretty simple:
+    """Once your structure's loaded, it'll be visible in the viewer in the main
+pane. The controls for the viewer are pretty simple:
 
 - Left click and hold to rotate.
 - Mouse wheel to zoom.
 - Shift-left click to pan.
-- Right click to save or copy an image of your molecule.
+- Right click to save an image of your molecule.
 
-If you click ⚛️ button at the top of the screen, you'll get some limited viewer
+If you click ⚛️  button at the top of the screen, you'll get some limited viewer
 options, but you're better off doing that kind of thing in dedicated software
 like [Chimera](https://www.cgl.ucsf.edu/chimera/) or
 [Pymol](https://pymol.org/2/).
@@ -1192,8 +1186,7 @@ scanSubmissionText : Html msg
 scanSubmissionText =
     """To submit a Scan job you need choose a name for the job, define the
 _receptor_ region and define the _ligand_ region. Both the ligand and the
-receptor can consist of one or more of the protein chains in the input
-structure.
+receptor can consist of one or more protein chains of the input structure.
 
 > The _receptor_ and the _ligand_ are the regions of the protein that you
 > want to measure the interaction energy between. The _ligand_ will be
@@ -1253,13 +1246,13 @@ theJobsPanel { previous, next, cancel } =
 
 theJobsPanelText : Html msg
 theJobsPanelText =
-    """Once you've submitted your Scan job to the server, it'll appear in the
-jobs tab. Scan jobs should finish quickly, but this depends on the size of the
-structure and the queue on the server. You'll be notified when your job is
-finish in the notification pane, which you can open with the 🔔 button.
+    """This panel shows all the jobs you've submitted to the server. Scan jobs
+should finish quickly, but this depends on the size of the structure and the
+queue on the server. You'll be notified when your job is finish in the
+notification pane, which you can open with the 🔔 button.
 
 Once the job is complete you can click "Get Results" to display the
-results of the alanine scan. Your job list is persistant so you can come back to
+results of the alanine scan. Your job list is persistent so you can come back to
 the jobs panel and reload your results at any time, even after you close the
 browser.
 """
@@ -1335,10 +1328,10 @@ scanResultsText =
     """Next you'll be taken back to the scan tab and the results will be
 displayed. These include the ΔG of the interaction between the _ligand_ and the
 _receptor_ and a table containing information about all the residues that have a
-non-zero ΔΔG, as these residues that form meaningful interactions with the
+non-zero ΔΔG, as these residues form meaningful interactions with the
 _receptor_. The more positive the ΔΔG value is for a residue, the larger a
-contribution it makes to forming the interaction with the _receptor_. If you
-hover over a residue in the table, it will be highlighted on the structure.
+contribution it makes to forming the interaction. If you hover over a residue in
+the table, it will be highlighted on the structure.
 """
         |> Markdown.toHtml []
         |> Styled.fromUnstyled
@@ -1389,10 +1382,10 @@ constellationBasicsText =
     """Once you've got the results from a Scan job you can run a Constellation
 job. In Constellation mode you can combine multiple alanine mutations and look
 for clusters of _ligand_ residues that interact cooperatively with the
-_receptor_ _i.e._ the sum of their individual ΔΔG values is less than the
-interaction energy with the _receptor_ when all residues are mutated to alanine
-simultaneously. This is useful for highlighting regions of the _ligand_ that are
-key to forming the interaction with the _receptor_.
+_receptor_ _i.e._ the sum of their individual ΔΔG values is less than the ΔΔG
+when all residues are mutated to alanine simultaneously. This is useful for
+highlighting regions of the _ligand_ that are key to forming the interaction
+with the _receptor_.
 
 There are three constellation job modes: "Manual", "Residues" and "Auto".
 """
@@ -1513,9 +1506,9 @@ residuesMode { previous, next, cancel } =
 
 residuesModeText : Html msg
 residuesModeText =
-    """In residues mode you select any number of residues and set the number of
-residues you want in the constellation. BALS will then automatically create all
-combinations of residues for that constellation size.
+    """In Residues mode you select any number of residues you want to use to
+create constellations and set the constellation size. BALS will then
+automatically create all combinations of residues for that constellation size.
 
 > You cannot submit a job with less residues selected than the size of your
 > constellation.
@@ -1654,6 +1647,33 @@ between the constellation and the _receptor_ and the summed energies of the
 individual residues in the constellation. The cooperativity of the constellation
 can be determined by comparing the summed individual energies with the
 interaction energy of the constellation.
+"""
+        |> Markdown.toHtml []
+        |> Styled.fromUnstyled
+
+
+complete : Config msg -> Section msg
+complete { previous, cancel } =
+    { tutorialWindow =
+        tutorialWindow [ css [ Css.width (Css.pct 80) ] ]
+            [ Fancy.h2 [] [ text "Tutorial Complete!" ]
+            , completeText
+            , Fancy.button [ onClick previous ] [ text "Previous" ]
+            , Fancy.button [ onClick cancel ] [ text "Cancel" ]
+            ]
+    , model = Model.emptyModel
+    , command = Ports.clearViewer ()
+    }
+
+
+completeText : Html msg
+completeText =
+    """You've now completed the BUDE Alanine Scan tutorial. You can revisit it
+anytime by clicking the "❓" button. This web app provides a simple web
+interface to the much more powerful BALS commandline app. If you want to scale
+up your analysis you can download the commandline app and run it on your own
+computer. Finally, click the "ℹ️ " button for general information about the app
+including the version number and relevant publications. Thanks for using BALS!
 """
         |> Markdown.toHtml []
         |> Styled.fromUnstyled
