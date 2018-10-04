@@ -678,6 +678,7 @@ type ConstellationMsg
     | GetResiduesResults String
     | DeleteResiduesJob String
     | ProcessResiduesResults (Result Http.Error Model.ConstellationResults)
+    | ClearResults
 
 
 {-| Function for updating the state of the currently active
@@ -1170,6 +1171,9 @@ updateConstellation msg model =
                     """
               ]
             )
+
+        ClearResults ->
+            ( { model | results = Nothing }, Cmd.none, [] )
 
 
 type AutoSettingsMsg

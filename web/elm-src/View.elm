@@ -328,7 +328,6 @@ scanSubmissionView updateMsg mStructure scanSub =
                 , id "pdbFileToLoad"
                 ]
                 []
-            , Fancy.button [ onClick <| updateMsg Update.GetStructure ] [ text "Upload" ]
             ]
         , div []
             (case mStructure of
@@ -846,6 +845,12 @@ constellationResultsView { hotConstellations } =
             ]
         ]
         [ Fancy.h2 [] [ text "Constellation Scan Results" ]
+        , Fancy.button
+            [ onClick <|
+                Update.UpdateConstellation <|
+                    Update.ClearResults
+            ]
+            [ text "Clear Results" ]
         , Fancy.h3 [] [ text "🔥 Hot Constellations 🔥" ]
         , Fancy.table []
             ([ Fancy.tr []
