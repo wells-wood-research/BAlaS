@@ -8,6 +8,7 @@ services:
       - "3803:80"
     volumes:
       - ./web:/app
+      - result-files:/result-files
     depends_on:
       - db
     restart: on-failure
@@ -22,5 +23,10 @@ services:
       - SCAN_PROCS=2
       - PYTHONPATH=/app/alaScanApp-dist/alaScanApp
     restart: on-failure
+    volumes:
+      - result-files:/result-files
   db:
     image: mongo
+
+volumes:
+    result-files:
