@@ -1017,6 +1017,13 @@ jobTableRow getMsg deleteMsg { jobID, name, status } =
                 ]
                 [ text "Delete" ]
             ]
+        , Fancy.td []
+            [ a
+                [ href ("/result-files/" ++ jobID ++ ".zip")
+                , download ""
+                ]
+                [ text "Full Output" ]
+            ]
         ]
 
 

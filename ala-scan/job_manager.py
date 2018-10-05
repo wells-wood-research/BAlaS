@@ -480,7 +480,7 @@ def update_job_status(scan_job_id, status, collection):
 
 
 def zip_up_output(job_id, dir_name):
-    output_file_name = str(RESULT_FILES_DIR / job_id)
+    output_file_name = str(RESULT_FILES_DIR / f'{job_id}')
     shutil.make_archive(output_file_name, 'zip', dir_name)
     return
 
