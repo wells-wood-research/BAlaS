@@ -966,12 +966,16 @@ jobTable getMsg deleteMsg tableTitle jobs =
     div []
         [ Fancy.h3 [] [ text tableTitle ]
         , if List.length jobs > 0 then
-            Fancy.table []
+            Fancy.table [ css [ Css.width (Css.pct 100) ] ]
                 ([ Fancy.tr []
-                    [ Fancy.th [] [ text "Name" ]
-                    , Fancy.th [] [ text "Job ID" ]
-                    , Fancy.th [] [ text "Status" ]
-                    , Fancy.th [] []
+                    [ Fancy.th [ css [ Css.width (Css.pct 20) ] ]
+                        [ text "Name" ]
+                    , Fancy.th [ css [ Css.width (Css.pct 20) ] ]
+                        [ text "Job ID" ]
+                    , Fancy.th [ css [ Css.width (Css.pct 20) ] ]
+                        [ text "Status" ]
+                    , Fancy.th []
+                        [ text "Actions" ]
                     ]
                  ]
                     ++ List.map (jobTableRow getMsg deleteMsg) jobs
@@ -997,32 +1001,36 @@ jobTableRow getMsg deleteMsg { jobID, name, status } =
         , Fancy.td [] [ text jobID ]
         , Fancy.td [] [ text <| Model.statusToString status ]
         , Fancy.td []
-            [ Fancy.button
-                [ getMsg jobID
-                    |> onClick
-                , (if status == Model.Completed then
-                    False
+            [ ul [ css [ Css.padding (Css.px 5) ] ]
+                ((if status == Model.Completed then
+                    [ li []
+                        [ a
+                            [ getMsg jobID
+                                |> onClick
+                            ]
+                            [ text "Show Results" ]
+                        ]
+                    , li []
+                        [ a
+                            [ href ("/result-files/" ++ jobID ++ ".zip")
+                            , download ""
+                            ]
+                            [ text "Download Full Output" ]
+                        ]
+                    ]
 
-                   else
-                    True
-                  )
-                    |> disabled
-                ]
-                [ text "Get Results" ]
-            ]
-        , Fancy.td []
-            [ Fancy.button
-                [ deleteMsg jobID
-                    |> onClick
-                ]
-                [ text "Delete" ]
-            ]
-        , Fancy.td []
-            [ a
-                [ href ("/result-files/" ++ jobID ++ ".zip")
-                , download ""
-                ]
-                [ text "Full Output" ]
+                  else
+                    []
+                 )
+                    ++ [ li []
+                            [ a
+                                [ deleteMsg jobID
+                                    |> onClick
+                                ]
+                                [ text "Delete" ]
+                            ]
+                       ]
+                )
             ]
         ]
 
