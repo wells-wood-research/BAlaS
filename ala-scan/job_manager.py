@@ -6,6 +6,7 @@ import importlib
 import json
 import multiprocessing as mp
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -17,6 +18,9 @@ import isambard
 import database
 from database import (JobStatus, ALANINE_SCAN_JOBS, AUTO_JOBS, MANUAL_JOBS,
                       RESIDUES_JOBS)
+
+
+RESULT_FILES_DIR = pathlib.Path('/result-files')
 
 
 @contextlib.contextmanager
@@ -154,7 +158,7 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
         with tempdir() as dirpath:
             results = run_bals_scan(
                 job_id, scan_job['pdbFile'],
-                scan_job['receptor'], scan_job['ligand'])
+                scan_job['receptor'], scan_job['ligand'], dirpath)
             ALANINE_SCAN_JOBS.update_one(
                 {'_id': job_id},
                 {'$set': results})
@@ -163,7 +167,7 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
     return
 
 
-def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains):
+def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains, dirpath):
     """Runs a BALS job in `scan` mode."""
     pdb_filename = f'{job_id}.pdb'
     with open(pdb_filename, 'w') as outf:
@@ -182,6 +186,7 @@ def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains):
         lig_json_paths = glob.glob('replot/*Lig_scan*.json')
         assert len(rec_json_paths) == 1
         assert len(lig_json_paths) == 1
+        zip_up_output(job_id, dirpath)
         with open(rec_json_paths[0], 'r') as inf:
             rec_results = json.load(inf)
         with open(lig_json_paths[0], 'r') as inf:
@@ -242,7 +247,7 @@ def get_and_run_auto_job(auto_job_queue, assigned_jobs, proc_i):
                 job_id, auto_job['scanName'], auto_job['pdbFile'],
                 auto_job['receptor'], auto_job['ligand'],
                 auto_job['ddGCutOff'], auto_job['constellationSize'],
-                auto_job['cutOffDistance'])
+                auto_job['cutOffDistance'], dirpath)
             AUTO_JOBS.update_one(
                 {'_id': job_id},
                 {'$set': results})
@@ -252,7 +257,7 @@ def get_and_run_auto_job(auto_job_queue, assigned_jobs, proc_i):
 
 
 def run_bals_auto(job_id, scanName, pdb_string, receptor_chains, ligand_chains,
-                  ddg_cutoff, constellation_size, distance_cutoff):
+                  ddg_cutoff, constellation_size, distance_cutoff, dirpath):
     """Runs a BALS job in `auto` mode."""
     pdb_filename = f'{job_id}.pdb'
     with open(pdb_filename, 'w') as outf:
@@ -274,6 +279,7 @@ def run_bals_auto(job_id, scanName, pdb_string, receptor_chains, ligand_chains,
         lig_json_paths = glob.glob('replot/*Lig_auto*.json')
         assert len(rec_json_paths) == 1
         assert len(lig_json_paths) == 1
+        zip_up_output(job_id, dirpath)
         with open(rec_json_paths[0], 'r') as inf:
             rec_results = json.load(inf)
         with open(lig_json_paths[0], 'r') as inf:
@@ -326,7 +332,7 @@ def get_and_run_manual_job(manual_job_queue, assigned_jobs, proc_i):
             results = run_bals_manual(
                 job_id, manual_job['scanName'], manual_job['pdbFile'],
                 manual_job['receptor'], manual_job['ligand'],
-                manual_job['residues'])
+                manual_job['residues'], dirpath)
             MANUAL_JOBS.update_one(
                 {'_id': job_id},
                 {'$set': results})
@@ -336,7 +342,7 @@ def get_and_run_manual_job(manual_job_queue, assigned_jobs, proc_i):
 
 
 def run_bals_manual(job_id, scanName, pdb_string, receptor_chains, ligand_chains,
-                    residues):
+                    residues, dirpath):
     """Runs a BALS job in `manual` mode."""
     pdb_filename = f'{job_id}.pdb'
     with open(pdb_filename, 'w') as outf:
@@ -355,6 +361,7 @@ def run_bals_manual(job_id, scanName, pdb_string, receptor_chains, ligand_chains
         lig_json_paths = glob.glob('replot/*Lig_manual*.json')
         assert len(rec_json_paths) == 1
         assert len(lig_json_paths) == 1
+        zip_up_output(job_id, dirpath)
         with open(rec_json_paths[0], 'r') as inf:
             rec_results = json.load(inf)
         with open(lig_json_paths[0], 'r') as inf:
@@ -407,7 +414,8 @@ def get_and_run_residues_job(residues_job_queue, assigned_jobs, proc_i):
             results = run_bals_residues(
                 job_id, residues_job['scanName'], residues_job['pdbFile'],
                 residues_job['receptor'], residues_job['ligand'],
-                residues_job['constellationSize'], residues_job['residues'])
+                residues_job['constellationSize'], residues_job['residues'],
+                dirpath)
             RESIDUES_JOBS.update_one(
                 {'_id': job_id},
                 {'$set': results})
@@ -417,7 +425,7 @@ def get_and_run_residues_job(residues_job_queue, assigned_jobs, proc_i):
 
 
 def run_bals_residues(job_id, scanName, pdb_string, receptor_chains, ligand_chains,
-                      constellationSize, residues):
+                      constellationSize, residues, dirpath):
     """Runs a BALS job in `residues` mode."""
     pdb_filename = f'{job_id}.pdb'
     with open(pdb_filename, 'w') as outf:
@@ -438,6 +446,7 @@ def run_bals_residues(job_id, scanName, pdb_string, receptor_chains, ligand_chai
         lig_json_paths = glob.glob('replot/*Lig_residues*.json')
         assert len(rec_json_paths) == 1
         assert len(lig_json_paths) == 1
+        zip_up_output(job_id, dirpath)
         with open(rec_json_paths[0], 'r') as inf:
             rec_results = json.load(inf)
         with open(lig_json_paths[0], 'r') as inf:
@@ -467,6 +476,12 @@ def update_job_status(scan_job_id, status, collection):
     collection.update_one(
         {'_id': scan_job_id},
         {'$set': {'status': status.value}})
+    return
+
+
+def zip_up_output(job_id, dir_name):
+    output_file_name = str(RESULT_FILES_DIR / job_id)
+    shutil.make_archive(output_file_name, 'zip', dir_name)
     return
 
 
