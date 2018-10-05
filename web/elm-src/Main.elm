@@ -18,6 +18,7 @@ The application is composed of 4 modules:
 -}
 
 import Browser
+import Browser.Navigation as Nav
 import Css
 import Html
 import Html.Styled as Styled exposing (..)
@@ -30,40 +31,45 @@ import Ports
 import Session
 import Time
 import Update
+import Url
 import View
 
 
 main : Program JDe.Value Session.Session Session.Msg
 main =
-    Browser.element
+    Browser.application
         { init = init
-        , view = Session.view >> Styled.toUnstyled
+        , view = Session.view
         , update = Session.update
         , subscriptions = subscriptions
+        , onUrlChange = Session.UrlChanged
+        , onUrlRequest = Session.LinkClicked
         }
 
 
 {-| Creates a model and Cmd Msgs for the initial state of the application.
 -}
-init : JDe.Value -> ( Session.Session, Cmd Session.Msg )
-init saveState =
+init : JDe.Value -> Url.Url -> Nav.Key -> ( Session.Session, Cmd Session.Msg )
+init saveState url key =
     case Model.loadModel saveState of
         Ok model ->
-            ( Session.ActiveMode model True
+            ( Session.Session (Session.ActiveMode model) key
             , Ports.initialiseViewer ()
             )
 
         Err error ->
-            ( Session.ActiveMode
-                { emptyModel
-                    | notifications =
-                        [ Notifications.Notification
-                            ""
-                            "Something went wrong while loading your last session..."
-                            (JDe.errorToString error)
-                        ]
-                }
-                True
+            ( Session.Session
+                (Session.ActiveMode
+                    { emptyModel
+                        | notifications =
+                            [ Notifications.Notification
+                                ""
+                                "Something went wrong while loading your last session..."
+                                (JDe.errorToString error)
+                            ]
+                    }
+                )
+                key
             , Ports.initialiseViewer ()
             )
 
@@ -72,8 +78,8 @@ init saveState =
 -}
 subscriptions : Session.Session -> Sub Session.Msg
 subscriptions session =
-    case session of
-        Session.ActiveMode model _ ->
+    case session.mode of
+        Session.ActiveMode model ->
             Sub.map Session.ActiveMessage <|
                 appSubscriptions model
 

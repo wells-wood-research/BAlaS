@@ -1,5 +1,7 @@
-module Session exposing (Msg(..), Session(..), update, view)
+module Session exposing (Msg(..), Session, SessionMode(..), update, view)
 
+import Browser
+import Browser.Navigation as Nav
 import Css
 import Fancy
 import Html
@@ -10,11 +12,18 @@ import Model
 import Ports
 import Tutorial
 import Update
+import Url
 import View
 
 
-type Session
-    = ActiveMode Model.Model Bool
+type alias Session =
+    { mode : SessionMode
+    , key : Nav.Key
+    }
+
+
+type SessionMode
+    = ActiveMode Model.Model
     | TutorialMode (Tutorial.Tutorial TutorialMsg) Model.SaveState
 
 
@@ -22,6 +31,8 @@ type Msg
     = ToggleMode
     | ActiveMessage Update.Msg
     | TutorialMessage TutorialMsg
+    | LinkClicked Browser.UrlRequest
+    | UrlChanged Url.Url
 
 
 type TutorialMsg
@@ -34,13 +45,13 @@ update : Msg -> Session -> ( Session, Cmd Msg )
 update msg session =
     case msg of
         ActiveMessage updateMsg ->
-            case session of
-                ActiveMode model _ ->
+            case session.mode of
+                ActiveMode model ->
                     let
                         ( updatedModel, cmds ) =
                             Update.update updateMsg model
                     in
-                    ( ActiveMode updatedModel True
+                    ( { session | mode = ActiveMode updatedModel }
                     , Cmd.map ActiveMessage cmds
                     )
 
@@ -51,31 +62,44 @@ update msg session =
             update ToggleMode session
 
         TutorialMessage tutorialMsg ->
-            case session of
+            case session.mode of
                 TutorialMode tutorial previousModel ->
                     tutorialUpdate tutorialMsg tutorial
                         |> tutorialToSession
                             (Model.saveStateToModel
                                 previousModel
                             )
+                            session
 
-                ActiveMode _ _ ->
+                ActiveMode _ ->
                     ( session, Cmd.none )
 
         ToggleMode ->
-            case session of
-                ActiveMode model _ ->
+            case session.mode of
+                ActiveMode model ->
                     { previous = PreviousSection
                     , next = NextSection
                     , cancel = CancelTutorial
                     }
                         |> Tutorial.tutorial
-                        |> tutorialToSession model
+                        |> tutorialToSession model session
 
                 TutorialMode _ saveState ->
-                    ( ActiveMode (Model.saveStateToModel saveState) True
+                    ( { session
+                        | mode =
+                            ActiveMode
+                                (Model.saveStateToModel
+                                    saveState
+                                )
+                      }
                     , Ports.clearViewer ()
                     )
+
+        LinkClicked _ ->
+            ( session, Cmd.none )
+
+        UrlChanged _ ->
+            ( session, Cmd.none )
 
 
 tutorialUpdate :
@@ -96,20 +120,31 @@ tutorialUpdate msg tutorial =
 
 tutorialToSession :
     Model.Model
+    -> Session
     -> Tutorial.Tutorial TutorialMsg
     -> ( Session, Cmd Msg )
-tutorialToSession model tutorial =
+tutorialToSession model session tutorial =
     let
         (Tutorial.Tutorial _ currentSection _) =
             tutorial
     in
-    ( TutorialMode tutorial (Model.modelToSaveState model)
+    ( { session | mode = TutorialMode tutorial (Model.modelToSaveState model) }
     , Cmd.map ActiveMessage currentSection.command
     )
 
 
-view : Session -> Html Msg
+view : Session -> Browser.Document Msg
 view session =
+    { title = "BUDE Alanine Scan"
+    , body =
+        body session
+            |> Styled.toUnstyled
+            |> List.singleton
+    }
+
+
+body : Session -> Html Msg
+body session =
     div []
         ([ Fancy.controlButton
             [ onClick ToggleMode
@@ -122,8 +157,8 @@ view session =
             ]
             [ text "❓" ]
          ]
-            ++ [ case session of
-                    ActiveMode model _ ->
+            ++ [ case session.mode of
+                    ActiveMode model ->
                         div
                             [ css
                                 [ Css.fontFamilies
