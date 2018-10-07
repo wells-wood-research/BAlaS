@@ -30,7 +30,7 @@ view model =
     div
         [ css
             [ Css.property "display" "grid"
-            , Css.property "grid-template-columns" "2fr 1fr"
+            , Css.property "grid-template-columns" "3fr 2fr"
             , Css.property "grid-template-rows" "5% 95%"
             , Css.height (Css.pct 100)
             , Css.left Css.zero
@@ -430,8 +430,16 @@ scanResultsTable ligandResults =
                 [ Fancy.td [] [ text chainID ]
                 , Fancy.td [] [ text residueNumber ]
                 , Fancy.td [] [ text aminoAcid ]
-                , Fancy.td [] [ String.fromFloat ddG |> text ]
-                , Fancy.td [] [ String.fromFloat stdDevDDG |> text ]
+                , Fancy.td []
+                    [ roundToXDecPlaces 1 ddG
+                        |> String.fromFloat
+                        |> text
+                    ]
+                , Fancy.td []
+                    [ roundToXDecPlaces 1 stdDevDDG
+                        |> String.fromFloat
+                        |> text
+                    ]
                 ]
     in
     Fancy.table
@@ -839,7 +847,7 @@ residuesSettingsView updateMsg scanResults settings =
 in submission mode.
 -}
 constellationResultsView : Model.ConstellationResults -> Html Update.Msg
-constellationResultsView { hotConstellations } =
+constellationResultsView { hotConstellations, scanResults } =
     tabPane
         [ css
             [ Css.backgroundColor Fancy.colourPalette.c4
@@ -856,17 +864,25 @@ constellationResultsView { hotConstellations } =
         , Fancy.table []
             ([ Fancy.tr []
                 [ Fancy.th [] [ text "Constellation" ]
-                , Fancy.th [] [ text "Mean ΔΔG" ]
+                , Fancy.th [ css [ Css.width (Css.pct 20) ] ]
+                    [ text "Constellation ΔΔG" ]
+                , Fancy.th [ css [ Css.width (Css.pct 20) ] ]
+                    [ text "Summed Individual ΔΔGs" ]
+                , Fancy.th [ css [ Css.width (Css.pct 20) ] ]
+                    [ text "Cooperativity" ]
                 ]
              ]
-                ++ List.map resultsRow hotConstellations
+                ++ List.map (resultsRow scanResults) hotConstellations
             )
         ]
 
 
-resultsRow : ( String, Float ) -> Html Update.Msg
-resultsRow ( constellation, meanDDG ) =
+resultsRow : Model.AlanineScanResults -> ( String, Float ) -> Html Update.Msg
+resultsRow alaScanResults ( constellation, meanDG ) =
     let
+        ddG =
+            meanDG - alaScanResults.dG
+
         constResidues =
             Regex.find
                 (Regex.fromString "([A-Za-z])(\\d+)"
@@ -874,6 +890,29 @@ resultsRow ( constellation, meanDDG ) =
                 )
                 constellation
                 |> List.filterMap submatchToMaybe
+
+        residueResults =
+            List.filter
+                (\resResult ->
+                    List.member
+                        ( resResult.chainID, resResult.residueNumber )
+                        constResidues
+                )
+                alaScanResults.ligandResults
+
+        residueDetails =
+            List.map
+                (\{ chainID, residueNumber, aminoAcid } ->
+                    chainID
+                        ++ residueNumber
+                        ++ aminoAcid
+                )
+                residueResults
+
+        individualDDGSum =
+            residueResults
+                |> List.map .ddG
+                |> List.foldl (+) 0
     in
     Fancy.tr
         [ Model.ResidueColour
@@ -889,8 +928,27 @@ resultsRow ( constellation, meanDDG ) =
             |> Update.ColourResidues
             |> onMouseOut
         ]
-        [ Fancy.td [] [ text constellation ]
-        , Fancy.td [] [ text <| String.fromFloat meanDDG ]
+        [ Fancy.td []
+            [ details []
+                [ summary [] [ text constellation ]
+                , String.join " " residueDetails |> text
+                ]
+            ]
+        , Fancy.td []
+            [ text <|
+                String.fromFloat <|
+                    roundToXDecPlaces 1 meanDG
+            ]
+        , Fancy.td []
+            [ text <|
+                String.fromFloat <|
+                    roundToXDecPlaces 1 individualDDGSum
+            ]
+        , Fancy.td []
+            [ text <|
+                String.fromFloat <|
+                    roundToXDecPlaces 1 (ddG - individualDDGSum)
+            ]
         ]
 
 
@@ -1043,3 +1101,14 @@ simpleOption selectedLabel labelValue =
 
         False ->
             option [ value labelValue ] [ text labelValue ]
+
+
+roundToXDecPlaces : Int -> Float -> Float
+roundToXDecPlaces precision num =
+    let
+        scaling =
+            10 ^ precision |> toFloat
+    in
+    round (num * scaling)
+        |> toFloat
+        |> (\x -> x / scaling)
