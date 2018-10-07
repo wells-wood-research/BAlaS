@@ -3,6 +3,7 @@ module Session exposing (Msg(..), Session, SessionMode(..), update, view)
 import Browser
 import Browser.Navigation as Nav
 import Css
+import Dict
 import Fancy
 import Html
 import Html.Styled as Styled exposing (..)
@@ -13,6 +14,8 @@ import Ports
 import Tutorial
 import Update
 import Url
+import Url.Parser exposing ((</>), (<?>), Parser, int, map, oneOf, parse, s, string)
+import Url.Parser.Query as Query
 import View
 
 
@@ -41,6 +44,32 @@ type TutorialMsg
     | CancelTutorial
 
 
+type Route
+    = Scan String (Maybe Action)
+    | Auto String (Maybe Action)
+    | Residues String (Maybe Action)
+    | Manual String (Maybe Action)
+
+
+type Action
+    = Delete
+
+
+routeParser : Parser (Route -> a) a
+routeParser =
+    oneOf
+        [ map Scan (s "scan" </> string <?> actionParser)
+        , map Auto (s "auto" </> string <?> actionParser)
+        , map Residues (s "residues" </> string <?> actionParser)
+        , map Manual (s "manual" </> string <?> actionParser)
+        ]
+
+
+actionParser : Query.Parser (Maybe Action)
+actionParser =
+    Query.enum "action" (Dict.fromList [ ( "delete", Delete ) ])
+
+
 update : Msg -> Session -> ( Session, Cmd Msg )
 update msg session =
     case msg of
@@ -52,7 +81,11 @@ update msg session =
                             Update.update updateMsg model
                     in
                     ( { session | mode = ActiveMode updatedModel }
-                    , Cmd.map ActiveMessage cmds
+                    , Cmd.map ActiveMessage <|
+                        Cmd.batch
+                            [ Model.saveModel updatedModel |> Ports.saveState
+                            , cmds
+                            ]
                     )
 
                 TutorialMode _ _ ->
@@ -95,11 +128,93 @@ update msg session =
                     , Ports.clearViewer ()
                     )
 
-        LinkClicked _ ->
+        LinkClicked (Browser.Internal url) ->
+            resolveInternalUrl session url
+
+        LinkClicked (Browser.External url) ->
+            ( session
+            , Nav.load url
+            )
+
+        UrlChanged url ->
+            resolveInternalUrl session url
+
+
+resolveInternalUrl : Session -> Url.Url -> ( Session, Cmd Msg )
+resolveInternalUrl session url =
+    case session.mode of
+        ActiveMode model ->
+            let
+                msgToSession =
+                    modelToActiveSession session model
+            in
+            case parse routeParser url of
+                Just (Scan jobID Nothing) ->
+                    msgToSession
+                        (Update.UpdateScan <|
+                            Update.GetScanResults jobID
+                        )
+
+                Just (Scan jobID (Just Delete)) ->
+                    msgToSession
+                        (Update.UpdateScan <|
+                            Update.DeleteScanJob jobID
+                        )
+
+                Just (Auto jobID Nothing) ->
+                    msgToSession
+                        (Update.UpdateConstellation <|
+                            Update.GetAutoResults jobID
+                        )
+
+                Just (Auto jobID (Just Delete)) ->
+                    msgToSession
+                        (Update.UpdateConstellation <|
+                            Update.DeleteAutoJob jobID
+                        )
+
+                Just (Residues jobID Nothing) ->
+                    msgToSession
+                        (Update.UpdateConstellation <|
+                            Update.GetResiduesResults jobID
+                        )
+
+                Just (Residues jobID (Just Delete)) ->
+                    msgToSession
+                        (Update.UpdateConstellation <|
+                            Update.DeleteResiduesJob jobID
+                        )
+
+                Just (Manual jobID Nothing) ->
+                    msgToSession
+                        (Update.UpdateConstellation <|
+                            Update.GetManualResults jobID
+                        )
+
+                Just (Manual jobID (Just Delete)) ->
+                    msgToSession
+                        (Update.UpdateConstellation <|
+                            Update.DeleteManualJob jobID
+                        )
+
+                Nothing ->
+                    ( session, Cmd.none )
+
+        TutorialMode _ _ ->
             ( session, Cmd.none )
 
-        UrlChanged _ ->
-            ( session, Cmd.none )
+
+modelToActiveSession : Session -> Model.Model -> Update.Msg -> ( Session, Cmd Msg )
+modelToActiveSession session model msg =
+    let
+        ( updatedModel, cmds ) =
+            Update.update
+                msg
+                model
+    in
+    ( { session | mode = ActiveMode updatedModel }
+    , Cmd.map ActiveMessage cmds
+    )
 
 
 tutorialUpdate :

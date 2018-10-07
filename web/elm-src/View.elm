@@ -15,6 +15,7 @@ import Notifications exposing (Notification)
 import Regex
 import Set
 import Update
+import Url.Builder as UrlB
 
 
 
@@ -931,24 +932,20 @@ jobsView model =
         ]
         [ Fancy.h2 [] [ text "Jobs" ]
         , jobTable
-            (Update.UpdateScan << Update.GetScanResults)
-            (Update.UpdateScan << Update.DeleteScanJob)
             "Alanine Scan Jobs"
+            "scan"
             (List.sortBy (\{ name } -> name) alaScanJobs)
         , jobTable
-            (Update.UpdateConstellation << Update.GetAutoResults)
-            (Update.UpdateConstellation << Update.DeleteAutoJob)
             "Auto Constellation Scan Jobs"
+            "auto"
             (List.sortBy (\{ name } -> name) autoJobs)
         , jobTable
-            (Update.UpdateConstellation << Update.GetManualResults)
-            (Update.UpdateConstellation << Update.DeleteManualJob)
             "Manual Constellation Scan Jobs"
+            "manual"
             (List.sortBy (\{ name } -> name) manualJobs)
         , jobTable
-            (Update.UpdateConstellation << Update.GetResiduesResults)
-            (Update.UpdateConstellation << Update.DeleteResiduesJob)
             "Residues Constellation Scan Jobs"
+            "residues"
             (List.sortBy (\{ name } -> name) residuesJobs)
         ]
 
@@ -957,12 +954,11 @@ jobsView model =
 that it can be reused for all the job queues.
 -}
 jobTable :
-    (String -> Update.Msg)
-    -> (String -> Update.Msg)
+    String
     -> String
     -> List Model.JobDetails
     -> Html Update.Msg
-jobTable getMsg deleteMsg tableTitle jobs =
+jobTable tableTitle jobRoot jobs =
     div []
         [ Fancy.h3 [] [ text tableTitle ]
         , if List.length jobs > 0 then
@@ -978,7 +974,7 @@ jobTable getMsg deleteMsg tableTitle jobs =
                         [ text "Actions" ]
                     ]
                  ]
-                    ++ List.map (jobTableRow getMsg deleteMsg) jobs
+                    ++ List.map (jobTableRow jobRoot) jobs
                 )
 
           else
@@ -986,12 +982,8 @@ jobTable getMsg deleteMsg tableTitle jobs =
         ]
 
 
-jobTableRow :
-    (String -> Update.Msg)
-    -> (String -> Update.Msg)
-    -> Model.JobDetails
-    -> Html Update.Msg
-jobTableRow getMsg deleteMsg { jobID, name, status } =
+jobTableRow : String -> Model.JobDetails -> Html Update.Msg
+jobTableRow jobRoot { jobID, name, status } =
     Fancy.tr
         [ css
             [ Css.fontSize (Css.pt 10)
@@ -1005,14 +997,17 @@ jobTableRow getMsg deleteMsg { jobID, name, status } =
                 ((if status == Model.Completed then
                     [ li []
                         [ a
-                            [ getMsg jobID
-                                |> onClick
-                            ]
+                            [ href <| UrlB.absolute [ jobRoot, jobID ] [] ]
                             [ text "Show Results" ]
                         ]
                     , li []
                         [ a
-                            [ href ("/result-files/" ++ jobID ++ ".zip")
+                            [ href <|
+                                UrlB.absolute
+                                    [ "/result-files"
+                                    , jobID ++ ".zip"
+                                    ]
+                                    []
                             , download ""
                             ]
                             [ text "Download Full Output" ]
@@ -1024,8 +1019,9 @@ jobTableRow getMsg deleteMsg { jobID, name, status } =
                  )
                     ++ [ li []
                             [ a
-                                [ deleteMsg jobID
-                                    |> onClick
+                                [ href <|
+                                    UrlB.absolute [ jobRoot, jobID ]
+                                        [ UrlB.string "action" "delete" ]
                                 ]
                                 [ text "Delete" ]
                             ]

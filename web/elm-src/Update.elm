@@ -34,7 +34,6 @@ type Msg
     | OpenPanel Model.Panel
     | ClosePanel
     | ColourResidues Model.ResidueColour
-    | SaveState
     | NoOp
 
 
@@ -89,30 +88,22 @@ update msg model =
                     )
 
                 ScanJobSubmitted (Ok _) ->
-                    let
-                        ( updatedModel, updatedCmds ) =
-                            { model
-                                | alanineScan =
-                                    updatedScanModel
-                                , appMode = Model.Jobs
-                                , notifications =
-                                    List.filter
-                                        (\n ->
-                                            List.member n
-                                                model.notifications
-                                                |> not
-                                        )
-                                        notifications
-                                        |> List.append
-                                            model.notifications
-                            }
-                                |> update SaveState
-                    in
-                    ( updatedModel
-                    , Cmd.batch
-                        [ Cmd.map UpdateScan scanSubCmds
-                        , updatedCmds
-                        ]
+                    ( { model
+                        | alanineScan =
+                            updatedScanModel
+                        , appMode = Model.Jobs
+                        , notifications =
+                            List.filter
+                                (\n ->
+                                    List.member n
+                                        model.notifications
+                                        |> not
+                                )
+                                notifications
+                                |> List.append
+                                    model.notifications
+                      }
+                    , Cmd.map UpdateScan scanSubCmds
                     )
 
                 ProcessScanResults (Ok _) ->
@@ -265,11 +256,6 @@ update msg model =
             , Ports.colourResidues residueColour
             )
 
-        SaveState ->
-            ( model
-            , Model.saveModel model |> Ports.saveState
-            )
-
         NoOp ->
             ( model, Cmd.none )
 
@@ -279,30 +265,23 @@ sucessfulConSubmit model constellationMsg =
     let
         ( updatedConModel, conSubCmds, notifications ) =
             updateConstellation constellationMsg model.constellation
-
-        ( updatedModel, updatedCmds ) =
-            { model
-                | appMode = Model.Jobs
-                , constellation =
-                    updatedConModel
-                , notifications =
-                    List.filter
-                        (\n ->
-                            List.member n
-                                model.notifications
-                                |> not
-                        )
-                        notifications
-                        |> List.append
-                            model.notifications
-            }
-                |> update SaveState
     in
-    ( updatedModel
-    , Cmd.batch
-        [ Cmd.map UpdateConstellation conSubCmds
-        , updatedCmds
-        ]
+    ( { model
+        | appMode = Model.Jobs
+        , constellation =
+            updatedConModel
+        , notifications =
+            List.filter
+                (\n ->
+                    List.member n
+                        model.notifications
+                        |> not
+                )
+                notifications
+                |> List.append
+                    model.notifications
+      }
+    , Cmd.map UpdateConstellation conSubCmds
     )
 
 
