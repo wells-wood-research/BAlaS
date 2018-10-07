@@ -1051,12 +1051,20 @@ jobTableRow jobRoot { jobID, name, status } =
         , Fancy.td [] [ text jobID ]
         , Fancy.td [] [ text <| Model.statusToString status ]
         , Fancy.td []
-            [ ul [ css [ Css.padding (Css.px 5) ] ]
+            [ ul [ css [ Css.padding (Css.px 5), Css.margin Css.zero ] ]
                 ((if status == Model.Completed then
                     [ li []
                         [ a
                             [ href <| UrlB.absolute [ jobRoot, jobID ] [] ]
                             [ text "Show Results" ]
+                        ]
+                    , li []
+                        [ a
+                            [ href <|
+                                UrlB.absolute [ jobRoot, jobID ]
+                                    [ UrlB.string "action" "copy-to-clipboard" ]
+                            ]
+                            [ text "Copy Results Link to Clipboard" ]
                         ]
                     , li []
                         [ a

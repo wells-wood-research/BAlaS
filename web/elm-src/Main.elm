@@ -53,8 +53,14 @@ init : JDe.Value -> Url.Url -> Nav.Key -> ( Session.Session, Cmd Session.Msg )
 init saveState url key =
     case Model.loadModel saveState of
         Ok model ->
-            ( Session.Session (Session.ActiveMode model) key
-            , Ports.initialiseViewer ()
+            let
+                ( updatedSession, cmds ) =
+                    Session.update
+                        (Session.UrlChanged url)
+                        (Session.Session (Session.ActiveMode model) key)
+            in
+            ( updatedSession
+            , Cmd.batch [ cmds, Ports.initialiseViewer () ]
             )
 
         Err error ->

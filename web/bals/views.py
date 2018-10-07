@@ -17,8 +17,9 @@ from bals import app
 from bals import database
 
 
-@app.route('/')
-def home():
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def home(path):
     """Returns the home page for the bals web app."""
     return render_template('index.html')
 

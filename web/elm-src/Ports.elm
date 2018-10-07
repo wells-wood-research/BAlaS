@@ -3,6 +3,7 @@ port module Ports exposing
     , clearViewer
     , colourGeometry
     , colourResidues
+    , copyToClipboard
     , displayScanResults
     , focusOnResidue
     , hoveredName
@@ -58,6 +59,9 @@ port displayScanResults : Model.AlanineScanResults -> Cmd msg
 
 
 port focusOnResidue : Model.ResidueResult -> Cmd msg
+
+
+port copyToClipboard : String -> Cmd msg
 
 
 

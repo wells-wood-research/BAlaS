@@ -271,5 +271,14 @@
             });
         viewer.fitTo(residue);
     }
+
+    app.ports.copyToClipboard.subscribe(function (string) {
+        const el = document.createElement('textarea');
+        el.value = string;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+    });
 </script>
 </html>

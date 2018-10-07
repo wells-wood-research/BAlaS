@@ -196,7 +196,7 @@ gettingStarted { previous, next, cancel } =
                 , Css.left Css.zero
                 , Css.position Css.absolute
                 , Css.top Css.zero
-                , Css.width (Css.pct 66.6)
+                , Css.width (Css.pct 60)
                 ]
             ]
             [ tutorialWindow
@@ -239,10 +239,10 @@ theViewer { previous, next, cancel } =
                 , Css.displayFlex
                 , Css.height (Css.pct 100)
                 , Css.justifyContent Css.center
-                , Css.left (Css.pct 66.6)
+                , Css.left (Css.pct 60)
                 , Css.position Css.absolute
                 , Css.top Css.zero
-                , Css.width (Css.pct 33.3)
+                , Css.width (Css.pct 40)
                 ]
             ]
             [ tutorialWindow
@@ -1153,7 +1153,7 @@ scanSubmission { previous, next, cancel } =
                 , Css.left Css.zero
                 , Css.position Css.absolute
                 , Css.top Css.zero
-                , Css.width (Css.pct 66.6)
+                , Css.width (Css.pct 60)
                 ]
             ]
             [ tutorialWindow
@@ -1213,7 +1213,7 @@ theJobsPanel { previous, next, cancel } =
                 , Css.left Css.zero
                 , Css.position Css.absolute
                 , Css.top Css.zero
-                , Css.width (Css.pct 66.6)
+                , Css.width (Css.pct 60)
                 ]
             ]
             [ tutorialWindow
@@ -1253,10 +1253,20 @@ should finish quickly, but this depends on the size of the structure and the
 queue on the server. You'll be notified when your job is finish in the
 notification pane, which you can open with the 🔔 button.
 
-Once the job is complete you can click "Get Results" to display the
+Once the job is complete you can click "Show Results" to display the
 results of the alanine scan. Your job list is persistent so you can come back to
 the jobs panel and reload your results at any time, even after you close the
 browser.
+
+There are some other options too:
+
+* *Copy Results Link to Clipboard* - This copies a link to the results of your job
+to your clipboard. You can share this link with anyone.
+* *Download Full Output* - Downloads a zip file containing the full output
+produced by the commandline application. This even includes Chimera scripts for
+displaying the results of the job.
+* *Delete* - Deletes a job from your jobs list, but not the server, so anyone
+with a link can still see the output.
 """
         |> Markdown.toHtml []
         |> Styled.fromUnstyled
@@ -1298,7 +1308,7 @@ scanResults { previous, next, cancel } =
                 , Css.left Css.zero
                 , Css.position Css.absolute
                 , Css.top Css.zero
-                , Css.width (Css.pct 66.6)
+                , Css.width (Css.pct 60)
                 ]
             ]
             [ tutorialWindow
@@ -1351,7 +1361,7 @@ constellationBasics { previous, next, cancel } =
                 , Css.left Css.zero
                 , Css.position Css.absolute
                 , Css.top Css.zero
-                , Css.width (Css.pct 66.6)
+                , Css.width (Css.pct 60)
                 ]
             ]
             [ tutorialWindow
@@ -1407,7 +1417,7 @@ manualMode { previous, next, cancel } =
                 , Css.left Css.zero
                 , Css.position Css.absolute
                 , Css.top Css.zero
-                , Css.width (Css.pct 66.6)
+                , Css.width (Css.pct 60)
                 ]
             ]
             [ tutorialWindow
@@ -1467,7 +1477,7 @@ residuesMode { previous, next, cancel } =
                 , Css.left Css.zero
                 , Css.position Css.absolute
                 , Css.top Css.zero
-                , Css.width (Css.pct 66.6)
+                , Css.width (Css.pct 60)
                 ]
             ]
             [ tutorialWindow
@@ -1531,7 +1541,7 @@ autoMode { previous, next, cancel } =
                 , Css.left Css.zero
                 , Css.position Css.absolute
                 , Css.top Css.zero
-                , Css.width (Css.pct 66.6)
+                , Css.width (Css.pct 60)
                 ]
             ]
             [ tutorialWindow
@@ -1607,7 +1617,7 @@ constellationResults { previous, next, cancel } =
                 , Css.left Css.zero
                 , Css.position Css.absolute
                 , Css.top Css.zero
-                , Css.width (Css.pct 66.6)
+                , Css.width (Css.pct 60)
                 ]
             ]
             [ tutorialWindow

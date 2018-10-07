@@ -34,6 +34,7 @@ type Msg
     | OpenPanel Model.Panel
     | ClosePanel
     | ColourResidues Model.ResidueColour
+    | CopyToClipboard String
     | NoOp
 
 
@@ -255,6 +256,9 @@ update msg model =
             ( model
             , Ports.colourResidues residueColour
             )
+
+        CopyToClipboard string ->
+            ( model, Ports.copyToClipboard string )
 
         NoOp ->
             ( model, Cmd.none )

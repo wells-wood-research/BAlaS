@@ -53,6 +53,7 @@ type Route
 
 type Action
     = Delete
+    | CopyToClipboard
 
 
 routeParser : Parser (Route -> a) a
@@ -67,7 +68,12 @@ routeParser =
 
 actionParser : Query.Parser (Maybe Action)
 actionParser =
-    Query.enum "action" (Dict.fromList [ ( "delete", Delete ) ])
+    Query.enum "action"
+        (Dict.fromList
+            [ ( "delete", Delete )
+            , ( "copy-to-clipboard", CopyToClipboard )
+            ]
+        )
 
 
 update : Msg -> Session -> ( Session, Cmd Msg )
@@ -155,6 +161,15 @@ resolveInternalUrl session url =
                             Update.GetScanResults jobID
                         )
 
+                Just (Scan jobID (Just CopyToClipboard)) ->
+                    msgToSession
+                        (Url.toString url
+                            |> String.split "?"
+                            |> List.head
+                            |> Maybe.withDefault ""
+                            |> Update.CopyToClipboard
+                        )
+
                 Just (Scan jobID (Just Delete)) ->
                     msgToSession
                         (Update.UpdateScan <|
@@ -165,6 +180,15 @@ resolveInternalUrl session url =
                     msgToSession
                         (Update.UpdateConstellation <|
                             Update.GetAutoResults jobID
+                        )
+
+                Just (Auto jobID (Just CopyToClipboard)) ->
+                    msgToSession
+                        (Url.toString url
+                            |> String.split "?"
+                            |> List.head
+                            |> Maybe.withDefault ""
+                            |> Update.CopyToClipboard
                         )
 
                 Just (Auto jobID (Just Delete)) ->
@@ -179,6 +203,15 @@ resolveInternalUrl session url =
                             Update.GetResiduesResults jobID
                         )
 
+                Just (Residues jobID (Just CopyToClipboard)) ->
+                    msgToSession
+                        (Url.toString url
+                            |> String.split "?"
+                            |> List.head
+                            |> Maybe.withDefault ""
+                            |> Update.CopyToClipboard
+                        )
+
                 Just (Residues jobID (Just Delete)) ->
                     msgToSession
                         (Update.UpdateConstellation <|
@@ -189,6 +222,15 @@ resolveInternalUrl session url =
                     msgToSession
                         (Update.UpdateConstellation <|
                             Update.GetManualResults jobID
+                        )
+
+                Just (Manual jobID (Just CopyToClipboard)) ->
+                    msgToSession
+                        (Url.toString url
+                            |> String.split "?"
+                            |> List.head
+                            |> Maybe.withDefault ""
+                            |> Update.CopyToClipboard
                         )
 
                 Just (Manual jobID (Just Delete)) ->
