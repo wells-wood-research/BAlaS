@@ -108,7 +108,7 @@ update msg session =
                     tutorialUpdate tutorialMsg tutorial
                         |> tutorialToSession
                             (Model.saveStateToModel
-                                previousModel
+                                (Just previousModel)
                             )
                             session
 
@@ -130,7 +130,7 @@ update msg session =
                         | mode =
                             ActiveMode
                                 (Model.saveStateToModel
-                                    saveState
+                                    (Just saveState)
                                 )
                       }
                     , Ports.clearViewer ()
