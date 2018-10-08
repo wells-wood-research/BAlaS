@@ -1671,7 +1671,7 @@ complete { previous, cancel } =
             [ Fancy.h2 [] [ text "Tutorial Complete!" ]
             , completeText
             , Fancy.button [ onClick previous ] [ text "Previous" ]
-            , Fancy.button [ onClick cancel ] [ text "Cancel" ]
+            , Fancy.button [ onClick cancel ] [ text "Finish" ]
             ]
     , model = Model.emptyModel
     , command = Ports.clearViewer ()

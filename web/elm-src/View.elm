@@ -10,6 +10,7 @@ import Html.Styled as Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (..)
 import Json.Decode as JDe
+import Markdown
 import Model
 import Notifications exposing (Notification)
 import Regex
@@ -69,8 +70,75 @@ view model =
             Model.Jobs ->
                 jobsView model
          ]
+            ++ (case model.alanineScan.structure of
+                    Just _ ->
+                        []
+
+                    Nothing ->
+                        [ welcomeWindow ]
+               )
             ++ sidePanel model
         )
+
+
+welcomeWindow : Html msg
+welcomeWindow =
+    div
+        [ css
+            [ Css.alignItems Css.center
+            , Css.displayFlex
+            , Css.height (Css.pct 95)
+            , Css.justifyContent Css.center
+            , Css.left Css.zero
+            , Css.position Css.absolute
+            , Css.top (Css.pct 5)
+            , Css.width (Css.pct 60)
+            , Css.zIndex (Css.int 800)
+            ]
+        ]
+        [ div
+            [ css
+                [ Css.backgroundColor Fancy.colourPalette.c2
+                , Css.boxShadow5
+                    Css.zero
+                    Css.zero
+                    (Css.px 10)
+                    Css.zero
+                    (Css.rgba 100 100 100 1)
+                , Css.maxHeight (Css.pct 100)
+                , Css.margin Css.zero |> Css.important
+                , Css.overflow Css.auto
+                , Css.padding (Css.px 5)
+                , Css.width (Css.pct 60)
+                ]
+            ]
+            [ Fancy.h2 [] [ text "BUDE Alanine Scan" ]
+            , Fancy.h3 []
+                [ text
+                    ("Powerful, interactive and user-friendly "
+                        ++ "computational alanine scanning."
+                    )
+                ]
+            , Fancy.h4 []
+                [ text "Version 1.0, 2018-10-09. "
+                , a [ href "https://github.com/woolfson-group/bals" ]
+                    [ text "Source code" ]
+                , text "."
+                ]
+            , hr [] []
+            , b [] [ text "THE APP CITATION WILL GO HERE" ]
+            , br [] []
+            , b [] [ text "THE BALS COMMANDLINE CITATION WILL GO HERE" ]
+            , Fancy.p []
+                [ """
+                To get started go to the Scan tab and upload your structure
+                file. If this is your first time using BUDE Alanine Scan, you
+                might want to run through the tutorial, which you can access
+                using the "❓" button on the bottom right."""
+                    |> text
+                ]
+            ]
+        ]
 
 
 banner : Int -> Html Update.Msg
@@ -321,7 +389,9 @@ scanSubmissionView updateMsg mStructure scanSub =
         ]
         [ Fancy.h2 [] [ text "Scan Submission" ]
         , div []
-            [ Fancy.input
+            [ text "Structure Upload"
+            , br [] []
+            , Fancy.input
                 [ type_ "file"
                 , onChange <|
                     updateMsg
