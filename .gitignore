@@ -110,4 +110,5 @@ web/instance/*
 !web/instance/.gitkeep
 web/static/css/elm.css
 web/static/elm/*
+!web/static/elm/.gitkeep
 .mypy_cache/
