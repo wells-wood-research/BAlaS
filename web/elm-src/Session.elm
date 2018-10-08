@@ -49,6 +49,7 @@ type Route
     | Auto String (Maybe Action)
     | Residues String (Maybe Action)
     | Manual String (Maybe Action)
+    | GetResults String
 
 
 type Action
@@ -63,6 +64,7 @@ routeParser =
         , map Auto (s "auto" </> string <?> actionParser)
         , map Residues (s "residues" </> string <?> actionParser)
         , map Manual (s "manual" </> string <?> actionParser)
+        , map GetResults (s "result-files" </> string)
         ]
 
 
@@ -238,6 +240,11 @@ resolveInternalUrl session url =
                         (Update.UpdateConstellation <|
                             Update.DeleteManualJob jobID
                         )
+
+                Just (GetResults _) ->
+                    ( session
+                    , Nav.load <| Url.toString url
+                    )
 
                 Nothing ->
                     ( session, Cmd.none )
