@@ -170,9 +170,9 @@ constellation. First we'll talk about scan then we'll come back to
 constellation.
 
 Scan performs standard computational alanine scan, where every residue
-of the polypeptide/s of interest (called the _ligand_ in the app) is mutated to
+of the polypeptide of interest (called the _ligand_ in the app) is mutated to
 alanine in turn. The interaction energy between each mutant of the _ligand_ and
-another polypeptide/s (called the _receptor_ in the app) is calculated using the
+another polypeptide (called the _receptor_ in the app) is calculated using the
 [BUDE all-atom force
 field](http://journals.sagepub.com/doi/abs/10.1177/1094342014528252). The
 difference in the energy of the wild-type sequence _ligand_/_receptor_
@@ -1194,7 +1194,7 @@ receptor can consist of one or more protein chains of the input structure.
 > want to measure the interaction energy between. The _ligand_ will be
 > mutated during the computational alanine scan.
 
-Once you've done all that, you can click submit scan to send the job to the
+Once you've done all that, you can click "Start Scan" to send the job to the
 server.
     """
         |> Markdown.toHtml []
@@ -1250,7 +1250,7 @@ theJobsPanelText : Html msg
 theJobsPanelText =
     """This panel shows all the jobs you've submitted to the server. Scan jobs
 should finish quickly, but this depends on the size of the structure and the
-queue on the server. You'll be notified when your job is finish in the
+queue on the server. You'll be notified when your job is finished in the
 notification pane, which you can open with the 🔔 button.
 
 Once the job is complete you can click "Show Results" to display the
@@ -1260,12 +1260,12 @@ browser.
 
 There are some other options too:
 
-* *Copy Results Link to Clipboard* - This copies a link to the results of your job
-to your clipboard. You can share this link with anyone.
+* *Copy Results Link to Clipboard* - This copies a link to the results of your
+job to your clipboard. You can share this link with anyone.
 * *Download Full Output* - Downloads a zip file containing the full output
 produced by the commandline application. This even includes Chimera scripts for
 displaying the results of the job.
-* *Delete* - Deletes a job from your jobs list, but not the server, so anyone
+* *Delete* - Deletes a job from your jobs list, but not on the server, so anyone
 with a link can still see the output.
 """
         |> Markdown.toHtml []
@@ -1329,6 +1329,7 @@ scanResults { previous, next, cancel } =
                 { emptyAlaScanModel
                     | results =
                         Just exampleScanResults
+                    , structure = Just <| Model.Structure "" [] []
                 }
         }
     , command = Ports.displayScanResults exampleScanResults
@@ -1382,6 +1383,7 @@ constellationBasics { previous, next, cancel } =
                 { emptyAlaScanModel
                     | results =
                         Just exampleScanResults
+                    , structure = Just <| Model.Structure "" [] []
                 }
             , appMode = Model.Constellation
         }
@@ -1438,6 +1440,7 @@ manualMode { previous, next, cancel } =
                 { emptyAlaScanModel
                     | results =
                         Just exampleScanResults
+                    , structure = Just <| Model.Structure "" [] []
                 }
             , constellation =
                 { emptyConstellationModel
@@ -1498,6 +1501,7 @@ residuesMode { previous, next, cancel } =
                 { emptyAlaScanModel
                     | results =
                         Just exampleScanResults
+                    , structure = Just <| Model.Structure "" [] []
                 }
             , constellation =
                 { emptyConstellationModel
@@ -1562,6 +1566,7 @@ autoMode { previous, next, cancel } =
                 { emptyAlaScanModel
                     | results =
                         Just exampleScanResults
+                    , structure = Just <| Model.Structure "" [] []
                 }
             , constellation =
                 { emptyConstellationModel
@@ -1638,6 +1643,7 @@ constellationResults { previous, next, cancel } =
                 { emptyAlaScanModel
                     | results =
                         Just exampleScanResults
+                    , structure = Just <| Model.Structure "" [] []
                 }
             , constellation =
                 { emptyConstellationModel
@@ -1684,8 +1690,7 @@ completeText =
 anytime by clicking the "❓" button. This web app provides a simple web
 interface to the much more powerful BALS commandline app. If you want to scale
 up your analysis you can download the commandline app and run it on your own
-computer. Finally, click the "ℹ️ " button for general information about the app
-including the version number and relevant publications. Thanks for using BALS!
+computer. Thanks for using BALS!
 """
         |> Markdown.toHtml []
         |> Styled.fromUnstyled

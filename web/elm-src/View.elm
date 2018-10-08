@@ -99,12 +99,6 @@ welcomeWindow =
         [ div
             [ css
                 [ Css.backgroundColor Fancy.colourPalette.c2
-                , Css.boxShadow5
-                    Css.zero
-                    Css.zero
-                    (Css.px 10)
-                    Css.zero
-                    (Css.rgba 100 100 100 1)
                 , Css.maxHeight (Css.pct 100)
                 , Css.margin Css.zero |> Css.important
                 , Css.overflow Css.auto
@@ -125,7 +119,7 @@ welcomeWindow =
                     [ text "Source code" ]
                 , text "."
                 ]
-            , hr [] []
+            , Fancy.hr [] []
             , b [] [ text "THE APP CITATION WILL GO HERE" ]
             , br [] []
             , b [] [ text "THE BALS COMMANDLINE CITATION WILL GO HERE" ]
@@ -455,7 +449,7 @@ scanResultsView results =
             [ text "New Submission" ]
         , Fancy.h3 [] [ text "Job Name" ]
         , Fancy.p [] [ text results.name ]
-        , Fancy.h3 [] [ text "ΔG" ]
+        , Fancy.h3 [] [ text "ΔG (kJ/mol)" ]
         , Fancy.p [] [ String.fromFloat results.dG |> text ]
         , Fancy.h3 [] [ text "Residue Results (Non-Zero)" ]
         , text
@@ -522,7 +516,7 @@ scanResultsTable ligandResults =
             [ Fancy.th [] [ text "Chain" ]
             , Fancy.th [] [ text "Residue" ]
             , Fancy.th [] [ text "Amino Acid" ]
-            , Fancy.th [] [ text "ΔΔG" ]
+            , Fancy.th [] [ text "ΔΔG (kJ/mol)" ]
             , Fancy.th [] [ text "Std Dev" ]
             ]
          ]
@@ -706,7 +700,7 @@ autoSettingsView updateMsg scanRes settings =
             , placeholder "Size"
             ]
             []
-        , Fancy.h3 [] [ text "Cut Off Distance" ]
+        , Fancy.h3 [] [ text "Cut Off Distance (Å)" ]
         , Fancy.input
             [ onInput <|
                 updateMsg
@@ -762,7 +756,7 @@ meetsCriteriaTable settings ligandResults =
             [ Fancy.th [] [ text "Chain" ]
             , Fancy.th [] [ text "Residue" ]
             , Fancy.th [] [ text "Amino Acid" ]
-            , Fancy.th [] [ text "ΔΔG" ]
+            , Fancy.th [] [ text "ΔΔG (kJ/mol)" ]
             ]
          ]
             ++ (List.filter (\res -> res.ddG /= 0) ligandResults
@@ -854,7 +848,7 @@ residueSelectTable updateMsg selected ligandResults =
             [ Fancy.th [] [ text "Chain" ]
             , Fancy.th [] [ text "Residue" ]
             , Fancy.th [] [ text "Amino Acid" ]
-            , Fancy.th [] [ text "ΔΔG" ]
+            , Fancy.th [] [ text "ΔΔG (kJ/mol)" ]
             ]
          ]
             ++ (List.filter (\res -> res.ddG /= 0) ligandResults
@@ -935,11 +929,11 @@ constellationResultsView { hotConstellations, scanResults } =
             ([ Fancy.tr []
                 [ Fancy.th [] [ text "Constellation" ]
                 , Fancy.th [ css [ Css.width (Css.pct 20) ] ]
-                    [ text "Constellation ΔΔG" ]
+                    [ text "Constellation ΔΔG (kJ/mol)" ]
                 , Fancy.th [ css [ Css.width (Css.pct 20) ] ]
-                    [ text "Summed Individual ΔΔGs" ]
+                    [ text "Summed Individual ΔΔGs (kJ/mol)" ]
                 , Fancy.th [ css [ Css.width (Css.pct 20) ] ]
-                    [ text "Cooperativity" ]
+                    [ text "Cooperativity (kJ/mol)" ]
                 ]
              ]
                 ++ List.map (resultsRow scanResults) hotConstellations
@@ -1007,7 +1001,7 @@ resultsRow alaScanResults ( constellation, meanDG ) =
         , Fancy.td []
             [ text <|
                 String.fromFloat <|
-                    roundToXDecPlaces 1 meanDG
+                    roundToXDecPlaces 1 ddG
             ]
         , Fancy.td []
             [ text <|

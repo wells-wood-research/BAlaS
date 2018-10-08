@@ -8,6 +8,7 @@ module Fancy exposing
     , h2
     , h3
     , h4
+    , hr
     , input
     , p
     , smallHeaderStyle
@@ -85,6 +86,15 @@ h4 =
         [ smallHeaderStyle ]
 
 
+hr : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
+hr =
+    styled Styled.hr
+        [ Css.border Css.zero
+        , Css.backgroundColor colourPalette.c1
+        , Css.height (Css.px 3)
+        ]
+
+
 p : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
 p =
     styled Styled.p
@@ -160,6 +170,7 @@ th =
     styled Styled.th
         [ Css.textAlign Css.left
         , Css.padding (Css.px 8)
+        , Css.overflowWrap Css.breakWord
         ]
 
 
