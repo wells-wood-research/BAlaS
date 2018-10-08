@@ -106,19 +106,24 @@ modelToSaveState model =
         model.notifications
 
 
-saveStateToModel : SaveState -> Model
-saveStateToModel saveState =
-    Model
-        Scan
-        { emptyAlaScanModel | jobs = saveState.alaScanJobs }
-        { emptyConstellationModel
-            | autoJobs = saveState.autoJobs
-            , manualJobs = saveState.manualJobs
-            , residuesJobs = saveState.residuesJobs
-        }
-        Nothing
-        saveState.notifications
-        Closed
+saveStateToModel : Maybe SaveState -> Model
+saveStateToModel mSaveState =
+    case mSaveState of
+        Just saveState ->
+            Model
+                Scan
+                { emptyAlaScanModel | jobs = saveState.alaScanJobs }
+                { emptyConstellationModel
+                    | autoJobs = saveState.autoJobs
+                    , manualJobs = saveState.manualJobs
+                    , residuesJobs = saveState.residuesJobs
+                }
+                Nothing
+                saveState.notifications
+                Closed
+
+        Nothing ->
+            emptyModel
 
 
 encodeSaveState : SaveState -> JEn.Value
@@ -152,7 +157,7 @@ saveModel =
 
 loadModel : JDe.Value -> Result JDe.Error Model
 loadModel value =
-    JDe.decodeValue saveStateDecoder value
+    JDe.decodeValue (JDe.nullable saveStateDecoder) value
         |> Result.map saveStateToModel
 
 
