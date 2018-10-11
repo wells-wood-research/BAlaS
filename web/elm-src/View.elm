@@ -367,6 +367,11 @@ onChange message =
     on "change" (JDe.succeed message)
 
 
+onSelectOption : (String -> msg) -> Attribute msg
+onSelectOption handler =
+    on "change" <| JDe.map handler <| JDe.at [ "target", "value" ] JDe.string
+
+
 {-| Main view for the scan tab when in submission mode. This is hidden in
 results mode.
 -}
@@ -641,7 +646,7 @@ activeConstellationSub updateMsg model scanRes =
     in
     div []
         [ Fancy.h3 [] [ text "Select Mode" ]
-        , select [ onInput <| updateMsg << Update.ChangeMode ] <|
+        , select [ onSelectOption <| updateMsg << Update.ChangeMode ] <|
             List.map (simpleOption modeString)
                 [ "Auto", "Manual", "Residues" ]
         , case model.constellationSub of
@@ -881,7 +886,7 @@ residuesSettingsView updateMsg scanResults settings =
             []
         , Fancy.h3 [] [ text "Constellation Size" ]
         , select
-            [ onInput <|
+            [ onSelectOption <|
                 updateMsg
                     << Update.UpdateResiduesSettings
                     << Update.UpdateConstellationSize
