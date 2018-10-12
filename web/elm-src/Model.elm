@@ -254,7 +254,7 @@ encodeAlanineScanSub structure scanSub =
         ]
 
 
-{-| Processed version of BALS results in the `scan` mode.
+{-| Processed version of BAlaS results in the `scan` mode.
 -}
 type alias AlanineScanResults =
     { name : String
@@ -267,7 +267,7 @@ type alias AlanineScanResults =
     }
 
 
-{-| BALS results for a specific residue.
+{-| BAlaS results for a specific residue.
 -}
 type alias ResidueResult =
     { residueNumber : String
@@ -344,7 +344,7 @@ type ConstellationMode
     | Residues ResiduesSettings
 
 
-{-| Record containing settings required by BALS auto mode.
+{-| Record containing settings required by BAlaS auto mode.
 -}
 type alias AutoSettings =
     { name : String
@@ -450,7 +450,7 @@ encodeAutoJob scanResults settings =
         ]
 
 
-{-| Record containing settings required by BALS manual mode.
+{-| Record containing settings required by BAlaS manual mode.
 -}
 type alias ManualSettings =
     { name : String
@@ -500,7 +500,7 @@ encodeManualJob scanResults { name, residues } =
         ]
 
 
-{-| Record containing settings required by BALS residues mode.
+{-| Record containing settings required by BAlaS residues mode.
 -}
 type alias ResiduesSettings =
     { name : String
@@ -582,7 +582,7 @@ representsInt inString =
             False
 
 
-{-| Record containing the processed results of a BALS auto job.
+{-| Record containing the processed results of a BAlaS auto job.
 -}
 type alias ConstellationResults =
     { name : String

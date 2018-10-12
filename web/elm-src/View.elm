@@ -113,14 +113,14 @@ welcomeWindow =
                 ]
             , Fancy.h4 []
                 [ text "Version 1.0, 2018-10-09. "
-                , a [ href "https://github.com/woolfson-group/bals" ]
+                , a [ href "https://github.com/woolfson-group/balas" ]
                     [ text "Source code" ]
                 , text "."
                 ]
             , Fancy.hr [] []
             , b [] [ text "THE APP CITATION WILL GO HERE" ]
             , br [] []
-            , b [] [ text "THE BALS COMMANDLINE CITATION WILL GO HERE" ]
+            , b [] [ text "THE BAlaS COMMANDLINE CITATION WILL GO HERE" ]
             , Fancy.p []
                 [ """
                 To get started go to the Scan tab and upload your structure
