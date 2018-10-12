@@ -1,6 +1,6 @@
 module Main exposing (init, main, subscriptions)
 
-{-| This module provides the main entry point to the BALS web application
+{-| This module provides the main entry point to the BAlaS web application
 front end.
 
 The application is composed of 4 modules:

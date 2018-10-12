@@ -165,7 +165,7 @@ modes { previous, next, cancel } =
 
 modeExplaination : Html msg
 modeExplaination =
-    """BUDE Alanine Scan (BALS) has two modes of operation: scan and
+    """BUDE Alanine Scan (BAlaS) has two modes of operation: scan and
 constellation. First we'll talk about scan then we'll come back to
 constellation.
 
@@ -218,11 +218,11 @@ gettingStarted { previous, next, cancel } =
 
 gettingStartedText : Html msg
 gettingStartedText =
-    """The first thing you need to do to use BALS is to load in your structure
+    """The first thing you need to do to use BAlaS is to load in your structure
 of interest (it currently needs to be in PDB format). To do this click the
 "Choose File" button in the Scan panel and find the file on your computer.
 
-> BALS doesn't work with all PDB files. It can't handle some badly formatted
+> BAlaS doesn't work with all PDB files. It can't handle some badly formatted
 > files or structures with non-canonical amino acids. If the job fails for this
 > reason it should tell you in the notifications.
 """
@@ -1523,7 +1523,7 @@ residuesMode { previous, next, cancel } =
 residuesModeText : Html msg
 residuesModeText =
     """In Residues mode you select any number of residues you want to use to
-create constellations and set the constellation size. BALS will then
+create constellations and set the constellation size. BAlaS will then
 automatically create all combinations of residues for that constellation size.
 
 > You cannot submit a job with less residues selected than the size of your
@@ -1688,9 +1688,9 @@ completeText : Html msg
 completeText =
     """You've now completed the BUDE Alanine Scan tutorial. You can revisit it
 anytime by clicking the "❓" button. This web app provides a simple web
-interface to the much more powerful BALS commandline app. If you want to scale
+interface to the much more powerful BAlaS commandline app. If you want to scale
 up your analysis you can download the commandline app and run it on your own
-computer. Thanks for using BALS!
+computer. Thanks for using BAlaS!
 """
         |> Markdown.toHtml []
         |> Styled.fromUnstyled
