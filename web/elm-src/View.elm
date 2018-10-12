@@ -52,7 +52,6 @@ view model =
 
                     Nothing ->
                         scanSubmissionView
-                            Update.UpdateScan
                             model.alanineScan.structure
                             model.alanineScan.alanineScanSub
 
@@ -63,7 +62,6 @@ view model =
 
                     Nothing ->
                         constellationSubmissionView
-                            Update.UpdateConstellation
                             model.constellation
                             model.alanineScan.results
 
@@ -376,11 +374,10 @@ onSelectOption handler =
 results mode.
 -}
 scanSubmissionView :
-    (Update.ScanMsg -> msg)
-    -> Maybe Model.Structure
+    Maybe Model.Structure
     -> Model.AlanineScanSub
-    -> Html msg
-scanSubmissionView updateMsg mStructure scanSub =
+    -> Html Update.Msg
+scanSubmissionView mStructure scanSub =
     tabPane
         [ css
             [ Css.backgroundColor Fancy.colourPalette.c3
@@ -392,9 +389,7 @@ scanSubmissionView updateMsg mStructure scanSub =
             , br [] []
             , Fancy.input
                 [ type_ "file"
-                , onChange <|
-                    updateMsg
-                        Update.GetStructure
+                , onChange <| Update.UpdateScan Update.GetStructure
                 , id "pdbFileToLoad"
                 ]
                 []
@@ -406,7 +401,7 @@ scanSubmissionView updateMsg mStructure scanSub =
                         [ text "Job Name"
                         , br [] []
                         , Fancy.input
-                            [ onInput <| updateMsg << Update.SetScanName
+                            [ onInput <| Update.UpdateScan << Update.SetScanName
                             , value <| scanSub.name
                             ]
                             []
@@ -419,14 +414,14 @@ scanSubmissionView updateMsg mStructure scanSub =
                             ]
                          ]
                             ++ List.map
-                                (chainSelect updateMsg
+                                (chainSelect
                                     scanSub.receptor
                                     scanSub.ligand
                                 )
                                 structure.chainLabels
                         )
                     , Fancy.button
-                        [ onClick <| updateMsg Update.SubmitScanJob
+                        [ onClick <| Update.UpdateScan Update.SubmitScanJob
                         , Model.validScanSub scanSub |> not |> disabled
                         ]
                         [ text "Start Scan" ]
@@ -534,19 +529,18 @@ scanResultsTable ligandResults =
 {-| View for selecting the receptor and ligand chains.
 -}
 chainSelect :
-    (Update.ScanMsg -> msg)
-    -> List Model.ChainID
+    List Model.ChainID
     -> List Model.ChainID
     -> Model.ChainID
-    -> Html msg
-chainSelect updateMsg receptorLabels ligandLabels label =
+    -> Html Update.Msg
+chainSelect receptorLabels ligandLabels label =
     Fancy.tr []
         [ Fancy.td [] [ text label ]
         , Fancy.td []
             (if List.member label receptorLabels then
                 [ Fancy.button
                     [ onClick <|
-                        updateMsg <|
+                        Update.UpdateScan <|
                             Update.ClearReceptor label
                     ]
                     [ text "Clear" ]
@@ -558,7 +552,7 @@ chainSelect updateMsg receptorLabels ligandLabels label =
              else
                 [ Fancy.button
                     [ onClick <|
-                        updateMsg <|
+                        Update.UpdateScan <|
                             Update.SetReceptor label
                     ]
                     [ text "Set" ]
@@ -568,7 +562,7 @@ chainSelect updateMsg receptorLabels ligandLabels label =
             (if List.member label ligandLabels then
                 [ Fancy.button
                     [ onClick <|
-                        updateMsg <|
+                        Update.UpdateScan <|
                             Update.ClearLigand label
                     ]
                     [ text "Clear" ]
@@ -580,7 +574,7 @@ chainSelect updateMsg receptorLabels ligandLabels label =
              else
                 [ Fancy.button
                     [ onClick <|
-                        updateMsg <|
+                        Update.UpdateScan <|
                             Update.SetLigand label
                     ]
                     [ text "Set" ]
@@ -597,11 +591,10 @@ chainSelect updateMsg receptorLabels ligandLabels label =
 in results mode.
 -}
 constellationSubmissionView :
-    (Update.ConstellationMsg -> msg)
-    -> Model.ConstellationModel
+    Model.ConstellationModel
     -> Maybe Model.AlanineScanResults
-    -> Html msg
-constellationSubmissionView updateMsg model mScanResults =
+    -> Html Update.Msg
+constellationSubmissionView model mScanResults =
     tabPane
         [ css
             [ Css.backgroundColor Fancy.colourPalette.c4
@@ -610,7 +603,7 @@ constellationSubmissionView updateMsg model mScanResults =
         [ Fancy.h2 [] [ text "Constellation Submission" ]
         , case mScanResults of
             Just results ->
-                activeConstellationSub updateMsg model results
+                activeConstellationSub model results
 
             Nothing ->
                 div []
@@ -627,11 +620,10 @@ constellationSubmissionView updateMsg model mScanResults =
 `AlanineScanResults` is active in the model.
 -}
 activeConstellationSub :
-    (Update.ConstellationMsg -> msg)
-    -> Model.ConstellationModel
+    Model.ConstellationModel
     -> Model.AlanineScanResults
-    -> Html msg
-activeConstellationSub updateMsg model scanRes =
+    -> Html Update.Msg
+activeConstellationSub model scanRes =
     let
         modeString =
             case model.constellationSub of
@@ -646,29 +638,28 @@ activeConstellationSub updateMsg model scanRes =
     in
     div []
         [ Fancy.h3 [] [ text "Select Mode" ]
-        , select [ onSelectOption <| updateMsg << Update.ChangeMode ] <|
+        , select [ onSelectOption <| Update.UpdateConstellation << Update.ChangeMode ] <|
             List.map (simpleOption modeString)
                 [ "Auto", "Manual", "Residues" ]
         , case model.constellationSub of
             Model.Auto settings ->
-                autoSettingsView updateMsg scanRes settings
+                autoSettingsView scanRes settings
 
             Model.Manual settings ->
-                manualSettingsView updateMsg scanRes settings
+                manualSettingsView scanRes settings
 
             Model.Residues settings ->
-                residuesSettingsView updateMsg scanRes settings
+                residuesSettingsView scanRes settings
         ]
 
 
 {-| View for submission of auto settings input.
 -}
 autoSettingsView :
-    (Update.ConstellationMsg -> msg)
-    -> Model.AlanineScanResults
+    Model.AlanineScanResults
     -> Model.AutoSettings
-    -> Html msg
-autoSettingsView updateMsg scanRes settings =
+    -> Html Update.Msg
+autoSettingsView scanRes settings =
     let
         { name, ddGCutOff, constellationSize, cutOffDistance } =
             settings
@@ -677,7 +668,7 @@ autoSettingsView updateMsg scanRes settings =
         [ Fancy.h3 [] [ text "Job Name" ]
         , Fancy.input
             [ onInput <|
-                updateMsg
+                Update.UpdateConstellation
                     << Update.UpdateAutoSettings
                     << Update.UpdateAutoName
             , value name
@@ -686,7 +677,7 @@ autoSettingsView updateMsg scanRes settings =
         , Fancy.h3 [] [ text "ΔΔG Cut Off Value" ]
         , Fancy.input
             [ onInput <|
-                updateMsg
+                Update.UpdateConstellation
                     << Update.UpdateAutoSettings
                     << Update.UpdateDDGCutOff
             , pattern "[+-]?([0-9]*[.])?[0-9]+"
@@ -697,7 +688,7 @@ autoSettingsView updateMsg scanRes settings =
         , Fancy.h3 [] [ text "Constellation Size" ]
         , Fancy.input
             [ onInput <|
-                updateMsg
+                Update.UpdateConstellation
                     << Update.UpdateAutoSettings
                     << Update.UpdateSize
             , pattern "[0-9]*"
@@ -708,7 +699,7 @@ autoSettingsView updateMsg scanRes settings =
         , Fancy.h3 [] [ text "Cut Off Distance (Å)" ]
         , Fancy.input
             [ onInput <|
-                updateMsg
+                Update.UpdateConstellation
                     << Update.UpdateAutoSettings
                     << Update.UpdateDistanceCutOff
             , pattern "[+-]?([0-9]*[.])?[0-9]+"
@@ -718,7 +709,9 @@ autoSettingsView updateMsg scanRes settings =
             []
         , br [] []
         , Fancy.button
-            [ onClick <| updateMsg <| Update.SubmitConstellationJob scanRes
+            [ onClick <|
+                Update.UpdateConstellation <|
+                    Update.SubmitConstellationJob scanRes
             , disabled <|
                 not <|
                     Model.validAutoSettings
@@ -774,11 +767,10 @@ meetsCriteriaTable settings ligandResults =
 {-| View for submission of manual settings input.
 -}
 manualSettingsView :
-    (Update.ConstellationMsg -> msg)
-    -> Model.AlanineScanResults
+    Model.AlanineScanResults
     -> Model.ManualSettings
-    -> Html msg
-manualSettingsView updateMsg scanResults settings =
+    -> Html Update.Msg
+manualSettingsView scanResults settings =
     let
         { residues, name } =
             settings
@@ -787,7 +779,7 @@ manualSettingsView updateMsg scanResults settings =
         [ Fancy.h3 [] [ text "Job Name" ]
         , Fancy.input
             [ onInput <|
-                updateMsg
+                Update.UpdateConstellation
                     << Update.UpdateManualSettings
                     << Update.UpdateManualName
             , value name
@@ -796,7 +788,7 @@ manualSettingsView updateMsg scanResults settings =
         , Fancy.h3 [] [ text "Select Residues" ]
         , text "Click to select."
         , residueSelectTable
-            (updateMsg
+            (Update.UpdateConstellation
                 << Update.UpdateManualSettings
                 << Update.SelectManualResidue
             )
@@ -804,7 +796,9 @@ manualSettingsView updateMsg scanResults settings =
             scanResults.ligandResults
         , br [] []
         , Fancy.button
-            [ onClick <| updateMsg <| Update.SubmitConstellationJob scanResults
+            [ onClick <|
+                Update.UpdateConstellation <|
+                    Update.SubmitConstellationJob scanResults
             , disabled <| not <| Model.validManualSettings settings
             ]
             [ text "Submit" ]
@@ -812,10 +806,10 @@ manualSettingsView updateMsg scanResults settings =
 
 
 residueSelectTable :
-    (Model.ResidueResult -> msg)
+    (Model.ResidueResult -> Update.Msg)
     -> Set.Set String
     -> List Model.ResidueResult
-    -> Html msg
+    -> Html Update.Msg
 residueSelectTable updateMsg selected ligandResults =
     let
         residueResultsRow resResult =
@@ -827,8 +821,7 @@ residueSelectTable updateMsg selected ligandResults =
                     chainID ++ residueNumber
             in
             Fancy.tr
-                ([ onClick <|
-                    updateMsg resResult
+                ([ onClick <| updateMsg resResult
                  ]
                     ++ (case Set.member residueID selected of
                             True ->
@@ -865,11 +858,10 @@ residueSelectTable updateMsg selected ligandResults =
 {-| View for submission of residues settings input.
 -}
 residuesSettingsView :
-    (Update.ConstellationMsg -> msg)
-    -> Model.AlanineScanResults
+    Model.AlanineScanResults
     -> Model.ResiduesSettings
-    -> Html msg
-residuesSettingsView updateMsg scanResults settings =
+    -> Html Update.Msg
+residuesSettingsView scanResults settings =
     let
         { residues, name } =
             settings
@@ -878,7 +870,7 @@ residuesSettingsView updateMsg scanResults settings =
         [ Fancy.h3 [] [ text "Job Name" ]
         , Fancy.input
             [ onInput <|
-                updateMsg
+                Update.UpdateConstellation
                     << Update.UpdateResiduesSettings
                     << Update.UpdateResiduesName
             , value name
@@ -887,7 +879,7 @@ residuesSettingsView updateMsg scanResults settings =
         , Fancy.h3 [] [ text "Constellation Size" ]
         , select
             [ onSelectOption <|
-                updateMsg
+                Update.UpdateConstellation
                     << Update.UpdateResiduesSettings
                     << Update.UpdateConstellationSize
             ]
@@ -897,7 +889,7 @@ residuesSettingsView updateMsg scanResults settings =
         , Fancy.h3 [] [ text "Select Residues" ]
         , text "Click to select."
         , residueSelectTable
-            (updateMsg
+            (Update.UpdateConstellation
                 << Update.UpdateResiduesSettings
                 << Update.SelectResiduesResidue
             )
@@ -905,7 +897,9 @@ residuesSettingsView updateMsg scanResults settings =
             scanResults.ligandResults
         , br [] []
         , Fancy.button
-            [ onClick <| updateMsg <| Update.SubmitConstellationJob scanResults
+            [ onClick <|
+                Update.UpdateConstellation <|
+                    Update.SubmitConstellationJob scanResults
             , disabled <| not <| Model.validResiduesSettings settings
             ]
             [ text "Submit" ]
@@ -1000,7 +994,7 @@ resultsRow alaScanResults ( constellation, meanDG ) =
         [ Fancy.td []
             [ details []
                 [ summary [] [ text constellation ]
-                , String.join " " residueDetails |> text
+                , Fancy.p [] [ String.join ", " residueDetails |> text ]
                 ]
             ]
         , Fancy.td []
