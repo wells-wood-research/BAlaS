@@ -1,3 +1,3 @@
 git+https://github.com/woolfson-group/isambard.git#egg=isambard
 pymongo
-plotly
+plotly==3.3.0
