@@ -11,8 +11,7 @@ import os, sys
 import shutil
 from time import strftime, localtime
 
-from plotly.api.v2.users import current
-
+# from plotly.api.v2.users import current
 
 try:
     assert sys.version_info >= (3, 5)
@@ -22,30 +21,28 @@ except Exception as e:
     print("\n")
     sys.exit(2)
 
-
-
 cpp_dir = "cppCode"
 bysd_dir = "colourBySD"
 div_dir = "dividePDB"
 build_dir = "build"
 getsd_dir = "getSD"
-bude_dir = "BUDE-1.2.9"
+budeScan_dir = "budeScan-1.2.10"
 tgz_ext = ".tar.gz"
-bude_tgz = bude_dir + tgz_ext
-app_tgz = "alaScanApp.tar.gz"
+bude_tgz = budeScan_dir + tgz_ext
+app_tgz = "budeAlaScan.tar.gz"
 
 tar_opt = "-xzvf"
 
 current_dir = os.getcwd()
 
-ala_scan_name = "ALAscanApp.py"
+ala_scan_name = "budeAlaScan.py"
 replot_py_name = "replotAlaScan.py"
 
-scan_exe = "%s/alaScanApp/%s" % (current_dir, ala_scan_name)
-replot_exe = "%s/alaScanApp/%s" % (current_dir, replot_py_name)
+scan_exe = "%s/budeAlaScan/%s" % (current_dir, ala_scan_name)
+replot_exe = "%s/budeAlaScan/%s" % (current_dir, replot_py_name)
 
 # These variables are not meant to be changed
-__ini_file = "%s/.alascanapp.ini" % (os.path.expanduser("~"))
+__ini_file = "%s/.budeAlaScan.ini" % (os.path.expanduser("~"))
 
 # Ini file sections
 __exe_sect = 'Executables'
@@ -59,7 +56,7 @@ __gen_max_auto_num_val = '20'
 
 # ini file dir options
 __dir_wrk_opt = "Work"
-__dir_wrk_val = "%s/ALAscanApp" % (os.path.expanduser("~"))
+__dir_wrk_val = "%s/budeAlaScan" % (os.path.expanduser("~"))
 __dir_scan_opt = "Scan"
 __dir_scan_val = "alaScan"
 
@@ -90,7 +87,7 @@ __dir_cpp_opt = "CppCode"
 __dir_cpp_val = "%s/%s" % (current_dir, cpp_dir)
 
 __dir_bude_opt = "BUDE"
-__dir_bude_val = "${%s}/%s/%s/bin" % (__dir_cpp_opt, bude_dir, build_dir)
+__dir_bude_val = "${%s}/%s/%s/bin" % (__dir_cpp_opt, budeScan_dir, build_dir)
 
 __dir_getsd_opt = "GetSD"
 __dir_getsd_val = "${%s}/%s" % (__dir_cpp_opt, getsd_dir)
@@ -119,7 +116,7 @@ __exe_fgetsd_val = "${%s:%s}/${%s}" % (__dir_sect, __dir_getsd_opt, __exe_getsd_
 
 # Ini file names options
 __names_b_bmc_opt = "BudeBMC"
-__names_b_bmc_val = "alaScanApp.bemc"
+__names_b_bmc_val = "budeAlaScan.bemc"
 __names_b_ctrl_opt = "BudeCtrl"
 __names_b_ctrl_val = "alaScan.bctl"
 __names_b_gen_zero_opt = "BudeGenZero"
@@ -140,7 +137,6 @@ __names_lig_sd_opt = "LigandsAvgSD"
 __names_lig_sd_val = "ligandsAvgSD.bals"
 __names_rcpt_sd_opt = "ReceptorsAvgSD"
 __names_rcpt_sd_val = "receptorsAvgSD.bals"
-
 
 __config_sections = {
     __general_sect:
@@ -183,6 +179,7 @@ __config_sections = {
 
     }
 
+
 def unpack_app(tar_fname, opts):
     """
     Unpack and decompress an archive.
@@ -196,6 +193,7 @@ def unpack_app(tar_fname, opts):
     print(cmd)
     os.system(cmd)
     return
+
 
 def comp_util(my_dir):
     """
@@ -211,6 +209,7 @@ def comp_util(my_dir):
     os.chdir('../')
     return
 
+
 def do_cpp():
     """
     Compile all programs written in C++.
@@ -222,7 +221,7 @@ def do_cpp():
 
     # Unpacking BUDE
     unpack_app(bude_tgz, tar_opt)
-    os.chdir(bude_dir)
+    os.chdir(budeScan_dir)
 
     if not os.path.isdir(build_dir):
         os.makedirs(build_dir, 0o755)
@@ -232,6 +231,7 @@ def do_cpp():
     os.system('make')
     os.chdir('../../../')
     return
+
 
 def read_ini():
     """
@@ -244,6 +244,7 @@ def read_ini():
     my_cfg.read(__ini_file)
 
     return my_cfg
+
 
 def create_config(my_sections):
     '''
@@ -264,6 +265,7 @@ def create_config(my_sections):
             my_cfg.set(a_section, an_option, my_sections[a_section][an_option])
 
     return my_cfg
+
 
 def update_ini(my_cfg):
     '''
@@ -289,6 +291,7 @@ def update_ini(my_cfg):
     my_cfg.set(__exe_sect, __exe_getsd_opt, __exe_getsd_val)
 
     return
+
 
 def check_ini():
     """
@@ -319,7 +322,7 @@ def check_ini():
 
     print("We also updated the working directory [%s]." % (work_dir))
     print("You can put your PDBs in this directory to do the Alanine Scanning.")
-    print("If you use another directory 'ALAscanApp.py' will issue a warning.")
+    print("If you use another directory 'budeAlaScan.py' will issue a warning.")
     print("Manually update the ini file [%s] " % (__ini_file))
     print("Change the value of the option '%s' in section [%s]" % (__dir_wrk_opt, __dir_sect))
     print("to whatever directory you wish to work from.\n")
@@ -328,6 +331,7 @@ def check_ini():
     print("[%s]\n%s = /HOME/My/Dir\n" % (__dir_sect, __dir_wrk_opt))
 
     return
+
 
 def link_exes(my_bin):
 
@@ -354,6 +358,7 @@ def link_exes(my_bin):
         os.system("ln -s %s" % (replot_exe))
     return
 
+
 def edit_bash(my_bin):
 
     b_rc = "%s/.bashrc" % (os.path.expanduser("~"))
@@ -370,7 +375,7 @@ def edit_bash(my_bin):
 
     updated_path = "export PATH=%s:$PATH" % (my_bin)
     b_file = open(bash_file, "a")
-    b_file.write("\n# Path appended for ALAscanApp\n")
+    b_file.write("\n# Path appended for budeAlaScan\n")
     b_file.write(updated_path)
     b_file.close()
 
@@ -379,6 +384,7 @@ def edit_bash(my_bin):
     print(updated_path)
     print("\nAlternatively, you could close this terminal and open a new one.\n")
     return
+
 
 def add_to_bin():
 
@@ -393,6 +399,7 @@ def add_to_bin():
         edit_bash(my_bin)
         link_exes(my_bin)
     return
+
 
 def confirm_go_on(msg):
 
@@ -411,6 +418,7 @@ def confirm_go_on(msg):
         return True
     else:
         return False
+
 
 def begin_work():
     warn_message = """
@@ -449,10 +457,10 @@ def begin_work():
 
 
   Jobs we are doing:
-   - Unpacking the Alanine Scan App.
+   - Unpacking budeAlaScan.
    - Compiling the C++ utilities.
-   - Unpacking and compiling BUDE.
-   - Creating/Updating the Alanine Scan App config file.
+   - Unpacking and compiling budeScan.
+   - Creating/Updating the budeAlaScan config file.
 
   We are dividing this in two parts in case you might like
   to update the config file without re-compiling the C++ programs.
@@ -463,7 +471,7 @@ def begin_work():
     We can now check if you have a 'bin' directory and is part of the path.
 
     If not, we could create and add it to the path as well as creating a link
-    to the ALAscanApp executables.
+    to the budeAlaScan executables.
 
     This will modify/create file '.bashrc' or '.bash_profile' within
     your home directory
@@ -494,7 +502,7 @@ def begin_work():
 
     print(path_msg)
 
-    if confirm_go_on("Do you want to add ALAscanApp to your PATH"):
+    if confirm_go_on("Do you want to add budeAlaScan to your PATH"):
         add_to_bin()
     else:
         print("OK, we will not touch your home directory. :)")

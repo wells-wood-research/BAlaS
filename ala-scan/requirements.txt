@@ -1,3 +1,5 @@
-git+https://github.com/woolfson-group/isambard.git#egg=isambard
-pymongo
+ISAMBARD==2.2.0
+pymongo==3.9.0
+pyqt5==5.13.1
+qtconsole==4.5.5
 plotly==3.3.0
