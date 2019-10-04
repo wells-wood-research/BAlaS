@@ -213,6 +213,7 @@ type alias AlanineScanSub =
     { name : String
     , receptor : List ChainID
     , ligand : List ChainID
+    , rotamerFixActive : Bool
     }
 
 
@@ -222,6 +223,7 @@ emptyScanSub =
         ""
         []
         []
+        True
 
 
 {-| Validates an `AlanineScanSub` to determine if it can be safely submitted.
@@ -251,6 +253,7 @@ encodeAlanineScanSub structure scanSub =
         , ( "pdbFile", JEn.string structure.pdbFile )
         , ( "receptor", JEn.list JEn.string scanSub.receptor )
         , ( "ligand", JEn.list JEn.string scanSub.ligand )
+        , ( "rotamerFixActive", JEn.bool scanSub.rotamerFixActive )
         ]
 
 
@@ -351,6 +354,7 @@ type alias AutoSettings =
     , ddGCutOff : String
     , constellationSize : String
     , cutOffDistance : String
+    , rotamerFixActive : Bool
     }
 
 
@@ -361,6 +365,7 @@ defaultAutoSettings =
         "5.0"
         "3"
         "13.0"
+        True
 
 
 {-| Validates an `AutoSettings` to determine if it can be safely submitted.
@@ -447,6 +452,7 @@ encodeAutoJob scanResults settings =
         , ( "pdbFile", JEn.string scanResults.pdbFile )
         , ( "receptor", JEn.list JEn.string scanResults.receptor )
         , ( "ligand", JEn.list JEn.string scanResults.ligand )
+        , ( "rotamerFixActive", JEn.bool settings.rotamerFixActive )
         ]
 
 
@@ -455,6 +461,7 @@ encodeAutoJob scanResults settings =
 type alias ManualSettings =
     { name : String
     , residues : Set.Set String
+    , rotamerFixActive : Bool
     }
 
 
@@ -463,6 +470,7 @@ defaultManualSettings =
     ManualSettings
         ""
         Set.empty
+        True
 
 
 {-| Validates an `ManualSettings` to determine if it can be safely submitted.
@@ -486,7 +494,7 @@ validManualSettings { name, residues } =
 job and the settings for the manual job selected by the user.
 -}
 encodeManualJob : AlanineScanResults -> ManualSettings -> JEn.Value
-encodeManualJob scanResults { name, residues } =
+encodeManualJob scanResults { name, residues, rotamerFixActive } =
     JEn.object
         [ ( "name", JEn.string name )
         , ( "residues"
@@ -497,6 +505,7 @@ encodeManualJob scanResults { name, residues } =
         , ( "pdbFile", scanResults.pdbFile |> JEn.string )
         , ( "receptor", JEn.list JEn.string scanResults.receptor )
         , ( "ligand", JEn.list JEn.string scanResults.ligand )
+        , ( "rotamerFixActive", JEn.bool rotamerFixActive )
         ]
 
 
@@ -506,6 +515,7 @@ type alias ResiduesSettings =
     { name : String
     , constellationSize : Int
     , residues : Set.Set String
+    , rotamerFixActive : Bool
     }
 
 
@@ -515,6 +525,7 @@ defaultResiduesSettings =
         ""
         3
         Set.empty
+        True
 
 
 {-| Validates an `ResiduesSettings` to determine if it can be safely submitted.
@@ -543,7 +554,7 @@ validResiduesSettings { name, constellationSize, residues } =
 job and the settings for the residues job selected by the user.
 -}
 encodeResiduesJob : AlanineScanResults -> ResiduesSettings -> JEn.Value
-encodeResiduesJob scanResults { name, constellationSize, residues } =
+encodeResiduesJob scanResults { name, constellationSize, residues, rotamerFixActive } =
     JEn.object
         [ ( "name", JEn.string name )
         , ( "constellationSize", JEn.int constellationSize )
@@ -555,6 +566,7 @@ encodeResiduesJob scanResults { name, constellationSize, residues } =
         , ( "pdbFile", JEn.string scanResults.pdbFile )
         , ( "receptor", JEn.list JEn.string scanResults.receptor )
         , ( "ligand", JEn.list JEn.string scanResults.ligand )
+        , ( "rotamerFixActive", JEn.bool rotamerFixActive )
         ]
 
 

@@ -420,6 +420,15 @@ scanSubmissionView mStructure scanSub =
                                 )
                                 structure.chainLabels
                         )
+                    , div []
+                        [ text "Rotamer Compensation"
+                        , Fancy.input
+                            [ onClick <| Update.UpdateScan Update.ToggleRotamerFix
+                            , type_ "checkbox"
+                            , checked scanSub.rotamerFixActive
+                            ]
+                            []
+                        ]
                     , Fancy.button
                         [ onClick <| Update.UpdateScan Update.SubmitScanJob
                         , Model.validScanSub scanSub |> not |> disabled
@@ -661,7 +670,7 @@ autoSettingsView :
     -> Html Update.Msg
 autoSettingsView scanRes settings =
     let
-        { name, ddGCutOff, constellationSize, cutOffDistance } =
+        { name, ddGCutOff, constellationSize, cutOffDistance, rotamerFixActive } =
             settings
     in
     div []
@@ -708,6 +717,17 @@ autoSettingsView scanRes settings =
             ]
             []
         , br [] []
+        , div []
+            [ text "Rotamer Compensation"
+            , Fancy.input
+                [ onClick <|
+                    Update.UpdateConstellation <|
+                        Update.UpdateAutoSettings Update.AutoToggleRotamerFix
+                , type_ "checkbox"
+                , checked rotamerFixActive
+                ]
+                []
+            ]
         , Fancy.button
             [ onClick <|
                 Update.UpdateConstellation <|
@@ -772,7 +792,7 @@ manualSettingsView :
     -> Html Update.Msg
 manualSettingsView scanResults settings =
     let
-        { residues, name } =
+        { residues, name, rotamerFixActive } =
             settings
     in
     div []
@@ -795,6 +815,17 @@ manualSettingsView scanResults settings =
             residues
             scanResults.ligandResults
         , br [] []
+        , div []
+            [ text "Rotamer Compensation"
+            , Fancy.input
+                [ onClick <|
+                    Update.UpdateConstellation <|
+                        Update.UpdateManualSettings Update.ManualToggleRotamerFix
+                , type_ "checkbox"
+                , checked rotamerFixActive
+                ]
+                []
+            ]
         , Fancy.button
             [ onClick <|
                 Update.UpdateConstellation <|
@@ -863,7 +894,7 @@ residuesSettingsView :
     -> Html Update.Msg
 residuesSettingsView scanResults settings =
     let
-        { residues, name } =
+        { residues, name, rotamerFixActive } =
             settings
     in
     div []
@@ -896,6 +927,17 @@ residuesSettingsView scanResults settings =
             residues
             scanResults.ligandResults
         , br [] []
+        , div []
+            [ text "Rotamer Compensation"
+            , Fancy.input
+                [ onClick <|
+                    Update.UpdateConstellation <|
+                        Update.UpdateResiduesSettings Update.ResiduesToggleRotamerFix
+                , type_ "checkbox"
+                , checked rotamerFixActive
+                ]
+                []
+            ]
         , Fancy.button
             [ onClick <|
                 Update.UpdateConstellation <|
@@ -935,7 +977,10 @@ constellationResultsView { hotConstellations, scanResults } =
                     [ text "Cooperativity (kJ/mol)" ]
                 ]
              ]
-                ++ List.map (resultsRow scanResults) hotConstellations
+                ++ (hotConstellations
+                        |> List.sortBy Tuple.first
+                        |> List.map (resultsRow scanResults)
+                   )
             )
         ]
 

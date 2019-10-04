@@ -17,11 +17,11 @@ from bals import app
 from bals import database
 
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
 def home(path):
     """Returns the home page for the bals web app."""
-    return render_template('index.html')
+    return render_template("index.html")
 
 
 # RESTful API
@@ -46,8 +46,7 @@ class AlanineScanJobs(Resource):
         if app.debug:
             print("Submitting Scan Job...", file=sys.stderr)
         job_id = database.submit_scan_job(scan_submission)
-        job_details = database.export_job_details(
-            database.get_scan_job(job_id))
+        job_details = database.export_job_details(database.get_scan_job(job_id))
         if app.debug:
             print(f"Scan Job Submitted: {job_id}", file=sys.stderr)
         return job_details, 201
@@ -82,7 +81,7 @@ class AlanineScanJob(Resource):
             exportable_job = database.export_job(job)
             if exportable_job is None:
                 flask.abort(404)
-            elif exportable_job['status'] != database.JobStatus.COMPLETED.value:
+            elif exportable_job["status"] != database.JobStatus.COMPLETED.value:
                 flask.abort(404)
             if app.debug:
                 print(f"Got job results for job {job_id}.", file=sys.stderr)
@@ -106,11 +105,9 @@ class AutoConstellationJobs(Resource):
         if app.debug:
             print("Submitting auto constellation scan job...", file=sys.stderr)
         job_id = database.submit_auto_job(auto_submission)
-        job_details = database.export_job_details(
-            database.get_auto_job(job_id))
+        job_details = database.export_job_details(database.get_auto_job(job_id))
         if app.debug:
-            print(
-                f"Auto constellation job submitted: {job_id}", file=sys.stderr)
+            print(f"Auto constellation job submitted: {job_id}", file=sys.stderr)
         return job_details, 201
 
 
@@ -130,8 +127,9 @@ class AutoConstellationJob(Resource):
             flask.abort(404)
         if "get-status" in request.args:
             if app.debug:
-                print(f"Getting auto constellation job status{job_id}...",
-                      file=sys.stderr)
+                print(
+                    f"Getting auto constellation job status{job_id}...", file=sys.stderr
+                )
             job_details = database.export_job_details(job)
             if job_details is None:
                 flask.abort(404)
@@ -140,12 +138,14 @@ class AutoConstellationJob(Resource):
             return job_details, 200
         elif "get-results" in request.args:
             if app.debug:
-                print(f"Getting auto constellation job results {job_id}...",
-                      file=sys.stderr)
+                print(
+                    f"Getting auto constellation job results {job_id}...",
+                    file=sys.stderr,
+                )
             exportable_job = database.export_job(job)
             if exportable_job is None:
                 flask.abort(404)
-            elif exportable_job['status'] != database.JobStatus.COMPLETED.value:
+            elif exportable_job["status"] != database.JobStatus.COMPLETED.value:
                 flask.abort(404)
             if app.debug:
                 print(f"Got job results for job {job_id}.", file=sys.stderr)
@@ -169,11 +169,9 @@ class ManualConstellationJobs(Resource):
         if app.debug:
             print("Submitting manual constellation scan job...", file=sys.stderr)
         job_id = database.submit_manual_job(manual_submission)
-        job_details = database.export_job_details(
-            database.get_manual_job(job_id))
+        job_details = database.export_job_details(database.get_manual_job(job_id))
         if app.debug:
-            print(
-                f"Manual constellation job submitted: {job_id}", file=sys.stderr)
+            print(f"Manual constellation job submitted: {job_id}", file=sys.stderr)
         return job_details, 201
 
 
@@ -193,8 +191,10 @@ class ManualConstellationJob(Resource):
             flask.abort(404)
         if "get-status" in request.args:
             if app.debug:
-                print(f"Getting manual constellation job status{job_id}...",
-                      file=sys.stderr)
+                print(
+                    f"Getting manual constellation job status{job_id}...",
+                    file=sys.stderr,
+                )
             job_details = database.export_job_details(job)
             if job_details is None:
                 flask.abort(404)
@@ -203,12 +203,14 @@ class ManualConstellationJob(Resource):
             return job_details, 200
         elif "get-results" in request.args:
             if app.debug:
-                print(f"Getting manual constellation job results {job_id}...",
-                      file=sys.stderr)
+                print(
+                    f"Getting manual constellation job results {job_id}...",
+                    file=sys.stderr,
+                )
             exportable_job = database.export_job(job)
             if exportable_job is None:
                 flask.abort(404)
-            elif exportable_job['status'] != database.JobStatus.COMPLETED.value:
+            elif exportable_job["status"] != database.JobStatus.COMPLETED.value:
                 flask.abort(404)
             if app.debug:
                 print(f"Got job results for job {job_id}.", file=sys.stderr)
@@ -232,11 +234,9 @@ class ResiduesConstellationJobs(Resource):
         if app.debug:
             print("Submitting residues constellation scan job...", file=sys.stderr)
         job_id = database.submit_residues_job(residues_submission)
-        job_details = database.export_job_details(
-            database.get_residues_job(job_id))
+        job_details = database.export_job_details(database.get_residues_job(job_id))
         if app.debug:
-            print(
-                f"Residues constellation job submitted: {job_id}", file=sys.stderr)
+            print(f"Residues constellation job submitted: {job_id}", file=sys.stderr)
         return job_details, 201
 
 
@@ -256,8 +256,10 @@ class ResiduesConstellationJob(Resource):
             flask.abort(404)
         if "get-status" in request.args:
             if app.debug:
-                print(f"Getting residues constellation job status{job_id}...",
-                      file=sys.stderr)
+                print(
+                    f"Getting residues constellation job status{job_id}...",
+                    file=sys.stderr,
+                )
             job_details = database.export_job_details(job)
             if job_details is None:
                 flask.abort(404)
@@ -266,12 +268,14 @@ class ResiduesConstellationJob(Resource):
             return job_details, 200
         elif "get-results" in request.args:
             if app.debug:
-                print(f"Getting residues constellation job results {job_id}...",
-                      file=sys.stderr)
+                print(
+                    f"Getting residues constellation job results {job_id}...",
+                    file=sys.stderr,
+                )
             exportable_job = database.export_job(job)
             if exportable_job is None:
                 flask.abort(404)
-            elif exportable_job['status'] != database.JobStatus.COMPLETED.value:
+            elif exportable_job["status"] != database.JobStatus.COMPLETED.value:
                 flask.abort(404)
             if app.debug:
                 print(f"Got job results for job {job_id}.", file=sys.stderr)
@@ -279,19 +283,11 @@ class ResiduesConstellationJob(Resource):
         return "No arguments supplied.", 400
 
 
-API.add_resource(AlanineScanJobs,
-                 '/api/v0.1/alanine-scan-jobs')
-API.add_resource(AlanineScanJob,
-                 '/api/v0.1/alanine-scan-job/<string:job_id>')
-API.add_resource(AutoConstellationJobs,
-                 '/api/v0.1/auto-jobs')
-API.add_resource(AutoConstellationJob,
-                 '/api/v0.1/auto-job/<string:job_id>')
-API.add_resource(ManualConstellationJobs,
-                 '/api/v0.1/manual-jobs')
-API.add_resource(ManualConstellationJob,
-                 '/api/v0.1/manual-job/<string:job_id>')
-API.add_resource(ResiduesConstellationJobs,
-                 '/api/v0.1/residues-jobs')
-API.add_resource(ResiduesConstellationJob,
-                 '/api/v0.1/residues-job/<string:job_id>')
+API.add_resource(AlanineScanJobs, "/api/v0.1/alanine-scan-jobs")
+API.add_resource(AlanineScanJob, "/api/v0.1/alanine-scan-job/<string:job_id>")
+API.add_resource(AutoConstellationJobs, "/api/v0.1/auto-jobs")
+API.add_resource(AutoConstellationJob, "/api/v0.1/auto-job/<string:job_id>")
+API.add_resource(ManualConstellationJobs, "/api/v0.1/manual-jobs")
+API.add_resource(ManualConstellationJob, "/api/v0.1/manual-job/<string:job_id>")
+API.add_resource(ResiduesConstellationJobs, "/api/v0.1/residues-jobs")
+API.add_resource(ResiduesConstellationJob, "/api/v0.1/residues-job/<string:job_id>")

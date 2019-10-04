@@ -13,8 +13,6 @@ import sys
 import time
 import tempfile
 
-import isambard
-
 import database
 from database import JobStatus, ALANINE_SCAN_JOBS, AUTO_JOBS, MANUAL_JOBS, RESIDUES_JOBS
 
@@ -24,7 +22,7 @@ RESULT_FILES_DIR = pathlib.Path("/result-files")
 
 @contextlib.contextmanager
 def cd(newdir, cleanup=lambda: True):
-    """Changes directory to a temporary folder and cleans up on exit."""
+    """Change directory to a temporary folder and cleans up on exit."""
     prevdir = os.getcwd()
     os.chdir(os.path.expanduser(newdir))
     try:
@@ -36,7 +34,7 @@ def cd(newdir, cleanup=lambda: True):
 
 @contextlib.contextmanager
 def tempdir():
-    """Creates a temporary directory context for running analysis."""
+    """Create a temporary directory context for running analysis."""
     dirpath = tempfile.mkdtemp()
 
     def cleanup():
@@ -47,7 +45,7 @@ def tempdir():
 
 
 def main():
-    """Establishes the manager and worker subprocesses."""
+    """Establish the manager and worker subprocesses."""
     scan_processes = int(os.getenv(key="SCAN_PROCS", default="1"))
     auto_processes = int(os.getenv(key="AUTO_PROCS", default="1"))
     manual_processes = int(os.getenv(key="MANUAL_PROCS", default="1"))
@@ -94,7 +92,7 @@ def main():
 
 
 def make_queue_components(target_fn, processes, manager):
-    """Creates the various objects required to create the job queue."""
+    """Create the various objects required to create the job queue."""
     queue = manager.Queue()
     assigned_jobs = manager.list([None] * processes)
     workers = [
@@ -107,7 +105,7 @@ def make_queue_components(target_fn, processes, manager):
 
 
 def check_for_lost_jobs(assigned_jobs, collection):
-    """Checks for jobs that are assigned and have failed."""
+    """Check for jobs that are assigned and have failed."""
     running_jobs = collection.find({"status": JobStatus.RUNNING.value})
     for job in running_jobs:
         if job["_id"] not in assigned_jobs:
@@ -116,7 +114,7 @@ def check_for_lost_jobs(assigned_jobs, collection):
 
 
 def check_for_dead_jobs(target_fn, assigned_jobs, queue, workers):
-    """Checks status of workers and restarts any that are dead."""
+    """Check status of workers and restarts any that are dead."""
     for (i, proc) in enumerate(workers):
         if not proc.is_alive():
             proc.terminate()
@@ -127,7 +125,7 @@ def check_for_dead_jobs(target_fn, assigned_jobs, queue, workers):
 
 
 def populate_queue(queue, collection):
-    """Adds jobs from the database to the queue shared by workers."""
+    """Add jobs from the database to the queue shared by workers."""
     submitted_jobs = collection.find({"status": JobStatus.SUBMITTED.value})
     for job in sorted(submitted_jobs, key=lambda x: x["timeSubmitted"]):
         queue.put(job["_id"])
@@ -136,7 +134,7 @@ def populate_queue(queue, collection):
 
 
 def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
-    """Collects and runs alanine scan jobs from queue.
+    """Collect and run alanine scan jobs from queue.
 
     Parameters
     ----------
@@ -148,6 +146,7 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
     proc_i : int
         The index of the processor in the worker list and the
         assigned_jobs list.
+
     """
     # The module is reloaded to establish a new connection
     # to the database for the process fork
@@ -165,6 +164,7 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
                 scan_job["pdbFile"],
                 scan_job["receptor"],
                 scan_job["ligand"],
+                scan_job["rotamerFixActive"],
                 dirpath,
             )
             ALANINE_SCAN_JOBS.update_one({"_id": job_id}, {"$set": results})
@@ -173,8 +173,10 @@ def get_and_run_scan_job(scan_job_queue, assigned_jobs, proc_i):
     return
 
 
-def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains, dirpath):
-    """Runs a BALS job in `scan` mode."""
+def run_bals_scan(
+    job_id, pdb_string, receptor_chains, ligand_chains, rotamerFixActive, dirpath
+):
+    """Run a BALS job in `scan` mode."""
     pdb_filename = f"{job_id}.pdb"
     with open(pdb_filename, "w") as outf:
         outf.write(pdb_string)
@@ -184,7 +186,9 @@ def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains, dirpath):
         + ["-l"]
         + ligand_chains
         + ["-t"]
+        + ([] if rotamerFixActive else ["-i"])
     )  # Suppresses the plots from being displayed.
+    print("SCAN CMD", scan_cmd)
     scan_process = subprocess.run(
         scan_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
@@ -194,7 +198,7 @@ def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains, dirpath):
         lig_json_paths = glob.glob("replot/*Lig_scan*.json")
         assert len(rec_json_paths) == 1
         assert len(lig_json_paths) == 1
-        zip_up_output(job_id, dirpath)
+        _zip_up_output(job_id, dirpath)
         with open(rec_json_paths[0], "r") as inf:
             rec_results = json.load(inf)
         with open(lig_json_paths[0], "r") as inf:
@@ -208,7 +212,7 @@ def run_bals_scan(job_id, pdb_string, receptor_chains, ligand_chains, dirpath):
 
 
 def parser_friendly_output(bals_rec_output, bals_lig_output):
-    """Formats the BALS output to make it better structured for Elm."""
+    """Format the BALS output to make it better structured for Elm."""
     rec_output = bals_rec_output["ala_scan"][0]
     lig_output = bals_lig_output["ala_scan"][0]
     rec_dg = rec_output.pop("dG")
@@ -227,7 +231,7 @@ def parser_friendly_output(bals_rec_output, bals_lig_output):
 
 
 def get_and_run_auto_job(auto_job_queue, assigned_jobs, proc_i):
-    """Collects and runs auto constellation jobs from the queue.
+    """Collect and run auto constellation jobs from the queue.
 
     Parameters
     ----------
@@ -239,6 +243,7 @@ def get_and_run_auto_job(auto_job_queue, assigned_jobs, proc_i):
     proc_i : int
         The index of the processor in the worker list and the
         assigned_jobs list.
+
     """
     # The module is reloaded to establish a new connection
     # to the database for the process fork
@@ -260,6 +265,7 @@ def get_and_run_auto_job(auto_job_queue, assigned_jobs, proc_i):
                 auto_job["ddGCutOff"],
                 auto_job["constellationSize"],
                 auto_job["cutOffDistance"],
+                auto_job["rotamerFixActive"],
                 dirpath,
             )
             AUTO_JOBS.update_one({"_id": job_id}, {"$set": results})
@@ -277,9 +283,10 @@ def run_bals_auto(
     ddg_cutoff,
     constellation_size,
     distance_cutoff,
+    rotamerFixActive,
     dirpath,
 ):
-    """Runs a BALS job in `auto` mode."""
+    """Run a BALS job in `auto` mode."""
     pdb_filename = f"{job_id}.pdb"
     with open(pdb_filename, "w") as outf:
         outf.write(pdb_string)
@@ -297,7 +304,9 @@ def run_bals_auto(
             str(distance_cutoff),
             "-t",
         ]
+        + ([] if rotamerFixActive else ["-i"])
     )  # Suppresses the plots from being displayed.
+    print("AUTO CMD", scan_cmd)
     scan_process = subprocess.run(
         scan_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
@@ -307,7 +316,7 @@ def run_bals_auto(
         lig_json_paths = glob.glob("replot/*Lig_auto*.json")
         assert len(rec_json_paths) == 1
         assert len(lig_json_paths) == 1
-        zip_up_output(job_id, dirpath)
+        _zip_up_output(job_id, dirpath)
         with open(rec_json_paths[0], "r") as inf:
             rec_results = json.load(inf)
         with open(lig_json_paths[0], "r") as inf:
@@ -332,7 +341,7 @@ def run_bals_auto(
 
 
 def get_and_run_manual_job(manual_job_queue, assigned_jobs, proc_i):
-    """Collects and runs manual constellation jobs from the queue.
+    """Collect and run a manual constellation jobs from the queue.
 
     Parameters
     ----------
@@ -344,6 +353,7 @@ def get_and_run_manual_job(manual_job_queue, assigned_jobs, proc_i):
     proc_i : int
         The index of the processor in the worker list and the
         assigned_jobs list.
+
     """
     # The module is reloaded to establish a new connection
     # to the database for the process fork
@@ -363,6 +373,7 @@ def get_and_run_manual_job(manual_job_queue, assigned_jobs, proc_i):
                 manual_job["receptor"],
                 manual_job["ligand"],
                 manual_job["residues"],
+                manual_job["rotamerFixActive"],
                 dirpath,
             )
             MANUAL_JOBS.update_one({"_id": job_id}, {"$set": results})
@@ -372,9 +383,16 @@ def get_and_run_manual_job(manual_job_queue, assigned_jobs, proc_i):
 
 
 def run_bals_manual(
-    job_id, scanName, pdb_string, receptor_chains, ligand_chains, residues, dirpath
+    job_id,
+    scanName,
+    pdb_string,
+    receptor_chains,
+    ligand_chains,
+    residues,
+    rotamerFixActive,
+    dirpath,
 ):
-    """Runs a BALS job in `manual` mode."""
+    """Run a BALS job in `manual` mode."""
     pdb_filename = f"{job_id}.pdb"
     with open(pdb_filename, "w") as outf:
         outf.write(pdb_string)
@@ -384,7 +402,9 @@ def run_bals_manual(
         + ["-l"]
         + ligand_chains
         + ["-c", ",".join(residues), "-t"]
+        + ([] if rotamerFixActive else ["-i"])
     )  # Suppresses the plots from being displayed.
+    print("MANUAL CMD", scan_cmd)
     scan_process = subprocess.run(
         scan_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
@@ -394,7 +414,7 @@ def run_bals_manual(
         lig_json_paths = glob.glob("replot/*Lig_manual*.json")
         assert len(rec_json_paths) == 1
         assert len(lig_json_paths) == 1
-        zip_up_output(job_id, dirpath)
+        _zip_up_output(job_id, dirpath)
         with open(rec_json_paths[0], "r") as inf:
             rec_results = json.load(inf)
         with open(lig_json_paths[0], "r") as inf:
@@ -419,7 +439,7 @@ def run_bals_manual(
 
 
 def get_and_run_residues_job(residues_job_queue, assigned_jobs, proc_i):
-    """Collects and runs residues constellation jobs from the queue.
+    """Collect and run residues constellation jobs from the queue.
 
     Parameters
     ----------
@@ -431,6 +451,7 @@ def get_and_run_residues_job(residues_job_queue, assigned_jobs, proc_i):
     proc_i : int
         The index of the processor in the worker list and the
         assigned_jobs list.
+
     """
     # The module is reloaded to establish a new connection
     # to the database for the process fork
@@ -451,6 +472,7 @@ def get_and_run_residues_job(residues_job_queue, assigned_jobs, proc_i):
                 residues_job["ligand"],
                 residues_job["constellationSize"],
                 residues_job["residues"],
+                residues_job["rotamerFixActive"],
                 dirpath,
             )
             RESIDUES_JOBS.update_one({"_id": job_id}, {"$set": results})
@@ -467,9 +489,10 @@ def run_bals_residues(
     ligand_chains,
     constellationSize,
     residues,
+    rotamerFixActive,
     dirpath,
 ):
-    """Runs a BALS job in `residues` mode."""
+    """Run a BALS job in `residues` mode."""
     pdb_filename = f"{job_id}.pdb"
     with open(pdb_filename, "w") as outf:
         outf.write(pdb_string)
@@ -481,7 +504,9 @@ def run_bals_residues(
         + ["-e"]
         + residues
         + ["-z", str(constellationSize), "-t"]
+        + ([] if rotamerFixActive else ["-i"])
     )  # Suppresses the plots from being displayed.
+    print("RESIDUES", scan_cmd)
     scan_process = subprocess.run(
         scan_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
@@ -491,7 +516,7 @@ def run_bals_residues(
         lig_json_paths = glob.glob("replot/*Lig_residues*.json")
         assert len(rec_json_paths) == 1
         assert len(lig_json_paths) == 1
-        zip_up_output(job_id, dirpath)
+        _zip_up_output(job_id, dirpath)
         with open(rec_json_paths[0], "r") as inf:
             rec_results = json.load(inf)
         with open(lig_json_paths[0], "r") as inf:
@@ -516,12 +541,12 @@ def run_bals_residues(
 
 
 def update_job_status(scan_job_id, status, collection):
-    """Updates status in database entry for alanine scan job."""
+    """Update status in database entry for alanine scan job."""
     collection.update_one({"_id": scan_job_id}, {"$set": {"status": status.value}})
     return
 
 
-def zip_up_output(job_id, dir_name):
+def _zip_up_output(job_id, dir_name):
     output_file_name = str(RESULT_FILES_DIR / f"{job_id}")
     shutil.make_archive(output_file_name, "zip", dir_name)
     return

@@ -344,6 +344,7 @@ type ScanMsg
     | ClearReceptor Model.ChainID
     | ClearLigand Model.ChainID
     | SetScanName String
+    | ToggleRotamerFix
     | SubmitScanJob
     | ScanJobSubmitted (Result Http.Error Model.JobDetails)
     | CheckScanJobs Time.Posix
@@ -476,6 +477,15 @@ updateScan scanMsg scanModel =
             ( { scanModel
                 | alanineScanSub =
                     { scanSub | name = name }
+              }
+            , Cmd.none
+            , []
+            )
+
+        ToggleRotamerFix ->
+            ( { scanModel
+                | alanineScanSub =
+                    { scanSub | rotamerFixActive = not scanSub.rotamerFixActive }
               }
             , Cmd.none
             , []
@@ -1164,6 +1174,7 @@ type AutoSettingsMsg
     | UpdateDDGCutOff String
     | UpdateSize String
     | UpdateDistanceCutOff String
+    | AutoToggleRotamerFix
 
 
 {-| Small helper update that handles user input for creating AutoSettings\`
@@ -1183,10 +1194,14 @@ updateAutoSettings msg settings =
         UpdateDistanceCutOff distance ->
             { settings | cutOffDistance = distance }
 
+        AutoToggleRotamerFix ->
+            { settings | rotamerFixActive = not settings.rotamerFixActive }
+
 
 type ManualSettingsMsg
     = UpdateManualName String
     | SelectManualResidue Model.ResidueResult
+    | ManualToggleRotamerFix
 
 
 {-| Small helper update that handles user input for creating ManualSettings\`
@@ -1238,11 +1253,17 @@ updateManualSettings msg settings =
                         |> Ports.colourResidues
                     )
 
+        ManualToggleRotamerFix ->
+            ( { settings | rotamerFixActive = not settings.rotamerFixActive }
+            , Cmd.none
+            )
+
 
 type ResiduesSettingsMsg
     = UpdateResiduesName String
     | UpdateConstellationSize String
     | SelectResiduesResidue Model.ResidueResult
+    | ResiduesToggleRotamerFix
 
 
 {-| Small helper update that handles user input for creating AutoSettings\`
@@ -1302,6 +1323,11 @@ updateResiduesSettings msg settings =
                         "green"
                         |> Ports.colourResidues
                     )
+
+        ResiduesToggleRotamerFix ->
+            ( { settings | rotamerFixActive = not settings.rotamerFixActive }
+            , Cmd.none
+            )
 
 
 
