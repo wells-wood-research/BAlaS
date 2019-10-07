@@ -97,6 +97,7 @@ appSubscriptions : Model.Model -> Sub Update.Msg
 appSubscriptions model =
     Sub.batch <|
         [ Ports.receiveStructure <| Update.UpdateScan << Update.UpdateStructure
+        , Ports.loadState Update.LoadState
 
         -- , atomClick <| UpdateScan << ToggleResidueSelection
         ]

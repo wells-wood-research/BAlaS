@@ -19,8 +19,10 @@
 </body>
 <div id="main"></div>
 <script type="text/javascript">
+    const storageKey = 'bals';
+
     var node = document.getElementById('main');
-    var storedState = localStorage.getItem('bals');
+    var storedState = localStorage.getItem(storageKey);
     var startingState = storedState ? JSON.parse(storedState) : null;
     // This try block will catch a problem with the local storage.
     var app = Elm.Main.init({
@@ -29,9 +31,15 @@
         });
 
     app.ports.saveState.subscribe(function(state) {
-        localStorage.setItem('bals', JSON.stringify(state));
+        localStorage.setItem(storageKey, JSON.stringify(state));
     });
 
+    window.onstorage = event => {
+      if (event.storageArea === localStorage && event.key === storageKey) {
+        console.log(JSON.parse(event.newValue));
+        app.ports.loadState.send(JSON.parse(event.newValue));
+      }
+    };
 
     // Protein Viewer
     var viewer;

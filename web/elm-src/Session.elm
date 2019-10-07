@@ -91,9 +91,18 @@ update msg session =
                     ( { session | mode = ActiveMode updatedModel }
                     , Cmd.map ActiveMessage <|
                         Cmd.batch
-                            [ Model.saveModel updatedModel |> Ports.saveState
-                            , cmds
-                            ]
+                            ([ cmds
+                             ]
+                                ++ (case updateMsg of
+                                        Update.LoadState _ ->
+                                            []
+
+                                        _ ->
+                                            [ Model.saveModel updatedModel
+                                                |> Ports.saveState
+                                            ]
+                                   )
+                            )
                     )
 
                 TutorialMode _ _ ->

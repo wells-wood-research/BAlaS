@@ -14,6 +14,7 @@ module Update exposing
 
 import Dict
 import Http
+import Json.Decode as JDe
 import Model
 import Notifications exposing (Notification)
 import Ports
@@ -35,6 +36,7 @@ type Msg
     | ClosePanel
     | ColourResidues Model.ResidueColour
     | CopyToClipboard String
+    | LoadState JDe.Value
     | NoOp
 
 
@@ -259,6 +261,35 @@ update msg model =
 
         CopyToClipboard string ->
             ( model, Ports.copyToClipboard string )
+
+        LoadState modelValue ->
+            case Model.loadModel modelValue of
+                Ok newModel ->
+                    let
+                        alanineScan =
+                            model.alanineScan
+
+                        constellation =
+                            model.constellation
+                    in
+                    ( { model
+                        | alanineScan = { alanineScan | jobs = newModel.alanineScan.jobs }
+                        , constellation =
+                            { constellation
+                                | autoJobs = newModel.constellation.autoJobs
+                                , manualJobs = newModel.constellation.manualJobs
+                                , residuesJobs = newModel.constellation.residuesJobs
+                            }
+                      }
+                    , Cmd.none
+                    )
+
+                Err err ->
+                    let
+                        _ =
+                            Debug.log "LOAD MODEL ERROR:" err
+                    in
+                    Debug.todo "Add a catch for this"
 
         NoOp ->
             ( model, Cmd.none )

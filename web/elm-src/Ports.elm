@@ -8,6 +8,7 @@ port module Ports exposing
     , focusOnResidue
     , hoveredName
     , initialiseViewer
+    , loadState
     , receiveStructure
     , requestPDBFile
     , saveState
@@ -69,6 +70,9 @@ port copyToClipboard : String -> Cmd msg
 {- The following ports are triggered by JavaScript functions in index.html and
    send data into the Elm application.
 -}
+
+
+port loadState : (JDe.Value -> msg) -> Sub msg
 
 
 port receiveStructure : (Maybe Model.Structure -> msg) -> Sub msg
