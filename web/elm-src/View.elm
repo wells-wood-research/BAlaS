@@ -14,6 +14,7 @@ import Markdown
 import Model
 import Notifications exposing (Notification)
 import Regex
+import RemoteData
 import Set
 import Update
 import Url.Builder as UrlB
@@ -383,63 +384,100 @@ scanSubmissionView mStructure scanSub =
             [ Css.backgroundColor Fancy.colourPalette.c3
             ]
         ]
-        [ Fancy.h2 [] [ text "Scan Submission" ]
-        , div []
-            [ text "Structure Upload"
-            , br [] []
-            , Fancy.input
-                [ type_ "file"
-                , onChange <| Update.UpdateScan Update.GetStructure
-                , id "pdbFileToLoad"
-                ]
-                []
-            ]
-        , div []
-            (case mStructure of
-                Just structure ->
-                    [ div []
-                        [ text "Job Name"
-                        , br [] []
-                        , Fancy.input
-                            [ onInput <| Update.UpdateScan << Update.SetScanName
-                            , value <| scanSub.name
-                            ]
-                            []
-                        ]
-                    , Fancy.table []
-                        ([ Fancy.tr []
-                            [ Fancy.th [] [ text "Chain" ]
-                            , Fancy.th [] [ text "Receptor" ]
-                            , Fancy.th [] [ text "Ligand" ]
-                            ]
-                         ]
-                            ++ List.map
-                                (chainSelect
-                                    scanSub.receptor
-                                    scanSub.ligand
-                                )
-                                structure.chainLabels
-                        )
-                    , div []
-                        [ text "Rotamer Compensation"
-                        , Fancy.input
-                            [ onClick <| Update.UpdateScan Update.ToggleRotamerFix
-                            , type_ "checkbox"
-                            , checked scanSub.rotamerFixActive
-                            ]
-                            []
-                        ]
-                    , Fancy.button
-                        [ onClick <| Update.UpdateScan Update.SubmitScanJob
-                        , Model.validScanSub scanSub |> not |> disabled
-                        ]
-                        [ text "Start Scan" ]
-                    ]
+        ([ Fancy.h2 [] [ text "Scan Submission" ]
+         ]
+            ++ (case scanSub.submissionRequest of
+                    RemoteData.NotAsked ->
+                        submissionForm mStructure scanSub
 
-                Nothing ->
-                    []
-            )
+                    RemoteData.Loading ->
+                        [ div [] [ text "Submitting job..." ] ]
+
+                    RemoteData.Failure err ->
+                        submissionForm mStructure scanSub
+                            ++ [ div []
+                                    [ text
+                                        """An error occurred while submitting your job
+                                        to the server. Please check your internet
+                                        connection and try resubmitting. If the problem
+                                        persists, there might be an issue with the
+                                        server."""
+                                    ]
+                               ]
+
+                    RemoteData.Success jobDetails ->
+                        [ div []
+                            [ text
+                                ("Job submitted sucessfully. Job ID: "
+                                    ++ jobDetails.jobID
+                                )
+                            ]
+                        ]
+               )
+        )
+
+
+submissionForm :
+    Maybe Model.Structure
+    -> Model.AlanineScanSub
+    -> List (Html Update.Msg)
+submissionForm mStructure scanSub =
+    [ div []
+        [ text "Structure Upload"
+        , br [] []
+        , Fancy.input
+            [ type_ "file"
+            , onChange <| Update.UpdateScan Update.GetStructure
+            , id "pdbFileToLoad"
+            ]
+            []
         ]
+    , div []
+        (case mStructure of
+            Just structure ->
+                [ div []
+                    [ text "Job Name"
+                    , br [] []
+                    , Fancy.input
+                        [ onInput <| Update.UpdateScan << Update.SetScanName
+                        , value <| scanSub.name
+                        ]
+                        []
+                    ]
+                , Fancy.table []
+                    ([ Fancy.tr []
+                        [ Fancy.th [] [ text "Chain" ]
+                        , Fancy.th [] [ text "Receptor" ]
+                        , Fancy.th [] [ text "Ligand" ]
+                        ]
+                     ]
+                        ++ List.map
+                            (chainSelect
+                                scanSub.receptor
+                                scanSub.ligand
+                            )
+                            structure.chainLabels
+                    )
+                , div []
+                    [ text "Rotamer Compensation"
+                    , Fancy.input
+                        [ onClick <| Update.UpdateScan Update.ToggleRotamerFix
+                        , type_ "checkbox"
+                        , checked scanSub.rotamerFixActive
+                        ]
+                        []
+                    ]
+                , Fancy.button
+                    [ onClick <| Update.UpdateScan Update.SubmitScanJob
+                    , Model.validScanSub scanSub |> not |> disabled
+                    ]
+                    [ text "Start Scan" ]
+                ]
+
+            Nothing ->
+                []
+        )
+    ]
 
 
 {-| Main view for the scan tab when in results mode. This is hidden in

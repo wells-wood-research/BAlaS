@@ -22,6 +22,7 @@ import Model
         , emptyModel
         )
 import Ports
+import RemoteData
 import Set
 import Update
 
@@ -1179,6 +1180,7 @@ scanSubmission { previous, next, cancel } =
                             [ "A" ]
                             [ "B" ]
                             True
+                            RemoteData.NotAsked
                 }
         }
     , command = Cmd.none

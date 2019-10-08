@@ -18,6 +18,7 @@ import Json.Decode as JDe
 import Model
 import Notifications exposing (Notification)
 import Ports
+import RemoteData
 import Set
 import Time
 
@@ -525,7 +526,12 @@ updateScan scanMsg scanModel =
         SubmitScanJob ->
             case scanModel.structure of
                 Just structure ->
-                    ( scanModel
+                    ( { scanModel
+                        | alanineScanSub =
+                            { scanSub
+                                | submissionRequest = RemoteData.Loading
+                            }
+                      }
                     , submitAlanineScan
                         structure
                         scanModel.alanineScanSub
@@ -548,7 +554,12 @@ updateScan scanMsg scanModel =
             )
 
         ScanJobSubmitted (Err error) ->
-            ( scanModel
+            ( { scanModel
+                | alanineScanSub =
+                    { scanSub
+                        | submissionRequest = RemoteData.Failure error
+                    }
+              }
             , Cmd.none
             , [ Notification
                     ""

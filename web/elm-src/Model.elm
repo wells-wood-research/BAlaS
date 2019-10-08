@@ -51,10 +51,12 @@ module Model exposing
    JSON.
 -}
 
+import Http
 import Json.Decode as JDe
 import Json.Encode as JEn
 import Json.Encode.Extra as JEnEx
 import Notifications exposing (Notification, encodeNotification, notificationDecoder)
+import RemoteData exposing (RemoteData)
 import Set
 
 
@@ -214,6 +216,7 @@ type alias AlanineScanSub =
     , receptor : List ChainID
     , ligand : List ChainID
     , rotamerFixActive : Bool
+    , submissionRequest : RemoteData Http.Error JobDetails
     }
 
 
@@ -224,6 +227,7 @@ emptyScanSub =
         []
         []
         True
+        RemoteData.NotAsked
 
 
 {-| Validates an `AlanineScanSub` to determine if it can be safely submitted.
