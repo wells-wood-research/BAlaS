@@ -326,6 +326,7 @@ scanResultsDecoder =
 -}
 type alias ConstellationModel =
     { constellationSub : ConstellationMode
+    , submissionRequest : RemoteData Http.Error JobDetails
     , autoJobs : List JobDetails
     , manualJobs : List JobDetails
     , residuesJobs : List JobDetails
@@ -337,6 +338,7 @@ emptyConstellationModel : ConstellationModel
 emptyConstellationModel =
     ConstellationModel
         (Manual defaultManualSettings)
+        RemoteData.NotAsked
         []
         []
         []

@@ -828,28 +828,23 @@ updateConstellation msg model =
                     )
 
         SubmitConstellationJob alaScanResults ->
-            case model.constellationSub of
+            ( { model | submissionRequest = RemoteData.Loading }
+            , case model.constellationSub of
                 Model.Auto settings ->
-                    ( model
-                    , submitAutoJob alaScanResults settings
-                    , []
-                    )
+                    submitAutoJob alaScanResults settings
 
                 Model.Manual settings ->
-                    ( model
-                    , submitManualJob alaScanResults settings
-                    , []
-                    )
+                    submitManualJob alaScanResults settings
 
                 Model.Residues settings ->
-                    ( model
-                    , submitResiduesJob alaScanResults settings
-                    , []
-                    )
+                    submitResiduesJob alaScanResults settings
+            , []
+            )
 
         AutoJobSubmitted (Ok jobDetails) ->
             ( { model
                 | constellationSub = Model.Auto Model.defaultAutoSettings
+                , submissionRequest = RemoteData.NotAsked
                 , autoJobs = jobDetails :: model.autoJobs
               }
             , Cmd.none
@@ -857,7 +852,7 @@ updateConstellation msg model =
             )
 
         AutoJobSubmitted (Err error) ->
-            ( model
+            ( { model | submissionRequest = RemoteData.Failure error }
             , Cmd.none
             , [ Notifications.Notification
                     ""
@@ -1208,7 +1203,13 @@ updateConstellation msg model =
             )
 
         ClearResults ->
-            ( { model | results = Nothing }, Cmd.none, [] )
+            ( { model
+                | constellationSub = Model.Auto Model.defaultAutoSettings
+                , results = Nothing
+              }
+            , Cmd.none
+            , []
+            )
 
 
 type AutoSettingsMsg
@@ -1219,7 +1220,7 @@ type AutoSettingsMsg
     | AutoToggleRotamerFix
 
 
-{-| Small helper update that handles user input for creating AutoSettings\`
+{-| Small helper update that handles user input for creating AutoSettings
 -}
 updateAutoSettings : AutoSettingsMsg -> Model.AutoSettings -> Model.AutoSettings
 updateAutoSettings msg settings =

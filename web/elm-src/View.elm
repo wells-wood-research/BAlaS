@@ -650,7 +650,34 @@ constellationSubmissionView model mScanResults =
         [ Fancy.h2 [] [ text "Constellation Submission" ]
         , case mScanResults of
             Just results ->
-                activeConstellationSub model results
+                case model.submissionRequest of
+                    RemoteData.NotAsked ->
+                        activeConstellationSub model results
+
+                    RemoteData.Loading ->
+                        div [] [ text "Submitting job..." ]
+
+                    RemoteData.Failure err ->
+                        div []
+                            ([ activeConstellationSub model results ]
+                                ++ [ div []
+                                        [ text
+                                            """An error occurred while submitting your job
+                                            to the server. Please check your internet
+                                            connection and try resubmitting. If the problem
+                                            persists, there might be an issue with the
+                                            server."""
+                                        ]
+                                   ]
+                            )
+
+                    RemoteData.Success jobDetails ->
+                        div []
+                            [ text
+                                ("Job submitted sucessfully. Job ID: "
+                                    ++ jobDetails.jobID
+                                )
+                            ]
 
             Nothing ->
                 div []
