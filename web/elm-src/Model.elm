@@ -18,6 +18,7 @@ module Model exposing
     , ResidueResult
     , ResiduesSettings
     , SaveState
+    , Settings
     , Structure
     , autoResultsDecoder
     , defaultAutoSettings
@@ -68,6 +69,7 @@ type alias Model =
     , constellation : ConstellationModel
     , hoveredName : Maybe String
     , notifications : List Notification
+    , settings : Settings
     , openPanel : Panel
     }
 
@@ -75,7 +77,13 @@ type alias Model =
 type Panel
     = Notifications
     | ViewerOptions
+    | SettingsMenu
     | Closed
+
+
+type alias Settings =
+    { rotamerFixActive : Bool
+    }
 
 
 emptyModel : Model
@@ -86,6 +94,7 @@ emptyModel =
         emptyConstellationModel
         Nothing
         []
+        { rotamerFixActive = True }
         Closed
 
 
@@ -95,6 +104,7 @@ type alias SaveState =
     , manualJobs : List JobDetails
     , residuesJobs : List JobDetails
     , notifications : List Notification
+    , settings : Settings
     }
 
 
@@ -106,6 +116,7 @@ modelToSaveState model =
         model.constellation.manualJobs
         model.constellation.residuesJobs
         model.notifications
+        model.settings
 
 
 saveStateToModel : Maybe SaveState -> Model
@@ -122,6 +133,7 @@ saveStateToModel mSaveState =
                 }
                 Nothing
                 saveState.notifications
+                saveState.settings
                 Closed
 
         Nothing ->
@@ -139,17 +151,32 @@ encodeSaveState saveState =
           , JEn.list encodeNotification
                 saveState.notifications
           )
+        , ( "settings", encodeSettings saveState.settings )
+        ]
+
+
+encodeSettings : Settings -> JEn.Value
+encodeSettings settings =
+    JEn.object
+        [ ( "rotamerFixActive", JEn.bool settings.rotamerFixActive )
         ]
 
 
 saveStateDecoder : JDe.Decoder SaveState
 saveStateDecoder =
-    JDe.map5 SaveState
+    JDe.map6 SaveState
         (JDe.field "alaScanJobs" (JDe.list jobDetailsDecoder))
         (JDe.field "autoJobs" (JDe.list jobDetailsDecoder))
         (JDe.field "manualJobs" (JDe.list jobDetailsDecoder))
         (JDe.field "residuesJobs" (JDe.list jobDetailsDecoder))
         (JDe.field "notifications" (JDe.list notificationDecoder))
+        (JDe.field "settings" settingsDecoder)
+
+
+settingsDecoder : JDe.Decoder Settings
+settingsDecoder =
+    JDe.map Settings
+        (JDe.field "rotamerFixActive" JDe.bool)
 
 
 saveModel : Model -> JEn.Value
@@ -215,7 +242,6 @@ type alias AlanineScanSub =
     { name : String
     , receptor : List ChainID
     , ligand : List ChainID
-    , rotamerFixActive : Bool
     , submissionRequest : RemoteData Http.Error JobDetails
     }
 
@@ -226,7 +252,6 @@ emptyScanSub =
         ""
         []
         []
-        True
         RemoteData.NotAsked
 
 
@@ -250,14 +275,14 @@ validScanSub { name, receptor, ligand } =
 
 {-| JSON encoder for `AlanineScanSub`
 -}
-encodeAlanineScanSub : Structure -> AlanineScanSub -> JEn.Value
-encodeAlanineScanSub structure scanSub =
+encodeAlanineScanSub : Structure -> AlanineScanSub -> Bool -> JEn.Value
+encodeAlanineScanSub structure scanSub rotamerFixActive =
     JEn.object
         [ ( "name", scanSub.name |> JEn.string )
         , ( "pdbFile", JEn.string structure.pdbFile )
         , ( "receptor", JEn.list JEn.string scanSub.receptor )
         , ( "ligand", JEn.list JEn.string scanSub.ligand )
-        , ( "rotamerFixActive", JEn.bool scanSub.rotamerFixActive )
+        , ( "rotamerFixActive", JEn.bool rotamerFixActive )
         ]
 
 
@@ -360,7 +385,6 @@ type alias AutoSettings =
     , ddGCutOff : String
     , constellationSize : String
     , cutOffDistance : String
-    , rotamerFixActive : Bool
     }
 
 
@@ -371,7 +395,6 @@ defaultAutoSettings =
         "5.0"
         "3"
         "13.0"
-        True
 
 
 {-| Validates an `AutoSettings` to determine if it can be safely submitted.
@@ -426,8 +449,8 @@ validAutoSettings ligandResults { name, ddGCutOff, constellationSize, cutOffDist
 {-| JSON encoder that creates an auto job from a previous `AlanineScanResults`
 job and the settings for the auto job selected by the user.
 -}
-encodeAutoJob : AlanineScanResults -> AutoSettings -> JEn.Value
-encodeAutoJob scanResults settings =
+encodeAutoJob : AlanineScanResults -> AutoSettings -> Bool -> JEn.Value
+encodeAutoJob scanResults settings rotamerFixActive =
     JEn.object
         [ ( "name", settings.name |> JEn.string )
         , ( "ddGCutOff"
@@ -458,7 +481,7 @@ encodeAutoJob scanResults settings =
         , ( "pdbFile", JEn.string scanResults.pdbFile )
         , ( "receptor", JEn.list JEn.string scanResults.receptor )
         , ( "ligand", JEn.list JEn.string scanResults.ligand )
-        , ( "rotamerFixActive", JEn.bool settings.rotamerFixActive )
+        , ( "rotamerFixActive", JEn.bool rotamerFixActive )
         ]
 
 
@@ -467,7 +490,6 @@ encodeAutoJob scanResults settings =
 type alias ManualSettings =
     { name : String
     , residues : Set.Set String
-    , rotamerFixActive : Bool
     }
 
 
@@ -476,7 +498,6 @@ defaultManualSettings =
     ManualSettings
         ""
         Set.empty
-        True
 
 
 {-| Validates an `ManualSettings` to determine if it can be safely submitted.
@@ -499,8 +520,8 @@ validManualSettings { name, residues } =
 {-| JSON encoder that creates an manual job from a previous `AlanineScanResults`
 job and the settings for the manual job selected by the user.
 -}
-encodeManualJob : AlanineScanResults -> ManualSettings -> JEn.Value
-encodeManualJob scanResults { name, residues, rotamerFixActive } =
+encodeManualJob : AlanineScanResults -> ManualSettings -> Bool -> JEn.Value
+encodeManualJob scanResults { name, residues } rotamerFixActive =
     JEn.object
         [ ( "name", JEn.string name )
         , ( "residues"
@@ -521,7 +542,6 @@ type alias ResiduesSettings =
     { name : String
     , constellationSize : Int
     , residues : Set.Set String
-    , rotamerFixActive : Bool
     }
 
 
@@ -531,7 +551,6 @@ defaultResiduesSettings =
         ""
         3
         Set.empty
-        True
 
 
 {-| Validates an `ResiduesSettings` to determine if it can be safely submitted.
@@ -559,8 +578,8 @@ validResiduesSettings { name, constellationSize, residues } =
 {-| JSON encoder that creates an residues job from a previous `AlanineScanResults`
 job and the settings for the residues job selected by the user.
 -}
-encodeResiduesJob : AlanineScanResults -> ResiduesSettings -> JEn.Value
-encodeResiduesJob scanResults { name, constellationSize, residues, rotamerFixActive } =
+encodeResiduesJob : AlanineScanResults -> ResiduesSettings -> Bool -> JEn.Value
+encodeResiduesJob scanResults { name, constellationSize, residues } rotamerFixActive =
     JEn.object
         [ ( "name", JEn.string name )
         , ( "constellationSize", JEn.int constellationSize )

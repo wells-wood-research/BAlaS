@@ -1179,7 +1179,6 @@ scanSubmission { previous, next, cancel } =
                             "1ycr AB Scan"
                             [ "A" ]
                             [ "B" ]
-                            True
                             RemoteData.NotAsked
                 }
         }
@@ -1453,7 +1452,6 @@ manualMode { previous, next, cancel } =
                             , residues =
                                 [ "B19", "B23", "B26" ]
                                     |> Set.fromList
-                            , rotamerFixActive = True
                             }
                 }
             , appMode = Model.Constellation
@@ -1516,7 +1514,6 @@ residuesMode { previous, next, cancel } =
                             , residues =
                                 [ "B19", "B23", "B26", "B27" ]
                                     |> Set.fromList
-                            , rotamerFixActive = True
                             }
                 }
             , appMode = Model.Constellation
@@ -1581,7 +1578,6 @@ autoMode { previous, next, cancel } =
                             , ddGCutOff = "15.0"
                             , constellationSize = "3"
                             , cutOffDistance = "15.0"
-                            , rotamerFixActive = True
                             }
                 }
             , appMode = Model.Constellation

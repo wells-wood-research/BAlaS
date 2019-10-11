@@ -55,6 +55,7 @@ view model =
                         scanSubmissionView
                             model.alanineScan.structure
                             model.alanineScan.alanineScanSub
+                            model.settings
 
             Model.Constellation ->
                 case model.constellation.results of
@@ -65,6 +66,7 @@ view model =
                         constellationSubmissionView
                             model.constellation
                             model.alanineScan.results
+                            model.settings
 
             Model.Jobs ->
                 jobsView model
@@ -161,6 +163,10 @@ banner notificationNumber =
                     |> (++) "🔔"
                     |> text
                 ]
+            , Fancy.controlButton
+                [ onClick <| Update.OpenPanel Model.SettingsMenu
+                ]
+                [ text "⚙️" ]
             ]
         ]
 
@@ -246,6 +252,9 @@ sidePanel model =
 
         Model.ViewerOptions ->
             [ viewerOptions model.alanineScan.structure ]
+
+        Model.SettingsMenu ->
+            [ settingsMenu model.settings ]
 
         Model.Closed ->
             []
@@ -346,6 +355,38 @@ viewerSelectionRow ( geometryLabel, hidden ) =
         ]
 
 
+{-| Side panel that displays settings options.
+-}
+settingsMenu : Model.Settings -> Html Update.Msg
+settingsMenu settings =
+    panel
+        []
+        [ Fancy.h3 [] [ text "Settings" ]
+        , Fancy.button [ onClick Update.ClosePanel ] [ text "Close" ]
+        , Fancy.table []
+            [ Fancy.tr []
+                [ Fancy.td []
+                    [ div []
+                        [ Fancy.h4 [] [ text "Rotamer Fix" ]
+                        , p []
+                            [ text """Compensates for conformational entropy loss in charged
+                        residues (DERKH). Default: On"""
+                            ]
+                        ]
+                    ]
+                , Fancy.td []
+                    [ Fancy.input
+                        [ onClick <| Update.ToggleRotamerFix settings
+                        , type_ "checkbox"
+                        , checked settings.rotamerFixActive
+                        ]
+                        []
+                    ]
+                ]
+            ]
+        ]
+
+
 tabPane : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
 tabPane =
     styled div
@@ -377,8 +418,9 @@ results mode.
 scanSubmissionView :
     Maybe Model.Structure
     -> Model.AlanineScanSub
+    -> Model.Settings
     -> Html Update.Msg
-scanSubmissionView mStructure scanSub =
+scanSubmissionView mStructure scanSub settings =
     tabPane
         [ css
             [ Css.backgroundColor Fancy.colourPalette.c3
@@ -388,13 +430,13 @@ scanSubmissionView mStructure scanSub =
          ]
             ++ (case scanSub.submissionRequest of
                     RemoteData.NotAsked ->
-                        submissionForm mStructure scanSub
+                        submissionForm mStructure scanSub settings
 
                     RemoteData.Loading ->
                         [ div [] [ text "Submitting job..." ] ]
 
                     RemoteData.Failure err ->
-                        submissionForm mStructure scanSub
+                        submissionForm mStructure scanSub settings
                             ++ [ div []
                                     [ text
                                         """An error occurred while submitting your job
@@ -420,8 +462,9 @@ scanSubmissionView mStructure scanSub =
 submissionForm :
     Maybe Model.Structure
     -> Model.AlanineScanSub
+    -> Model.Settings
     -> List (Html Update.Msg)
-submissionForm mStructure scanSub =
+submissionForm mStructure scanSub settings =
     [ div []
         [ text "Structure Upload"
         , br [] []
@@ -458,17 +501,10 @@ submissionForm mStructure scanSub =
                             )
                             structure.chainLabels
                     )
-                , div []
-                    [ text "Rotamer Compensation"
-                    , Fancy.input
-                        [ onClick <| Update.UpdateScan Update.ToggleRotamerFix
-                        , type_ "checkbox"
-                        , checked scanSub.rotamerFixActive
-                        ]
-                        []
-                    ]
                 , Fancy.button
-                    [ onClick <| Update.UpdateScan Update.SubmitScanJob
+                    [ Update.SubmitScanJob scanSub mStructure settings.rotamerFixActive
+                        |> Update.UpdateScan
+                        |> onClick
                     , Model.validScanSub scanSub |> not |> disabled
                     ]
                     [ text "Start Scan" ]
@@ -640,8 +676,9 @@ in results mode.
 constellationSubmissionView :
     Model.ConstellationModel
     -> Maybe Model.AlanineScanResults
+    -> Model.Settings
     -> Html Update.Msg
-constellationSubmissionView model mScanResults =
+constellationSubmissionView model mScanResults settings =
     tabPane
         [ css
             [ Css.backgroundColor Fancy.colourPalette.c4
@@ -652,14 +689,14 @@ constellationSubmissionView model mScanResults =
             Just results ->
                 case model.submissionRequest of
                     RemoteData.NotAsked ->
-                        activeConstellationSub model results
+                        activeConstellationSub model results settings
 
                     RemoteData.Loading ->
                         div [] [ text "Submitting job..." ]
 
                     RemoteData.Failure err ->
                         div []
-                            ([ activeConstellationSub model results ]
+                            ([ activeConstellationSub model results settings ]
                                 ++ [ div []
                                         [ text
                                             """An error occurred while submitting your job
@@ -696,8 +733,9 @@ constellationSubmissionView model mScanResults =
 activeConstellationSub :
     Model.ConstellationModel
     -> Model.AlanineScanResults
+    -> Model.Settings
     -> Html Update.Msg
-activeConstellationSub model scanRes =
+activeConstellationSub model scanRes settings =
     let
         modeString =
             case model.constellationSub of
@@ -716,14 +754,14 @@ activeConstellationSub model scanRes =
             List.map (simpleOption modeString)
                 [ "Auto", "Manual", "Residues" ]
         , case model.constellationSub of
-            Model.Auto settings ->
-                autoSettingsView scanRes settings
+            Model.Auto autoSettings ->
+                autoSettingsView scanRes autoSettings settings
 
-            Model.Manual settings ->
-                manualSettingsView scanRes settings
+            Model.Manual manualSettings ->
+                manualSettingsView scanRes manualSettings settings
 
-            Model.Residues settings ->
-                residuesSettingsView scanRes settings
+            Model.Residues residuesSettings ->
+                residuesSettingsView scanRes residuesSettings settings
         ]
 
 
@@ -732,11 +770,12 @@ activeConstellationSub model scanRes =
 autoSettingsView :
     Model.AlanineScanResults
     -> Model.AutoSettings
+    -> Model.Settings
     -> Html Update.Msg
-autoSettingsView scanRes settings =
+autoSettingsView scanRes autoSettings settings =
     let
-        { name, ddGCutOff, constellationSize, cutOffDistance, rotamerFixActive } =
-            settings
+        { name, ddGCutOff, constellationSize, cutOffDistance } =
+            autoSettings
     in
     div []
         [ Fancy.h3 [] [ text "Job Name" ]
@@ -782,30 +821,22 @@ autoSettingsView scanRes settings =
             ]
             []
         , br [] []
-        , div []
-            [ text "Rotamer Compensation"
-            , Fancy.input
-                [ onClick <|
-                    Update.UpdateConstellation <|
-                        Update.UpdateAutoSettings Update.AutoToggleRotamerFix
-                , type_ "checkbox"
-                , checked rotamerFixActive
-                ]
-                []
-            ]
         , Fancy.button
             [ onClick <|
                 Update.UpdateConstellation <|
-                    Update.SubmitConstellationJob scanRes
+                    Update.SubmitConstellationJob
+                        scanRes
+                        (Model.Auto autoSettings)
+                        settings.rotamerFixActive
             , disabled <|
                 not <|
                     Model.validAutoSettings
                         scanRes.ligandResults
-                        settings
+                        autoSettings
             ]
             [ text "Submit" ]
         , meetsCriteriaTable
-            settings
+            autoSettings
             scanRes.ligandResults
         ]
 
@@ -854,11 +885,12 @@ meetsCriteriaTable settings ligandResults =
 manualSettingsView :
     Model.AlanineScanResults
     -> Model.ManualSettings
+    -> Model.Settings
     -> Html Update.Msg
-manualSettingsView scanResults settings =
+manualSettingsView scanResults manualSettings settings =
     let
-        { residues, name, rotamerFixActive } =
-            settings
+        { residues, name } =
+            manualSettings
     in
     div []
         [ Fancy.h3 [] [ text "Job Name" ]
@@ -880,22 +912,14 @@ manualSettingsView scanResults settings =
             residues
             scanResults.ligandResults
         , br [] []
-        , div []
-            [ text "Rotamer Compensation"
-            , Fancy.input
-                [ onClick <|
-                    Update.UpdateConstellation <|
-                        Update.UpdateManualSettings Update.ManualToggleRotamerFix
-                , type_ "checkbox"
-                , checked rotamerFixActive
-                ]
-                []
-            ]
         , Fancy.button
             [ onClick <|
                 Update.UpdateConstellation <|
-                    Update.SubmitConstellationJob scanResults
-            , disabled <| not <| Model.validManualSettings settings
+                    Update.SubmitConstellationJob
+                        scanResults
+                        (Model.Manual manualSettings)
+                        settings.rotamerFixActive
+            , disabled <| not <| Model.validManualSettings manualSettings
             ]
             [ text "Submit" ]
         ]
@@ -956,11 +980,12 @@ residueSelectTable updateMsg selected ligandResults =
 residuesSettingsView :
     Model.AlanineScanResults
     -> Model.ResiduesSettings
+    -> Model.Settings
     -> Html Update.Msg
-residuesSettingsView scanResults settings =
+residuesSettingsView scanResults residueSettings settings =
     let
-        { residues, name, rotamerFixActive } =
-            settings
+        { residues, name } =
+            residueSettings
     in
     div []
         [ Fancy.h3 [] [ text "Job Name" ]
@@ -980,7 +1005,7 @@ residuesSettingsView scanResults settings =
                     << Update.UpdateConstellationSize
             ]
           <|
-            List.map (simpleOption <| String.fromInt settings.constellationSize)
+            List.map (simpleOption <| String.fromInt residueSettings.constellationSize)
                 [ "2", "3", "4", "5" ]
         , Fancy.h3 [] [ text "Select Residues" ]
         , text "Click to select."
@@ -992,22 +1017,14 @@ residuesSettingsView scanResults settings =
             residues
             scanResults.ligandResults
         , br [] []
-        , div []
-            [ text "Rotamer Compensation"
-            , Fancy.input
-                [ onClick <|
-                    Update.UpdateConstellation <|
-                        Update.UpdateResiduesSettings Update.ResiduesToggleRotamerFix
-                , type_ "checkbox"
-                , checked rotamerFixActive
-                ]
-                []
-            ]
         , Fancy.button
             [ onClick <|
                 Update.UpdateConstellation <|
-                    Update.SubmitConstellationJob scanResults
-            , disabled <| not <| Model.validResiduesSettings settings
+                    Update.SubmitConstellationJob
+                        scanResults
+                        (Model.Residues residueSettings)
+                        settings.rotamerFixActive
+            , disabled <| not <| Model.validResiduesSettings residueSettings
             ]
             [ text "Submit" ]
         ]

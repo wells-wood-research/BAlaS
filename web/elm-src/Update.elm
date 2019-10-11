@@ -31,6 +31,7 @@ type Msg
     | UpdateScan ScanMsg
     | UpdateConstellation ConstellationMsg
     | SetHoveredName (Maybe String)
+    | ToggleRotamerFix Model.Settings
     | DismissNotification Int
     | ClearNotifications
     | OpenPanel Model.Panel
@@ -224,6 +225,17 @@ update msg model =
             , Cmd.none
             )
 
+        ToggleRotamerFix settings ->
+            ( { model
+                | settings =
+                    { settings
+                        | rotamerFixActive =
+                            not settings.rotamerFixActive
+                    }
+              }
+            , Cmd.none
+            )
+
         DismissNotification idx ->
             ( { model
                 | notifications =
@@ -376,8 +388,7 @@ type ScanMsg
     | ClearReceptor Model.ChainID
     | ClearLigand Model.ChainID
     | SetScanName String
-    | ToggleRotamerFix
-    | SubmitScanJob
+    | SubmitScanJob Model.AlanineScanSub (Maybe Model.Structure) Bool
     | ScanJobSubmitted (Result Http.Error Model.JobDetails)
     | CheckScanJobs Time.Posix
     | ProcessScanStatus (Result Http.Error Model.JobDetails)
@@ -514,17 +525,8 @@ updateScan scanMsg scanModel =
             , []
             )
 
-        ToggleRotamerFix ->
-            ( { scanModel
-                | alanineScanSub =
-                    { scanSub | rotamerFixActive = not scanSub.rotamerFixActive }
-              }
-            , Cmd.none
-            , []
-            )
-
-        SubmitScanJob ->
-            case scanModel.structure of
+        SubmitScanJob scanSubmission mStructure rotamerFixActive ->
+            case mStructure of
                 Just structure ->
                     ( { scanModel
                         | alanineScanSub =
@@ -534,7 +536,8 @@ updateScan scanMsg scanModel =
                       }
                     , submitAlanineScan
                         structure
-                        scanModel.alanineScanSub
+                        scanSubmission
+                        rotamerFixActive
                     , []
                     )
 
@@ -694,7 +697,7 @@ type ConstellationMsg
     | UpdateAutoSettings AutoSettingsMsg
     | UpdateManualSettings ManualSettingsMsg
     | UpdateResiduesSettings ResiduesSettingsMsg
-    | SubmitConstellationJob Model.AlanineScanResults
+    | SubmitConstellationJob Model.AlanineScanResults Model.ConstellationMode Bool
     | AutoJobSubmitted (Result Http.Error Model.JobDetails)
     | CheckAutoJobs Time.Posix
     | ProcessAutoJobStatus (Result Http.Error Model.JobDetails)
@@ -827,17 +830,17 @@ updateConstellation msg model =
                     , []
                     )
 
-        SubmitConstellationJob alaScanResults ->
+        SubmitConstellationJob alaScanResults constellationSub rotamerFixActive ->
             ( { model | submissionRequest = RemoteData.Loading }
-            , case model.constellationSub of
+            , case constellationSub of
                 Model.Auto settings ->
-                    submitAutoJob alaScanResults settings
+                    submitAutoJob alaScanResults settings rotamerFixActive
 
                 Model.Manual settings ->
-                    submitManualJob alaScanResults settings
+                    submitManualJob alaScanResults settings rotamerFixActive
 
                 Model.Residues settings ->
-                    submitResiduesJob alaScanResults settings
+                    submitResiduesJob alaScanResults settings rotamerFixActive
             , []
             )
 
@@ -965,6 +968,7 @@ updateConstellation msg model =
         ManualJobSubmitted (Ok jobDetails) ->
             ( { model
                 | constellationSub = Model.Manual Model.defaultManualSettings
+                , submissionRequest = RemoteData.NotAsked
                 , manualJobs = jobDetails :: model.manualJobs
               }
             , Cmd.none
@@ -972,7 +976,7 @@ updateConstellation msg model =
             )
 
         ManualJobSubmitted (Err error) ->
-            ( model
+            ( { model | submissionRequest = RemoteData.Failure error }
             , Cmd.none
             , [ Notification
                     ""
@@ -1085,6 +1089,7 @@ updateConstellation msg model =
         ResiduesJobSubmitted (Ok jobDetails) ->
             ( { model
                 | constellationSub = Model.Residues Model.defaultResiduesSettings
+                , submissionRequest = RemoteData.NotAsked
                 , residuesJobs = jobDetails :: model.residuesJobs
               }
             , Cmd.none
@@ -1092,7 +1097,7 @@ updateConstellation msg model =
             )
 
         ResiduesJobSubmitted (Err error) ->
-            ( model
+            ( { model | submissionRequest = RemoteData.Failure error }
             , Cmd.none
             , [ Notification
                     ""
@@ -1217,7 +1222,6 @@ type AutoSettingsMsg
     | UpdateDDGCutOff String
     | UpdateSize String
     | UpdateDistanceCutOff String
-    | AutoToggleRotamerFix
 
 
 {-| Small helper update that handles user input for creating AutoSettings
@@ -1237,14 +1241,10 @@ updateAutoSettings msg settings =
         UpdateDistanceCutOff distance ->
             { settings | cutOffDistance = distance }
 
-        AutoToggleRotamerFix ->
-            { settings | rotamerFixActive = not settings.rotamerFixActive }
-
 
 type ManualSettingsMsg
     = UpdateManualName String
     | SelectManualResidue Model.ResidueResult
-    | ManualToggleRotamerFix
 
 
 {-| Small helper update that handles user input for creating ManualSettings\`
@@ -1296,17 +1296,11 @@ updateManualSettings msg settings =
                         |> Ports.colourResidues
                     )
 
-        ManualToggleRotamerFix ->
-            ( { settings | rotamerFixActive = not settings.rotamerFixActive }
-            , Cmd.none
-            )
-
 
 type ResiduesSettingsMsg
     = UpdateResiduesName String
     | UpdateConstellationSize String
     | SelectResiduesResidue Model.ResidueResult
-    | ResiduesToggleRotamerFix
 
 
 {-| Small helper update that handles user input for creating AutoSettings\`
@@ -1367,11 +1361,6 @@ updateResiduesSettings msg settings =
                         |> Ports.colourResidues
                     )
 
-        ResiduesToggleRotamerFix ->
-            ( { settings | rotamerFixActive = not settings.rotamerFixActive }
-            , Cmd.none
-            )
-
 
 
 {- These functions create commands that create HTTP requests. -}
@@ -1379,12 +1368,12 @@ updateResiduesSettings msg settings =
 
 {-| Submits an alanine scan job to the server.
 -}
-submitAlanineScan : Model.Structure -> Model.AlanineScanSub -> Cmd ScanMsg
-submitAlanineScan structure scanSub =
+submitAlanineScan : Model.Structure -> Model.AlanineScanSub -> Bool -> Cmd ScanMsg
+submitAlanineScan structure scanSub rotamerFixActive =
     Http.send ScanJobSubmitted <|
         Http.post
             "/api/v0.1/alanine-scan-jobs"
-            (Model.encodeAlanineScanSub structure scanSub
+            (Model.encodeAlanineScanSub structure scanSub rotamerFixActive
                 |> Http.jsonBody
             )
             Model.jobDetailsDecoder
@@ -1416,12 +1405,13 @@ the job id if successful.
 submitAutoJob :
     Model.AlanineScanResults
     -> Model.AutoSettings
+    -> Bool
     -> Cmd ConstellationMsg
-submitAutoJob scanResults settings =
+submitAutoJob scanResults settings rotamerFixActive =
     Http.send AutoJobSubmitted <|
         Http.post
             "/api/v0.1/auto-jobs"
-            (Model.encodeAutoJob scanResults settings
+            (Model.encodeAutoJob scanResults settings rotamerFixActive
                 |> Http.jsonBody
             )
             Model.jobDetailsDecoder
@@ -1433,12 +1423,13 @@ the job id if successful.
 submitManualJob :
     Model.AlanineScanResults
     -> Model.ManualSettings
+    -> Bool
     -> Cmd ConstellationMsg
-submitManualJob scanResults settings =
+submitManualJob scanResults settings rotamerFixActive =
     Http.send ManualJobSubmitted <|
         Http.post
             "/api/v0.1/manual-jobs"
-            (Model.encodeManualJob scanResults settings
+            (Model.encodeManualJob scanResults settings rotamerFixActive
                 |> Http.jsonBody
             )
             Model.jobDetailsDecoder
@@ -1450,12 +1441,13 @@ the job id if successful.
 submitResiduesJob :
     Model.AlanineScanResults
     -> Model.ResiduesSettings
+    -> Bool
     -> Cmd ConstellationMsg
-submitResiduesJob scanResults settings =
+submitResiduesJob scanResults settings rotamerFixActive =
     Http.send ResiduesJobSubmitted <|
         Http.post
             "/api/v0.1/residues-jobs"
-            (Model.encodeResiduesJob scanResults settings
+            (Model.encodeResiduesJob scanResults settings rotamerFixActive
                 |> Http.jsonBody
             )
             Model.jobDetailsDecoder
