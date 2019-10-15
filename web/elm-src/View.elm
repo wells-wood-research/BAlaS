@@ -1260,7 +1260,7 @@ jobTableRow jobRoot { jobID, name, status } =
                         [ a
                             [ href <|
                                 UrlB.absolute
-                                    [ "result-files"
+                                    [ "balas-result-files"
                                     , jobID ++ ".zip"
                                     ]
                                     []

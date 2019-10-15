@@ -17,7 +17,8 @@ import database
 from database import JobStatus, ALANINE_SCAN_JOBS, AUTO_JOBS, MANUAL_JOBS, RESIDUES_JOBS
 
 
-RESULT_FILES_DIR = pathlib.Path("/result-files")
+# This is hard coded as it needs to be included in the nginx.conf file
+RESULT_FILES_DIR = pathlib.Path("/balas-result-files")
 
 
 @contextlib.contextmanager
@@ -46,10 +47,10 @@ def tempdir():
 
 def main():
     """Establish the manager and worker subprocesses."""
-    scan_processes = int(os.getenv(key="SCAN_PROCS", default="1"))
-    auto_processes = int(os.getenv(key="AUTO_PROCS", default="1"))
-    manual_processes = int(os.getenv(key="MANUAL_PROCS", default="1"))
-    residues_processes = int(os.getenv(key="RESIDUES_PROCS", default="1"))
+    scan_processes = int(os.environ["SCAN_PROCS"])
+    auto_processes = int(os.environ["AUTO_PROCS"])
+    manual_processes = int(os.environ["MANUAL_PROCS"])
+    residues_processes = int(os.environ["RESIDUES_PROCS"])
     with mp.Manager() as manager:
         scan_queue, scan_assigned, scan_workers = make_queue_components(
             get_and_run_scan_job, scan_processes, manager
