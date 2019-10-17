@@ -611,12 +611,10 @@ updateScan scanMsg scanModel =
                 Model.Failed ->
                     [ Notification
                         ""
-                        "Alanine Scan Failed"
-                        ("Alanine scan job "
-                            ++ jobDetails.name
-                            ++ " ("
+                        ("Alanine Scan \"" ++ jobDetails.name ++ "\" Failed")
+                        ("Job ID: "
                             ++ jobDetails.jobID
-                            ++ ") failed:\n"
+                            ++ "\n"
                             ++ Maybe.withDefault
                                 "Unknown error."
                                 jobDetails.stdOut

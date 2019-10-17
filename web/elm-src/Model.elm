@@ -722,7 +722,7 @@ statusToString jobStatus =
             "Completed"
 
         Failed ->
-            "Failed"
+            "Failed: Check notification for details."
 
 
 stringToStatus : String -> JobStatus
