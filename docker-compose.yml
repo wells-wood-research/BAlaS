@@ -8,9 +8,11 @@ services:
       - "3803:80"
     volumes:
       - ./web:/app
-      - result-files:/result-files
+      - balas-result-files:/balas-result-files
     depends_on:
       - db
+    environment:
+      - BALAS_DB_NAME=db
     restart: on-failure
   ala-scan:
     build:
@@ -19,14 +21,19 @@ services:
     depends_on:
       - db
     environment:
+      - BALAS_DB_NAME=db
+      - OMP_NUM_THREADS=1
+      - PYTHONPATH=/app/alaScanApp-dist/alaScanApp
       - PYTHONUNBUFFERED=0
       - SCAN_PROCS=2
-      - PYTHONPATH=/app/alaScanApp-dist/alaScanApp
+      - AUTO_PROCS=3
+      - MANUAL_PROCS=3
+      - RESIDUES_PROCS=3
     restart: on-failure
     volumes:
-      - result-files:/result-files
+      - balas-result-files:/balas-result-files
   db:
     image: mongo
 
 volumes:
-    result-files:
+    balas-result-files:
