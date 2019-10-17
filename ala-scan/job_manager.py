@@ -13,7 +13,7 @@ import sys
 import time
 import tempfile
 
-import database
+import database  # type: ignore
 from database import JobStatus, ALANINE_SCAN_JOBS, AUTO_JOBS, MANUAL_JOBS, RESIDUES_JOBS
 
 
@@ -193,6 +193,7 @@ def run_bals_scan(
     scan_process = subprocess.run(
         scan_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
+    std_out = scan_process.stdout.decode()
     try:
         scan_process.check_returncode()
         rec_json_paths = glob.glob("replot/*Rec_scan*.json")
@@ -207,8 +208,13 @@ def run_bals_scan(
         processed_output = parser_friendly_output(rec_results, lig_results)
     except subprocess.CalledProcessError:
         processed_output = {"status": JobStatus.FAILED.value}
-    processed_output["status"] = JobStatus.COMPLETED.value
-    processed_output["std_out"] = scan_process.stdout.decode()
+        processed_output["std_out"] = std_out
+    if std_out.startswith("ERROR"):
+        processed_output = {"status": JobStatus.FAILED.value}
+        processed_output["std_out"] = std_out
+    else:
+        processed_output["status"] = JobStatus.COMPLETED.value
+        processed_output["std_out"] = std_out
     return processed_output
 
 
@@ -311,6 +317,7 @@ def run_bals_auto(
     scan_process = subprocess.run(
         scan_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
+    std_out = scan_process.stdout.decode()
     try:
         scan_process.check_returncode()
         rec_json_paths = glob.glob("replot/*Rec_auto*.json")
@@ -333,11 +340,14 @@ def run_bals_auto(
             "hotConstellations": [(k, v[0]) for k, v in lig_results["mutants"].items()],
         }
     except subprocess.CalledProcessError:
-        results = {"status": JobStatus.FAILED.value}
+        results = {"status": JobStatus.FAILED.value, "std_out": std_out}
     except AttributeError:
-        results = {"status": JobStatus.FAILED.value}
-    results["status"] = JobStatus.COMPLETED.value
-    results["std_out"] = scan_process.stdout.decode()
+        results = {"status": JobStatus.FAILED.value, "std_out": std_out}
+    if std_out.startswith("ERROR"):
+        results = {"status": JobStatus.FAILED.value, "std_out": std_out}
+    else:
+        results["status"] = JobStatus.COMPLETED.value
+        results["std_out"] = scan_process.stdout.decode()
     return results
 
 
@@ -409,6 +419,7 @@ def run_bals_manual(
     scan_process = subprocess.run(
         scan_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
+    std_out = scan_process.stdout.decode()
     try:
         scan_process.check_returncode()
         rec_json_paths = glob.glob("replot/*Rec_manual*.json")
@@ -431,11 +442,14 @@ def run_bals_manual(
             "hotConstellations": [(k, v[0]) for k, v in lig_results["mutants"].items()],
         }
     except subprocess.CalledProcessError:
-        results = {"status": JobStatus.FAILED.value}
+        results = {"status": JobStatus.FAILED.value, "std_out": std_out}
     except AttributeError:
-        results = {"status": JobStatus.FAILED.value}
-    results["status"] = JobStatus.COMPLETED.value
-    results["std_out"] = scan_process.stdout.decode()
+        results = {"status": JobStatus.FAILED.value, "std_out": std_out}
+    if std_out.startswith("ERROR"):
+        results = {"status": JobStatus.FAILED.value, "std_out": std_out}
+    else:
+        results["status"] = JobStatus.COMPLETED.value
+        results["std_out"] = scan_process.stdout.decode()
     return results
 
 
@@ -511,6 +525,7 @@ def run_bals_residues(
     scan_process = subprocess.run(
         scan_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
+    std_out = scan_process.stdout.decode()
     try:
         scan_process.check_returncode()
         rec_json_paths = glob.glob("replot/*Rec_residues*.json")
@@ -533,11 +548,14 @@ def run_bals_residues(
             "hotConstellations": [(k, v[0]) for k, v in lig_results["mutants"].items()],
         }
     except subprocess.CalledProcessError:
-        results = {"status": JobStatus.FAILED.value}
+        results = {"status": JobStatus.FAILED.value, "std_out": std_out}
     except AttributeError:
-        results = {"status": JobStatus.FAILED.value}
-    results["status"] = JobStatus.COMPLETED.value
-    results["std_out"] = scan_process.stdout.decode()
+        results = {"status": JobStatus.FAILED.value, "std_out": std_out}
+    if std_out.startswith("ERROR"):
+        results = {"status": JobStatus.FAILED.value, "std_out": std_out}
+    else:
+        results["status"] = JobStatus.COMPLETED.value
+        results["std_out"] = scan_process.stdout.decode()
     return results
 
 
