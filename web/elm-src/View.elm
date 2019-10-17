@@ -1264,7 +1264,7 @@ jobTableRow jobRoot { jobID, name, status } =
                                     , jobID ++ ".zip"
                                     ]
                                     []
-                            , download ""
+                            , download <| jobID ++ ".zip"
                             ]
                             [ text "Download Full Output" ]
                         ]
