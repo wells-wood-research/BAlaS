@@ -26,7 +26,7 @@ import Html.Styled.Events exposing (onClick)
 
 
 
--- https://coolors.co/ffffff-412234-6d466b-b49fcc-ead7d7
+-- https://coolors.co/fff6e9-ffefd7-fffef9-e3f0ff-d2e7ff
 
 
 colourPalette :
@@ -38,11 +38,11 @@ colourPalette :
     , white : Css.Color
     }
 colourPalette =
-    { c1 = Css.hex "678d58"
-    , c2 = Css.hex "9ad5ca"
-    , c3 = Css.hex "7579af"
-    , c4 = Css.hex "b49fcc"
-    , c5 = Css.hex "ead7d7"
+    { c1 = Css.hex "fffef9"
+    , c2 = Css.hex "dda980"
+    , c3 = Css.hex "ffefd7"
+    , c4 = Css.hex "e3f0ff"
+    , c5 = Css.hex "d2e7ff"
     , white = Css.hex "ffffff"
     }
 

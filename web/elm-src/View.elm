@@ -263,7 +263,7 @@ sidePanel model =
 panel : List (Styled.Attribute msg) -> List (Styled.Html msg) -> Styled.Html msg
 panel =
     styled div
-        [ Css.backgroundColor Fancy.colourPalette.c2
+        [ Css.backgroundColor Fancy.colourPalette.c5
         , Css.boxShadow5
             Css.zero
             (Css.px 5)
