@@ -902,12 +902,10 @@ updateConstellation msg model =
                 Model.Failed ->
                     [ Notification
                         ""
-                        "Auto Constellation Scan Failed"
-                        ("Alanine constellation scan job "
-                            ++ jobDetails.name
-                            ++ " ("
+                        ("Auto Constellation Scan \"" ++ jobDetails.name ++ "\" Failed")
+                        ("Job ID: "
                             ++ jobDetails.jobID
-                            ++ ") failed:\n"
+                            ++ "\n"
                             ++ Maybe.withDefault
                                 "Unknown error."
                                 jobDetails.stdOut
@@ -1023,12 +1021,10 @@ updateConstellation msg model =
                 Model.Failed ->
                     [ Notification
                         ""
-                        "Manual Constellation Scan Failed"
-                        ("Alanine constellation scan job "
-                            ++ jobDetails.name
-                            ++ " ("
+                        ("Manual Constellation Scan \"" ++ jobDetails.name ++ "\" Failed")
+                        ("Job ID: "
                             ++ jobDetails.jobID
-                            ++ ") failed:\n"
+                            ++ "\n"
                             ++ Maybe.withDefault
                                 "Unknown error."
                                 jobDetails.stdOut
@@ -1144,12 +1140,10 @@ updateConstellation msg model =
                 Model.Failed ->
                     [ Notification
                         ""
-                        "Residues Constellation Scan Failed"
-                        ("Alanine constellation scan job "
-                            ++ jobDetails.name
-                            ++ " ("
+                        ("Residues Constellation Scan \"" ++ jobDetails.name ++ "\" Failed")
+                        ("Job ID: "
                             ++ jobDetails.jobID
-                            ++ ") failed:\n"
+                            ++ "\n"
                             ++ Maybe.withDefault
                                 "Unknown error."
                                 jobDetails.stdOut
