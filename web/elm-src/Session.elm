@@ -59,12 +59,16 @@ type Action
 
 routeParser : Parser (Route -> a) a
 routeParser =
+    let
+        proxyRoute =
+            "balas"
+    in
     UrlP.oneOf
-        [ UrlP.map Scan (UrlP.s "scan" </> UrlP.string <?> actionParser)
-        , UrlP.map Auto (UrlP.s "auto" </> UrlP.string <?> actionParser)
-        , UrlP.map Residues (UrlP.s "residues" </> UrlP.string <?> actionParser)
-        , UrlP.map Manual (UrlP.s "manual" </> UrlP.string <?> actionParser)
-        , UrlP.map GetResults (UrlP.s "result-files" </> UrlP.string)
+        [ UrlP.map Scan (UrlP.s proxyRoute </> UrlP.s "scan" </> UrlP.string <?> actionParser)
+        , UrlP.map Auto (UrlP.s proxyRoute </> UrlP.s "auto" </> UrlP.string <?> actionParser)
+        , UrlP.map Residues (UrlP.s proxyRoute </> UrlP.s "residues" </> UrlP.string <?> actionParser)
+        , UrlP.map Manual (UrlP.s proxyRoute </> UrlP.s "manual" </> UrlP.string <?> actionParser)
+        , UrlP.map GetResults (UrlP.s proxyRoute </> UrlP.s "result-files" </> UrlP.string)
         ]
 
 

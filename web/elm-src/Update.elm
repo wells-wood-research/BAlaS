@@ -1367,7 +1367,7 @@ submitAlanineScan : Model.Structure -> Model.AlanineScanSub -> Bool -> Cmd ScanM
 submitAlanineScan structure scanSub rotamerFixActive =
     Http.send ScanJobSubmitted <|
         Http.post
-            "/api/v0.1/alanine-scan-jobs"
+            "/balas/api/v0.1/alanine-scan-jobs"
             (Model.encodeAlanineScanSub structure scanSub rotamerFixActive
                 |> Http.jsonBody
             )
@@ -1380,7 +1380,7 @@ checkScanJobStatus : Model.JobDetails -> Cmd ScanMsg
 checkScanJobStatus { jobID } =
     Http.send ProcessScanStatus <|
         Http.get
-            ("/api/v0.1/alanine-scan-job/" ++ jobID ++ "?get-status")
+            ("/balas/api/v0.1/alanine-scan-job/" ++ jobID ++ "?get-status")
             Model.jobDetailsDecoder
 
 
@@ -1390,7 +1390,7 @@ getScanResults : String -> Cmd ScanMsg
 getScanResults jobID =
     Http.send ProcessScanResults <|
         Http.get
-            ("/api/v0.1/alanine-scan-job/" ++ jobID ++ "?get-results")
+            ("/balas/api/v0.1/alanine-scan-job/" ++ jobID ++ "?get-results")
             Model.scanResultsDecoder
 
 
@@ -1405,7 +1405,7 @@ submitAutoJob :
 submitAutoJob scanResults settings rotamerFixActive =
     Http.send AutoJobSubmitted <|
         Http.post
-            "/api/v0.1/auto-jobs"
+            "/balas/api/v0.1/auto-jobs"
             (Model.encodeAutoJob scanResults settings rotamerFixActive
                 |> Http.jsonBody
             )
@@ -1423,7 +1423,7 @@ submitManualJob :
 submitManualJob scanResults settings rotamerFixActive =
     Http.send ManualJobSubmitted <|
         Http.post
-            "/api/v0.1/manual-jobs"
+            "/balas/api/v0.1/manual-jobs"
             (Model.encodeManualJob scanResults settings rotamerFixActive
                 |> Http.jsonBody
             )
@@ -1441,7 +1441,7 @@ submitResiduesJob :
 submitResiduesJob scanResults settings rotamerFixActive =
     Http.send ResiduesJobSubmitted <|
         Http.post
-            "/api/v0.1/residues-jobs"
+            "/balas/api/v0.1/residues-jobs"
             (Model.encodeResiduesJob scanResults settings rotamerFixActive
                 |> Http.jsonBody
             )
@@ -1454,7 +1454,7 @@ checkAutoJobStatus : Model.JobDetails -> Cmd ConstellationMsg
 checkAutoJobStatus { jobID } =
     Http.send ProcessAutoJobStatus <|
         Http.get
-            ("/api/v0.1/auto-job/" ++ jobID ++ "?get-status")
+            ("/balas/api/v0.1/auto-job/" ++ jobID ++ "?get-status")
             Model.jobDetailsDecoder
 
 
@@ -1464,7 +1464,7 @@ getAutoResults : String -> Cmd ConstellationMsg
 getAutoResults jobID =
     Http.send ProcessAutoResults <|
         Http.get
-            ("/api/v0.1/auto-job/" ++ jobID ++ "?get-results")
+            ("/balas/api/v0.1/auto-job/" ++ jobID ++ "?get-results")
             Model.autoResultsDecoder
 
 
@@ -1474,7 +1474,7 @@ checkManualJobStatus : Model.JobDetails -> Cmd ConstellationMsg
 checkManualJobStatus { jobID } =
     Http.send ProcessManualJobStatus <|
         Http.get
-            ("/api/v0.1/manual-job/" ++ jobID ++ "?get-status")
+            ("/balas/api/v0.1/manual-job/" ++ jobID ++ "?get-status")
             Model.jobDetailsDecoder
 
 
@@ -1484,7 +1484,7 @@ getManualResults : String -> Cmd ConstellationMsg
 getManualResults jobID =
     Http.send ProcessManualResults <|
         Http.get
-            ("/api/v0.1/manual-job/" ++ jobID ++ "?get-results")
+            ("/balas/api/v0.1/manual-job/" ++ jobID ++ "?get-results")
             Model.autoResultsDecoder
 
 
@@ -1494,7 +1494,7 @@ checkResiduesJobStatus : Model.JobDetails -> Cmd ConstellationMsg
 checkResiduesJobStatus { jobID } =
     Http.send ProcessResiduesJobStatus <|
         Http.get
-            ("/api/v0.1/residues-job/" ++ jobID ++ "?get-status")
+            ("/balas/api/v0.1/residues-job/" ++ jobID ++ "?get-status")
             Model.jobDetailsDecoder
 
 
@@ -1504,7 +1504,7 @@ getResiduesResults : String -> Cmd ConstellationMsg
 getResiduesResults jobID =
     Http.send ProcessResiduesResults <|
         Http.get
-            ("/api/v0.1/residues-job/" ++ jobID ++ "?get-results")
+            ("/balas/api/v0.1/residues-job/" ++ jobID ++ "?get-results")
             Model.autoResultsDecoder
 
 

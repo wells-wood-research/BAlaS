@@ -1181,19 +1181,19 @@ jobsView model =
         [ Fancy.h2 [] [ text "Jobs" ]
         , jobTable
             "Alanine Scan Jobs"
-            "scan"
+            "balas/scan"
             (List.sortBy (\{ name } -> name) alaScanJobs)
         , jobTable
             "Auto Constellation Scan Jobs"
-            "auto"
+            "balas/auto"
             (List.sortBy (\{ name } -> name) autoJobs)
         , jobTable
             "Manual Constellation Scan Jobs"
-            "manual"
+            "balas/manual"
             (List.sortBy (\{ name } -> name) manualJobs)
         , jobTable
             "Residues Constellation Scan Jobs"
-            "residues"
+            "balas/residues"
             (List.sortBy (\{ name } -> name) residuesJobs)
         ]
 
@@ -1260,7 +1260,7 @@ jobTableRow jobRoot { jobID, name, status } =
                         [ a
                             [ href <|
                                 UrlB.absolute
-                                    [ "balas-result-files"
+                                    [ "balas/balas-result-files"
                                     , jobID ++ ".zip"
                                     ]
                                     []
