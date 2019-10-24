@@ -14,7 +14,7 @@ import Ports
 import Tutorial
 import Update
 import Url
-import Url.Parser exposing ((</>), (<?>), Parser, int, map, oneOf, parse, s, string)
+import Url.Parser as UrlP exposing ((</>), (<?>), Parser)
 import Url.Parser.Query as Query
 import View
 
@@ -59,12 +59,12 @@ type Action
 
 routeParser : Parser (Route -> a) a
 routeParser =
-    oneOf
-        [ map Scan (s "scan" </> string <?> actionParser)
-        , map Auto (s "auto" </> string <?> actionParser)
-        , map Residues (s "residues" </> string <?> actionParser)
-        , map Manual (s "manual" </> string <?> actionParser)
-        , map GetResults (s "result-files" </> string)
+    UrlP.oneOf
+        [ UrlP.map Scan (UrlP.s "scan" </> UrlP.string <?> actionParser)
+        , UrlP.map Auto (UrlP.s "auto" </> UrlP.string <?> actionParser)
+        , UrlP.map Residues (UrlP.s "residues" </> UrlP.string <?> actionParser)
+        , UrlP.map Manual (UrlP.s "manual" </> UrlP.string <?> actionParser)
+        , UrlP.map GetResults (UrlP.s "result-files" </> UrlP.string)
         ]
 
 
@@ -165,7 +165,7 @@ resolveInternalUrl session url =
                 msgToSession =
                     modelToActiveSession session model
             in
-            case parse routeParser url of
+            case UrlP.parse routeParser url of
                 Just (Scan jobID Nothing) ->
                     msgToSession
                         (Update.UpdateScan <|
