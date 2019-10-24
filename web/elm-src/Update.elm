@@ -420,7 +420,10 @@ updateScan scanMsg scanModel =
             )
 
         UpdateStructure structure ->
-            ( { scanModel | structure = structure }
+            ( { scanModel
+                | alanineScanSub = Model.emptyScanSub
+                , structure = structure
+              }
             , Cmd.none
             , []
             )
@@ -678,7 +681,7 @@ updateScan scanMsg scanModel =
 
         ClearScanSubmission ->
             ( { scanModel | results = Nothing, structure = Nothing }
-            , Cmd.none
+            , Ports.clearViewer ()
             , []
             )
 
@@ -1201,7 +1204,7 @@ updateConstellation msg model =
 
         ClearResults ->
             ( { model
-                | constellationSub = Model.Auto Model.defaultAutoSettings
+                | constellationSub = Model.Manual Model.defaultManualSettings
                 , results = Nothing
               }
             , Cmd.none
