@@ -555,7 +555,7 @@ updateScan scanMsg scanModel =
                 | alanineScanSub = Model.emptyScanSub
                 , jobs = jobDetails :: scanModel.jobs
               }
-            , Cmd.none
+            , Ports.clearViewer ()
             , []
             )
 
