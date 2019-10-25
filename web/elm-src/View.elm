@@ -163,10 +163,12 @@ banner notificationNumber =
                     |> (++) "🔔"
                     |> text
                 ]
-            , Fancy.controlButton
-                [ onClick <| Update.OpenPanel Model.SettingsMenu
-                ]
-                [ text "⚙️" ]
+
+            -- This has been removed to avoid confusion.
+            -- , Fancy.controlButton
+            --     [ onClick <| Update.OpenPanel Model.SettingsMenu
+            --     ]
+            --     [ text "⚙️" ]
             ]
         ]
 
