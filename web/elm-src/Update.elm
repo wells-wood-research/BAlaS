@@ -298,11 +298,18 @@ update msg model =
                     )
 
                 Err err ->
-                    let
-                        _ =
-                            Debug.log "LOAD MODEL ERROR:" err
-                    in
-                    Debug.todo "Add a catch for this"
+                    ( { model
+                        | notifications =
+                            Notification
+                                ""
+                                "Failed to load saved state."
+                                """Something went wrong while loading the application
+                                from your browser storage. If this keeps happening then
+                                clear the local storage on your browser."""
+                                :: model.notifications
+                      }
+                    , Cmd.none
+                    )
 
         NoOp ->
             ( model, Cmd.none )
