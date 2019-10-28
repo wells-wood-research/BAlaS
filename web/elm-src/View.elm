@@ -115,15 +115,27 @@ welcomeWindow =
                     )
                 ]
             , Fancy.h4 []
-                [ text "Version 1.0, 2018-10-09. "
-                , a [ href "https://github.com/woolfson-group/balas" ]
+                [ text "Version 1.0, 201X-XX-XX. "
+                , a [ href "https://github.com/wells-wood-research/balas" ]
                     [ text "Source code" ]
                 , text "."
                 ]
             , Fancy.hr [] []
-            , b [] [ text "THE APP CITATION WILL GO HERE" ]
-            , br [] []
-            , b [] [ text "THE BAlaS COMMANDLINE CITATION WILL GO HERE" ]
+            , h3 [] [ text "References" ]
+            , p [] [ b [] [ text "THE APP CITATION WILL GO HERE" ] ]
+            , p []
+                [ a [ href "dx.doi.org/10.1021/acschembio.9b00560" ]
+                    [ text "Ibarra AA "
+                    , i [] [ text "et al" ]
+                    , text """ (2019) Predicting and Experimentally Validating
+                    Hot-Spot Residues at Protein–Protein Interfaces, """
+                    , i [] [ text "ACS Chem. Biol." ]
+                    , text ", "
+                    , b [] [ text "14" ]
+                    , text ", 2252-2263."
+                    ]
+                ]
+            , Fancy.hr [] []
             , Fancy.p []
                 [ """
                 To get started go to the Scan tab and upload your structure
