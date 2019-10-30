@@ -115,15 +115,27 @@ welcomeWindow =
                     )
                 ]
             , Fancy.h4 []
-                [ text "Version 1.0, 2018-10-09. "
-                , a [ href "https://github.com/woolfson-group/balas" ]
+                [ text "Version 1.0, 201X-XX-XX. "
+                , a [ href "https://github.com/wells-wood-research/balas" ]
                     [ text "Source code" ]
                 , text "."
                 ]
             , Fancy.hr [] []
-            , b [] [ text "THE APP CITATION WILL GO HERE" ]
-            , br [] []
-            , b [] [ text "THE BAlaS COMMANDLINE CITATION WILL GO HERE" ]
+            , h3 [] [ text "References" ]
+            , p [] [ b [] [ text "THE APP CITATION WILL GO HERE" ] ]
+            , p []
+                [ a [ href "dx.doi.org/10.1021/acschembio.9b00560" ]
+                    [ text "Ibarra AA "
+                    , i [] [ text "et al" ]
+                    , text """ (2019) Predicting and Experimentally Validating
+                    Hot-Spot Residues at Protein–Protein Interfaces, """
+                    , i [] [ text "ACS Chem. Biol." ]
+                    , text ", "
+                    , b [] [ text "14" ]
+                    , text ", 2252-2263."
+                    ]
+                ]
+            , Fancy.hr [] []
             , Fancy.p []
                 [ """
                 To get started go to the Scan tab and upload your structure
@@ -739,6 +751,29 @@ activeConstellationSub :
     -> Html Update.Msg
 activeConstellationSub model scanRes settings =
     let
+        submissionAllowed =
+            model.autoJobs
+                ++ model.manualJobs
+                ++ model.residuesJobs
+                |> List.all
+                    (\j ->
+                        case j.status of
+                            Model.Submitted ->
+                                False
+
+                            Model.Queued ->
+                                False
+
+                            Model.Running ->
+                                False
+
+                            Model.Failed ->
+                                True
+
+                            Model.Completed ->
+                                True
+                    )
+
         modeString =
             case model.constellationSub of
                 Model.Auto _ ->
@@ -751,20 +786,35 @@ activeConstellationSub model scanRes settings =
                     "Residues"
     in
     div []
-        [ Fancy.h3 [] [ text "Select Mode" ]
-        , select [ onSelectOption <| Update.UpdateConstellation << Update.ChangeMode ] <|
-            List.map (simpleOption modeString)
-                [ "Auto", "Manual", "Residues" ]
-        , case model.constellationSub of
-            Model.Auto autoSettings ->
-                autoSettingsView scanRes autoSettings settings
+        (if submissionAllowed then
+            [ Fancy.h3 [] [ text "Select Mode" ]
+            , select [ onSelectOption <| Update.UpdateConstellation << Update.ChangeMode ] <|
+                List.map (simpleOption modeString)
+                    [ "Auto", "Manual", "Residues" ]
+            , case model.constellationSub of
+                Model.Auto autoSettings ->
+                    autoSettingsView scanRes autoSettings settings
 
-            Model.Manual manualSettings ->
-                manualSettingsView scanRes manualSettings settings
+                Model.Manual manualSettings ->
+                    manualSettingsView scanRes manualSettings settings
 
-            Model.Residues residuesSettings ->
-                residuesSettingsView scanRes residuesSettings settings
-        ]
+                Model.Residues residuesSettings ->
+                    residuesSettingsView scanRes residuesSettings settings
+            ]
+
+         else
+            [ Fancy.h3 [] [ text "Constellation Job Active" ]
+            , p []
+                [ text """Please wait for your active constellation job to finish
+            before submitting another. If you'd prefer not to wait, you can download the
+            whole web application and run it locally, or run the command line version.
+            Please check the """
+                , a [ href "https://github.com/wells-wood-research/balas" ]
+                    [ text "code repository" ]
+                , text " for more details."
+                ]
+            ]
+        )
 
 
 {-| View for submission of auto settings input.
