@@ -480,7 +480,12 @@ submissionForm :
     -> List (Html Update.Msg)
 submissionForm mStructure scanSub settings =
     [ div []
-        [ text "Structure Upload"
+        [ text "Structure Upload "
+        , span
+            [ css [ Css.textDecoration Css.underline, Css.cursor Css.pointer ]
+            , onClick <| Update.UpdateScan Update.LoadExample
+            ]
+            [ text "(Example)" ]
         , br [] []
         , Fancy.input
             [ type_ "file"

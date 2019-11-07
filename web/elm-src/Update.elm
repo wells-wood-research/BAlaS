@@ -12,10 +12,11 @@ module Update exposing
    This section contains all code that updates the state of the application.
 -}
 
+import DemoData
 import Dict
 import Http
 import Json.Decode as JDe
-import Model
+import Model exposing (emptyAlaScanModel)
 import Notifications exposing (Notification)
 import Ports
 import RemoteData
@@ -387,7 +388,8 @@ sucessfulConResults model scanResults constellationMsg =
 be updated.
 -}
 type ScanMsg
-    = GetStructure
+    = LoadExample
+    | GetStructure
     | UpdateStructure (Maybe Model.Structure)
     | ChangeVisibility String
     | SetReceptor Model.ChainID
@@ -420,6 +422,15 @@ updateScan scanMsg scanModel =
             scanModel.alanineScanSub
     in
     case scanMsg of
+        LoadExample ->
+            ( { scanModel
+                | alanineScanSub = Model.emptyScanSub
+                , structure = Just DemoData.pdb1ycr
+              }
+            , Ports.showStructure DemoData.pdb1ycr.pdbFile
+            , []
+            )
+
         GetStructure ->
             ( scanModel
             , Ports.requestPDBFile ()
