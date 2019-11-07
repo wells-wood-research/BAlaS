@@ -13,6 +13,7 @@ services:
       - db
     environment:
       - BALAS_DB_NAME=db
+      - BALAS_CONFIG=production
     restart: on-failure
   ala-scan:
     build:
