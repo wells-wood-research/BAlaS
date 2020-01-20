@@ -7,18 +7,26 @@ run inside of a Docker container.
 
 ## References
 
-**Paper submitted**
+[Wood CW et al (2020) BAlaS: fast, interactive and accessible computational alanine-scanning 
+using BudeAlaScan, Bioinformatics, btaa026.](https://doi.org/10.1093/bioinformatics/btaa026)
+
+[Ibarra AA et al (2019) Predicting and Experimentally Validating Hot-Spot Residues at Protein
+–Protein Interfaces, ACS Chem. Biol., 14, 2252-2263.](https://doi.org/10.1021/acschembio.9b00
+560)
 
 ## Building and Running
 
-To build and run the application, you need to have [Docker](https://www.docker.com/)
-installed on your computer. Once Docker is installed, there are a few steps required to
-run the application:
+To build and run the application (in development mode), you need to have
+[Docker](https://www.docker.com/) installed on your computer. Once Docker is installed,
+there are a few steps required to run the application:
 
 1. Clone the repository to your computer (or fork it and clone if you plan to make
    alterations!)
 1. Download the Linux version of Scwrl 4 and add it to the `dependencies\_for\_isambard/`
    folder.
+1. Download and install the Elm compiler: `npm install -g elm`
+1. `cd web/elm-src`
+1. `elm make Main.elm --debug --output=../static/elm/bals.js`
 1. Run `docker-compose up --build`.
 
 Once these steps have been taken the application should be available on `0.0.0.0:3803`.
