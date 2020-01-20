@@ -115,16 +115,24 @@ welcomeWindow =
                     )
                 ]
             , Fancy.h4 []
-                [ text "Version 1.0, 201X-XX-XX. "
+                [ text "Version 1.0, 2020-01-20. "
                 , a [ href "https://github.com/wells-wood-research/balas" ]
                     [ text "Source code" ]
                 , text "."
                 ]
             , Fancy.hr [] []
             , h3 [] [ text "References" ]
-            , p [] [ b [] [ text "THE APP CITATION WILL GO HERE" ] ]
             , p []
-                [ a [ href "dx.doi.org/10.1021/acschembio.9b00560" ]
+                [ a [ href "https://doi.org/10.1093/bioinformatics/btaa026" ]
+                    [ text "Wood CW "
+                    , i [] [ text "et al" ]
+                    , text """ (2020) BAlaS: fast, interactive and accessible computational alanine-scanning using BudeAlaScan, """
+                    , i [] [ text "Bioinformatics" ]
+                    , text ", btaa026."
+                    ]
+                ]
+            , p []
+                [ a [ href "https://doi.org/10.1021/acschembio.9b00560" ]
                     [ text "Ibarra AA "
                     , i [] [ text "et al" ]
                     , text """ (2019) Predicting and Experimentally Validating
@@ -141,7 +149,7 @@ welcomeWindow =
                 To get started go to the Scan tab and upload your structure
                 file. If this is your first time using BUDE Alanine Scan, you
                 might want to run through the tutorial, which you can access
-                using the "❓" button on the bottom right."""
+                using the "❓" button on the bottom left."""
                     |> text
                 ]
             ]
