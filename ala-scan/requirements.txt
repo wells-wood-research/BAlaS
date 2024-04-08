@@ -1,5 +1,5 @@
 ISAMBARD==2.2.0
-pymongo==3.9.0
+pymongo==4.6.3
 pyqt5==5.13.1
 qtconsole==4.5.5
 plotly==3.3.0
