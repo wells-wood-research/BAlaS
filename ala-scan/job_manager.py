@@ -206,15 +206,18 @@ def run_bals_scan(
         with open(lig_json_paths[0], "r") as inf:
             lig_results = json.load(inf)
         processed_output = parser_friendly_output(rec_results, lig_results)
-    except subprocess.CalledProcessError:
+    except Exception as e:
         processed_output = {"status": JobStatus.FAILED.value}
         processed_output["std_out"] = std_out
-    if std_out.startswith("ERROR"):
+        print(f"An error occurred while running job {job_id}:\n{e}\n--\n{std_out}")
+    if std_out.lower().find("error") >= 0:
         processed_output = {"status": JobStatus.FAILED.value}
         processed_output["std_out"] = std_out
+        print(f"BUDE encountered an error while running job {job_id}:\n{std_out}")
     else:
         processed_output["status"] = JobStatus.COMPLETED.value
         processed_output["std_out"] = std_out
+        print(f"Completed and saved job {job_id}")
     return processed_output
 
 
@@ -343,7 +346,7 @@ def run_bals_auto(
         results = {"status": JobStatus.FAILED.value, "std_out": std_out}
     except AttributeError:
         results = {"status": JobStatus.FAILED.value, "std_out": std_out}
-    if std_out.startswith("ERROR"):
+    if std_out.lower().find("error") >= 0:
         results = {"status": JobStatus.FAILED.value, "std_out": std_out}
     else:
         results["status"] = JobStatus.COMPLETED.value
@@ -445,7 +448,7 @@ def run_bals_manual(
         results = {"status": JobStatus.FAILED.value, "std_out": std_out}
     except AttributeError:
         results = {"status": JobStatus.FAILED.value, "std_out": std_out}
-    if std_out.startswith("ERROR"):
+    if std_out.lower().find("error") >= 0:
         results = {"status": JobStatus.FAILED.value, "std_out": std_out}
     else:
         results["status"] = JobStatus.COMPLETED.value
@@ -551,7 +554,7 @@ def run_bals_residues(
         results = {"status": JobStatus.FAILED.value, "std_out": std_out}
     except AttributeError:
         results = {"status": JobStatus.FAILED.value, "std_out": std_out}
-    if std_out.startswith("ERROR"):
+    if std_out.lower().find("error") >= 0:
         results = {"status": JobStatus.FAILED.value, "std_out": std_out}
     else:
         results["status"] = JobStatus.COMPLETED.value
